@@ -48,6 +48,22 @@ class Car:
             print(f"AVISO OpenAL: Erro ao carregar motor.wav -> {e}")
             self.motor_sound = None
 
+        # ==========================================
+        # ÁUDIO DE DERRAPAGEM (OPENAL PARA PITCH DINÂMICO)
+        # ==========================================
+        try:
+            self.skid_sound = oalOpen("sounds/skid.wav")
+            self.skid_sound.set_looping(True)
+            self.skid_sound.set_gain(0.0) # Começa totalmente mudo
+            self.skid_sound.play()        # Fica rodando no fundo
+            
+            # Variável para criar o nosso próprio "Fade In" e "Fade Out" matemático
+            self.skid_gain_atual = 0.0 
+        except Exception as e:
+            print(f"Aviso OpenAL: Erro ao carregar skid.wav -> {e}")
+            self.skid_sound = None
+            self.skid_gain_atual = 0.0
+
         # Animação
         self.frame_index = 0
         self.animation_timer = 0
@@ -90,7 +106,7 @@ class Car:
         ]
         
         self.retro_sway_suave = 0.0 # <-- NOVO: Amortecedor do retrovisor
-        
+
     # Adicionamos o steering_locked=False no final
     def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False):
         # 1. Troca de Marchas
@@ -197,6 +213,52 @@ class Car:
             # O pitch base é 0.8. No talo (rpm 1.0), ele vai para 1.3 (mais o bônus de acelerar).
             # Isso deixa o som muito mais "pesado" e realista no limite!
             self.motor_sound.set_pitch(0.5 + (rpm * 1) + (0.05 if keys[pygame.K_s] else 0))
+
+        # ==========================================
+        # 5. ÁUDIO DE DERRAPAGEM (PITCH E FADE DINÂMICOS)
+        # ==========================================
+        if self.skid_sound:
+            intensidade_alvo = 0.0
+            pitch_alvo = 1.0
+
+            # 1. Cantando Pneu na Curva
+            if abs(curve_intensity) > 0.15 and self.speed > 150 and (keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]):
+                # Calcula o quão extrema é a curva e a velocidade
+                fator_curva = min(1.0, (abs(curve_intensity) - 0.15) / 0.85)
+                fator_vel = self.speed / self.max_speed
+                
+                # A intensidade (volume) sobe se estiver muito rápido e virando muito
+                intensidade_alvo = min(1.0, fator_curva + fator_vel)
+                
+                # O MÁGICO PITCH: Mais rápido e curva mais forte = Pneu grita mais fino!
+                pitch_alvo = 0.8 + (fator_vel * 0.7) + (fator_curva * 0.5)
+
+            # 2. Cantando no Freio
+            elif keys[pygame.K_a] and self.speed > 100:
+                fator_vel = self.speed / self.max_speed
+                intensidade_alvo = fator_vel
+                # O freio tem um som um pouco mais grave e arrastado
+                pitch_alvo = 0.6 + (fator_vel * 0.5)
+
+            # 3. Derrapando na Grama
+            elif na_grama and self.speed > 80:
+                intensidade_alvo = 0.6
+                pitch_alvo = 0.5 + (self.speed / self.max_speed) * 0.3
+
+            # --- O NOSSO FADE IN E FADE OUT PERSONALIZADO ---
+            # Se for para aumentar o som (Fade In), ele sobe rápido (0.15).
+            # Se for para calar o som (Fade Out), ele desce um pouco mais lento (0.05).
+            velocidade_fade = 0.15 if intensidade_alvo > self.skid_gain_atual else 0.05
+            self.skid_gain_atual += (intensidade_alvo - self.skid_gain_atual) * velocidade_fade
+            
+            # Limita o volume máximo para 40% (0.4) para não abafar o motor
+            volume_final = self.skid_gain_atual * 0.4
+            
+            self.skid_sound.set_gain(volume_final)
+            
+            # Só atualiza a afinação se o som estiver alto o suficiente para ouvir
+            if volume_final > 0.01: 
+                self.skid_sound.set_pitch(pitch_alvo)
 
     # Adicionamos 'bots' e 'bot_sprites' no final
     def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None, posicao_atual=1):
