@@ -61,8 +61,8 @@ class Game:
         self.steering_locked = False
         
         # Define o tamanho original do seu PNG
-        self.bot_base_w = 170  
-        self.bot_base_h = 100  
+        self.bot_base_w = 140  
+        self.bot_base_h = 54  
         tamanho_bot = (self.bot_base_w, self.bot_base_h)
         
         self.bot_anim_timer = 0
@@ -79,6 +79,26 @@ class Game:
                 carregar_img("images/cars/bot/front_reto1.png", tamanho_bot),
                 carregar_img("images/cars/bot/front_reto1a.png", tamanho_bot),
                 carregar_img("images/cars/bot/front_reto1b.png", tamanho_bot)
+            ],
+            "front_esq": [
+                carregar_img("images/cars/bot/front_esq1.png", tamanho_bot),
+                carregar_img("images/cars/bot/front_esq1a.png", tamanho_bot),
+                carregar_img("images/cars/bot/front_esq1b.png", tamanho_bot)
+            ],
+            "front_dir": [
+                carregar_img("images/cars/bot/front_dir1.png", tamanho_bot),
+                carregar_img("images/cars/bot/front_dir1a.png", tamanho_bot),
+                carregar_img("images/cars/bot/front_dir1b.png", tamanho_bot)
+            ],
+            "rear_esq": [
+                carregar_img("images/cars/bot/rear_esq1.png", tamanho_bot),
+                carregar_img("images/cars/bot/rear_esq1a.png", tamanho_bot),
+                carregar_img("images/cars/bot/rear_esq1b.png", tamanho_bot)
+            ],
+            "rear_dir": [
+                carregar_img("images/cars/bot/rear_dir1.png", tamanho_bot),
+                carregar_img("images/cars/bot/rear_dir1a.png", tamanho_bot),
+                carregar_img("images/cars/bot/rear_dir1b.png", tamanho_bot)
             ]
         }
 
@@ -164,9 +184,14 @@ class Game:
                         # Ele volta para a linha padrão de corrida para você passar.
                         pass # O target_x já foi definido lá em cima como a linha de curva!
                 
-                # Aplica a curva do volante
-                if bot["x"] < target_x: bot["x"] += 0.04
-                elif bot["x"] > target_x: bot["x"] -= 0.04
+                # ==========================================
+                # DIREÇÃO SUAVE (Interpolação Linear)
+                # ==========================================
+                # O bot vira o volante suavemente em direção ao alvo.
+                # A velocidade do volante é 5% da distância restante (0.05)
+                # Isso impede que ele "passe do ponto" e fique tremendo!
+                velocidade_volante = 0.05
+                bot["x"] += (target_x - bot["x"]) * velocidade_volante
 
                 # ==========================================
                 # COLISÃO ABSOLUTA (Barreira Impenetrável)
@@ -253,8 +278,19 @@ class Game:
             visiveis.sort(key=lambda x: x[0], reverse=True)
             
             for dist, bot in visiveis:
-                if bot["x"] < -0.2: direcao_bot = "esq"
-                elif bot["x"] > 0.2: direcao_bot = "dir"
+                
+                # ==========================================
+                # LÓGICA DE PERSPECTIVA 3D (VISÃO FRONTAL)
+                # ==========================================
+                # Subtrai a sua posição da posição dele para saber o ângulo relativo
+                diferenca_x = bot["x"] - self.car.player_x
+                
+                #Margem para mudar o Sprite de perspectiva de visao do oponente
+                # Se ele está à sua esquerda (negativo)
+                if diferenca_x < -0.35: direcao_bot = "esq"
+                # Se ele está à sua direita (positivo)
+                elif diferenca_x > 0.35: direcao_bot = "dir"
+                # Se ele está na mesma reta
                 else: direcao_bot = "reto"
 
                 chave_pista = f"rear_{direcao_bot}"
@@ -265,14 +301,24 @@ class Game:
                 if 0 <= indice < len(segmentos):
                     seg = segmentos[indice]
                     
-                    escala_na_pista = 0.45 
-                    bot_w = int(seg["largura"] * escala_na_pista)
-                    bot_h = int(bot_w * (bot["base_h"] / bot["base_w"]))
+                    # ==========================================
+                    # LARGURA DINÂMICA (Pega o tamanho real de 180, 140 ou 114)
+                    # ==========================================
+                    img_w = img_atual.get_width()
+                    img_h = img_atual.get_height()
                     
-                    limite_tela_w = 600
-                    if bot_w > limite_tela_w:
-                        bot_w = limite_tela_w
-                        bot_h = int(bot_w * (bot["base_h"] / bot["base_w"]))
+                    # 1. Calculamos a ALTURA primeiro! 
+                    # FATOR_ESCALA! O 0.188 é a escala matemática exata para a altura base.
+                    bot_h = int(seg["largura"] * 0.188)
+                    
+                    # 2. A largura se adapta automaticamente para manter a proporção do seu PNG!
+                    bot_w = int(bot_h * (img_w / img_h))
+                    
+                    # Anti-Gigantismo (Trava de limite para não cobrir o céu)
+                    limite_tela_h = 333 
+                    if bot_h > limite_tela_h:
+                        bot_h = limite_tela_h
+                        bot_w = int(bot_h * (img_w / img_h))
                     
                     if bot_w > 0 and bot_h > 0:
                         img_res = pygame.transform.scale(img_atual, (bot_w, bot_h))

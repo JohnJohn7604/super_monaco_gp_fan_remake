@@ -89,7 +89,8 @@ class Car:
             [carregar_img(f"images/cockpit/pneu_dir_vir_dir2{s}.png", tamanho_pneu) for s in ("","a","b")]
         ]
         
-
+        self.retro_sway_suave = 0.0 # <-- NOVO: Amortecedor do retrovisor
+        
     # Adicionamos o steering_locked=False no final
     def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False):
         # 1. Troca de Marchas
@@ -330,7 +331,6 @@ class Car:
         # ==========================================
         # 5. RETROVISOR (VISÃO TRASEIRA)
         # ==========================================
-        # Mudamos os valores para o vidro ficar EXATAMENTE do tamanho da sua moldura!
         retro_w = int(WIDTH // 1.5)
         retro_h = 120
         retro_x = (WIDTH - retro_w) // 2
@@ -338,14 +338,16 @@ class Car:
         
         mini_screen = pygame.Surface((retro_w, retro_h))
         
-        # --- NOVO: O CÉU DO RETROVISOR ---
-        # Ele tenta carregar e espremer a sua imagem bg_rio para caber no espelho
+        # --- MÁGICA 1: LERP NO BALANÇO DO ESPELHO ---
+        # O reflexo segue o seu carro com 10% de atraso (0.1). 
+        # Isso absorve tremedeiras de batidas e do teclado!
+        self.retro_sway_suave += (self.player_x - self.retro_sway_suave) * 0.1
+            
         try:
             bg_retro = pygame.image.load("images/bg_rio.png").convert()
             bg_retro = pygame.transform.scale(bg_retro, (retro_w, retro_h))
             mini_screen.blit(bg_retro, (0, 0))
         except:
-            # Plano B: Se der erro na imagem, pinta de azul claro para não ficar preto!
             mini_screen.fill((135, 206, 235)) 
             
         pos_frac = self.position % 1
@@ -353,100 +355,79 @@ class Car:
         dx_retro = 0
         curva_x_retro = 0
         
-        # 1. Filtra quem está atrás de você
         bots_no_espelho = []
         if bots:
             for bot in bots:
                 dist_behind = (self.position - bot["pos"]) % track.total_track_length
-                # Mostra no espelho se estiver a até 20 metros atrás
                 if 0 < dist_behind < 50: 
                     bots_no_espelho.append((dist_behind, bot))
         
         lista_desenho_espelho = []
         
         for n in range(0, 20): 
-            # 1. DIREÇÃO: O sinal de '+' faz o chão se AFASTAR de você
-            z_near = n + pos_frac
+            z_near = max(0.1, n + pos_frac)
             z_far = n + 1 + pos_frac
-            
-            # Trava de segurança importantíssima agora que usamos n=0
-            if z_near <= 0.1: 
-                z_near = 0.1
             
             p_near = cam_h / z_near
             p_far = cam_h / z_far
-            
             y_near = (retro_h // 2) + p_near
             y_far = (retro_h // 2) + p_far
-            
             width_near = p_near * 8
             width_far = p_far * 8
             
-            # 2. OLHANDO PARA O PASSADO: Lemos os trechos que ficaram para trás
             pos_passada = (self.position - n) % track.total_track_length
             curva_n_retro = 0
             dist_check = 0
             for seg in track.track_map:
                 dist_check += seg["length"]
                 if pos_passada < dist_check:
-                    # O sinal de '-' inverte a curva magicamente!
-                    curva_n_retro = -seg["curve"] * 8.0 #o quao a pista vai dobrar nas curvaS
+                    curva_n_retro = -seg["curve"] * 8.0 
                     break
             
             dx_retro += curva_n_retro
             curva_x_retro += dx_retro
 
-            # 3. LÓGICA DO REFLEXO: O player_x é somado (+) em vez de subtraído
+            # --- MÁGICA 2: USAMOS O SWAY SUAVE PARA CENTRALIZAR A PISTA ---
             fator_cam_retro = 8
-            centro_near = (retro_w // 2) + ((curva_x_retro - dx_retro) * p_near) - (self.player_x * p_near * fator_cam_retro)
-            centro_far = (retro_w // 2) + (curva_x_retro * p_far) - (self.player_x * p_far * fator_cam_retro)
+            centro_near = (retro_w // 2) + ((curva_x_retro - dx_retro) * p_near) - (self.retro_sway_suave * p_near * fator_cam_retro)
+            centro_far = (retro_w // 2) + (curva_x_retro * p_far) - (self.retro_sway_suave * p_far * fator_cam_retro)
 
-            # As cores alternam com o sinal de '-' para acompanhar a pista fugindo
+            # (Desenho das zebras e asfalto continua igual...)
             color_road = GRAY_DARK if (n - int(self.position)) % 6 > 3 else GRAY_LIGHT
             color_grass = GREEN_DARK if (n - int(self.position)) % 6 > 3 else GREEN_LIGHT
             color_zebra = RED if (n - int(self.position)) % 6 > 3 else WHITE
-            
-            # Desenha a Grama
             pygame.draw.rect(mini_screen, color_grass, (0, y_far, retro_w, max(1, y_near - y_far + 1)))
-            
-            # Desenha o Asfalto
-            pygame.draw.polygon(mini_screen, color_road, [
-                (centro_near - width_near, y_near), (centro_near + width_near, y_near),
-                (centro_far + width_far, y_far), (centro_far - width_far, y_far)
-            ])
-            
-            # Desenha as Zebras
-            zw_near = width_near * 0.2
-            zw_far = width_far * 0.2
-            pygame.draw.polygon(mini_screen, color_zebra, [(centro_near - width_near - zw_near, y_near), (centro_near - width_near, y_near), (centro_far - width_far, y_far), (centro_far - width_far - zw_far, y_far)])
-            pygame.draw.polygon(mini_screen, color_zebra, [(centro_near + width_near, y_near), (centro_near + width_near + zw_near, y_near), (centro_far + width_far + zw_far, y_far), (centro_far + width_far, y_far)])
+            pygame.draw.polygon(mini_screen, color_road, [(centro_near - width_near, y_near), (centro_near + width_near, y_near), (centro_far + width_far, y_far), (centro_far - width_far, y_far)])
+            pygame.draw.polygon(mini_screen, color_zebra, [(centro_near - width_near - (width_near*0.2), y_near), (centro_near - width_near, y_near), (centro_far - width_far, y_far), (centro_far - width_far - (width_far*0.2), y_far)])
+            pygame.draw.polygon(mini_screen, color_zebra, [(centro_near + width_near, y_near), (centro_near + width_near + (width_near*0.2), y_near), (centro_far + width_far + (width_far*0.2), y_far), (centro_far + width_far, y_far)])
 
-            # 2. Captura os bots para desenhar depois do chão
+            # --- MÁGICA 3: RENDERIZAÇÃO DOS BOTS SEM "PICAR" ---
             for dist, bot in bots_no_espelho:
                 if int(dist) == n:
-                    bot_w = int(width_near * 0.8) 
-                    bot_h = int(bot_w * (bot["base_h"] / bot["base_w"]))
-                    bx = centro_near + (bot["x"] * width_near) - (bot_w // 2)
-                    by = y_near - bot_h
-                    
-                    # Define a perspectiva frontal
-                    if bot["x"] < -0.2: direcao = "esq"
-                    elif bot["x"] > 0.2: direcao = "dir"
+                    # Aumentamos a zona morta para 0.4. 
+                    # O bot só vira de lado se estiver realmente bem longe do seu centro.
+                    diferenca_x = bot["x"] - self.player_x
+                    if diferenca_x < -0.4: direcao = "dir"
+                    elif diferenca_x > 0.4: direcao = "esq"
                     else: direcao = "reto"
                     
                     chave = f"front_{direcao}"
                     img = None
                     if bot_sprites and chave in bot_sprites:
-                        img = bot_sprites[chave][bot["frame_idx"]]
-                    elif bot_sprites and "front_reto" in bot_sprites:
-                        # O BUG ESTAVA AQUI! Mudamos de "rear_reto" para "front_reto".
-                        # Agora, se ele não achar a curva, ele usa a vista frontal padrão!
-                        img = bot_sprites["front_reto"][bot["frame_idx"]]
-                        
+                        lista_imgs = bot_sprites[chave]
+                        img = lista_imgs[bot["frame_idx"] % len(lista_imgs)]
+                    
                     if img:
+                        # Matemática de altura fixa (sem amassar o teto!)
+                        img_w, img_h = img.get_width(), img.get_height()
+                        bot_h = int(width_near * 0.22) 
+                        bot_w = int(bot_h * (img_w / img_h))
+                        
+                        bx = centro_near + (bot["x"] * width_near) - (bot_w // 2)
+                        by = y_near - bot_h
                         lista_desenho_espelho.append((img, bx, by, bot_w, bot_h))
 
-        # 3. Cola os carros por cima do asfalto do espelho
+        # Cola os bots e desenha o retrovisor final na tela
         for img, bx, by, bw, bh in lista_desenho_espelho:
             if bw > 0 and bh > 0:
                 img_redim = pygame.transform.scale(img, (bw, bh))
