@@ -19,6 +19,10 @@ class Game:
         self.track = Track()
         self.car = Car()
 
+        self.race_finished = False
+        self.final_position = 0
+        self.lap_limit = 2 # Definimos aqui o limite de 6 voltas
+
         self.bots = []
         for i in range(10): # Ajuste a quantidade que quiser
             self.bots.append({
@@ -217,10 +221,26 @@ class Game:
             # ==========================================
             self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked)
             self.track.update_parallax(self.car.speed, curve_intensity, keys)
-            self.car.update_timer(self.track.total_track_length)
+            self.car.update_timer(self.track.total_track_length, self.lap_limit)
 
             # ==========================================
-            # 3. RENDERIZAÇÃO DOS CARROS E CENÁRIO
+            # 3. VERIFICAÇÃO DE FIM DE CORRIDA
+            # ==========================================
+            if not self.race_finished and self.car.laps_completed >= self.lap_limit:
+                self.race_finished = True
+                # Cálculo da posição: 1 (tu) + quantos bots estão à tua frente
+                # Usamos a posição absoluta (metros totais percorridos)
+                bots_a_frente = 0
+                for bot in self.bots:
+                    if bot["pos"] > self.car.position:
+                        bots_a_frente += 1
+                self.final_position = 1 + bots_a_frente
+                
+                # Opcional: Reduz a velocidade do carro gradualmente após a meta
+                self.car.speed *= 0.5
+
+            # ==========================================
+            # 4. RENDERIZAÇÃO DOS CARROS E CENÁRIO
             # ==========================================
             segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
             
@@ -260,8 +280,33 @@ class Game:
                         by = seg["y"] - bot_h
                         self.screen.blit(img_res, (bx, by))
 
-            # HUD e Espelho por último
-            self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.bot_sprites)
+            # --- CÁLCULO DA POSIÇÃO EM TEMPO REAL ---
+            bots_a_frente = 0
+            for bot in self.bots:
+                # Quem tem mais metros percorridos no total está na frente
+                if bot["pos"] > self.car.position:
+                    bots_a_frente += 1
+            posicao_atual = 1 + bots_a_frente
+
+            # Agora, passamos esse valor 'posicao_atual' para dentro do draw_cockpit
+            self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.bot_sprites, posicao_atual)
+
+            # RESULTADO FINAL DA CORRIDA
+            if self.race_finished:
+                # Fundo escurecido
+                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 180))
+                self.screen.blit(overlay, (0, 0))
+                
+                fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
+                texto_finish = fonte_grande.render("FINISH!", True, (255, 200, 0))
+                
+                pos_texto = f"{self.final_position}º PLACE"
+                cor_pos = (0, 255, 0) if self.final_position == 1 else (255, 255, 255)
+                texto_rank = fonte_grande.render(pos_texto, True, cor_pos)
+                
+                self.screen.blit(texto_finish, (WIDTH//2 - texto_finish.get_width()//2, HEIGHT//2 - 100))
+                self.screen.blit(texto_rank, (WIDTH//2 - texto_rank.get_width()//2, HEIGHT//2))
             
             pygame.display.flip()
             self.clock.tick(FPS)

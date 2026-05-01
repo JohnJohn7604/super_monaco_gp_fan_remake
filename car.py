@@ -198,7 +198,7 @@ class Car:
             self.motor_sound.set_pitch(0.5 + (rpm * 1) + (0.05 if keys[pygame.K_s] else 0))
 
     # Adicionamos 'bots' e 'bot_sprites' no final
-    def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None):
+    def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None, posicao_atual=1):
         # 1. ANIMAÇÃO DOS PNEUS
         if self.speed > 0:
             if self.speed < 50: delay_animacao = 150
@@ -456,7 +456,34 @@ class Car:
         screen.blit(self.retrovisor_img, (retro_x, retro_y))
 
         # ==========================================
-        # 6. CRONÔMETRO E VOLTAS (HUD Lateral)
+        # 6.INDICADOR DE POSIÇÃO (Abaixo do Retrovisor)
+        # ==========================================
+        # Usamos a mesma lógica de centralização do retrovisor
+        retro_w = int(WIDTH // 1.5)
+        retro_h = 120
+        retro_x = (WIDTH - retro_w) // 2
+        retro_y = 20
+        
+        # Criamos o texto (ex: 1ST, 2ND, 3RD, 4TH...)
+        suffix = "TH"
+        if posicao_atual == 1: suffix = "ST"
+        elif posicao_atual == 2: suffix = "ND"
+        elif posicao_atual == 3: suffix = "RD"
+        
+        fonte_pos = pygame.font.SysFont('Arial', 40, bold=True)
+        texto_pos = fonte_pos.render(f"{posicao_atual}{suffix}", True, (255, 255, 0)) # Amarelo
+        
+        # Centraliza o texto exatamente abaixo da moldura do retrovisor
+        pos_x = (WIDTH // 2) - (texto_pos.get_width() // 2)
+        pos_y = retro_y + retro_h + 5 # 5 pixels de folga abaixo da moldura
+        
+        # Desenha uma pequena sombra preta para dar leitura
+        texto_sombra = fonte_pos.render(f"{posicao_atual}{suffix}", True, (0, 0, 0))
+        screen.blit(texto_sombra, (pos_x + 2, pos_y + 2))
+        screen.blit(texto_pos, (pos_x, pos_y))
+
+        # ==========================================
+        # 7. CRONÔMETRO E VOLTAS (HUD Lateral)
         # ==========================================
         # Posicionamos no canto superior direito
         cor_hud = (255, 255, 255)
@@ -480,7 +507,7 @@ class Car:
         screen.blit(self.font.render(formatar_tempo(self.best_lap_time), True, cor_destaque), (x_hud + 80, y_hud + 90))
 
         # ==========================================
-        # 7. MINIMAPA (RADAR OVAL)
+        # 8. MINIMAPA (RADAR OVAL)
         # ==========================================
         mapa_w, mapa_h = 200, 120
         mapa_x, mapa_y = 1000, 250 # Canto superior esquerdo
@@ -528,24 +555,22 @@ class Car:
         else:
             pygame.draw.circle(screen, WHITE, (int(px), int(py)), 5)
 
-    def update_timer(self, total_track_length):
-        agora = pygame.time.get_ticks()
-        self.current_lap_time = (agora - self.lap_start_tick) / 1000.0 # Converte ms para segundos
+    ## LOGICA DA CRONOMETRAGEM
+    def update_timer(self, total_track_length, lap_limit):
+        # Só atualiza o tempo se a corrida não tiver terminado
+        if self.laps_completed < lap_limit:
+            agora = pygame.time.get_ticks()
+            self.current_lap_time = (agora - self.lap_start_tick) / 1000.0
 
-        # Detecção de volta completa:
-        # Se a nossa posição atual dividida pelo tamanho da pista for maior que as voltas completadas
-        # significa que passamos pela linha de chegada!
-        volta_atual = int(self.position // total_track_length)
-        if volta_atual > self.laps_completed:
-            self.last_lap_time = self.current_lap_time
-            
-            # Recorde pessoal
-            if self.best_lap_time == 0 or self.last_lap_time < self.best_lap_time:
-                self.best_lap_time = self.last_lap_time
-            
-            # Reinicia para a próxima volta
-            self.laps_completed = volta_atual
-            self.lap_start_tick = agora
+            volta_atual = int(self.position // total_track_length)
+            if volta_atual > self.laps_completed:
+                self.last_lap_time = self.current_lap_time
+                
+                if self.best_lap_time == 0 or self.last_lap_time < self.best_lap_time:
+                    self.best_lap_time = self.last_lap_time
+                
+                self.laps_completed = volta_atual
+                self.lap_start_tick = agora
 
     def cleanup(self):
         if self.motor_sound: oalQuit()
