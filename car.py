@@ -535,6 +535,8 @@ class Car:
                         by = y_near - bot_h
                         lista_desenho_espelho.append((img, bx, by, bot_w, bot_h))
 
+        lista_desenho_espelho.reverse()
+
         # Cola os bots e desenha o retrovisor final na tela
         for img, bx, by, bw, bh in lista_desenho_espelho:
             if bw > 0 and bh > 0:
@@ -660,6 +662,13 @@ class Car:
                 
                 self.laps_completed = volta_atual
                 self.lap_start_tick = agora
+
+    def parar_audios(self):
+        # Muta o motor e o pneu do jogador
+        if hasattr(self, 'motor_sound') and self.motor_sound:
+            self.motor_sound.set_gain(0)
+        if hasattr(self, 'skid_sound') and self.skid_sound:
+            self.skid_sound.set_gain(0)
 
     def cleanup(self):
         if self.motor_sound: oalQuit()

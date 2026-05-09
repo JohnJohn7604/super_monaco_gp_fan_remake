@@ -1,8 +1,8 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 395,
-        "aceleracao": 6,
+        "velocidade_base": 370,
+        "aceleracao": 4,
         "freio":7,
         "direcao":7,
         "pasta": "madonna",
@@ -13,8 +13,8 @@
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 388,
-        "aceleracao": 7,
+        "velocidade_base": 365,
+        "aceleracao": 5,
         "freio":7,
         "direcao":7,
         "pasta": "firenze",
@@ -25,8 +25,8 @@
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 381,
-        "aceleracao": 5,
+        "velocidade_base": 365,
+        "aceleracao": 4,
         "freio":7,
         "direcao":6,
         "pasta": "millions",
@@ -37,8 +37,8 @@
     },
     "Bestowal": {
         "classe": "A",
-        "velocidade_base": 379,
-        "aceleracao": 5,
+        "velocidade_base": 362,
+        "aceleracao": 3,
         "freio": 6,
         "direcao": 6,
         "pasta": "bestowal",
@@ -49,8 +49,8 @@
     },
     "Blanche": {
         "classe": "B",
-        "velocidade_base": 375,
-        "aceleracao": 5,
+        "velocidade_base": 360,
+        "aceleracao": 3,
         "freio": 6,
         "direcao": 5,
         "pasta": "blanche",
@@ -61,8 +61,8 @@
     },
     "Tyrant": {
         "classe": "B",
-        "velocidade_base": 373,
-        "aceleracao": 4,
+        "velocidade_base": 358,
+        "aceleracao": 3,
         "freio": 5,
         "direcao": 5,
         "pasta": "tyrant",
@@ -73,8 +73,8 @@
     },
     "Losel": {
         "classe": "B",
-        "velocidade_base": 370,
-        "aceleracao": 4,
+        "velocidade_base": 356,
+        "aceleracao": 3,
         "freio": 5,
         "direcao": 4,
         "pasta": "Losel",
@@ -85,8 +85,8 @@
     },
     "May": {
         "classe": "B",
-        "velocidade_base": 366,
-        "aceleracao": 4,
+        "velocidade_base": 358,
+        "aceleracao": 2,
         "freio": 5,
         "direcao": 4,
         "pasta": "may",
@@ -97,8 +97,8 @@
     },
     "Bullets": {
         "classe": "C",
-        "velocidade_base": 362,
-        "aceleracao": 3,
+        "velocidade_base": 356,
+        "aceleracao": 2,
         "freio": 4,
         "direcao": 4,
         "pasta": "bullets",
@@ -110,7 +110,7 @@
     "Dardan": {
         "classe": "C",
         "velocidade_base": 355,
-        "aceleracao": 4,
+        "aceleracao": 2,
         "freio": 4,
         "direcao": 4,
         "pasta": "dardan",
@@ -122,7 +122,7 @@
     "Linden": {
         "classe": "C",
         "velocidade_base": 342,
-        "aceleracao": 3,
+        "aceleracao": 2,
         "freio": 4,
         "direcao": 3,
         "pasta": "linden",
@@ -134,7 +134,7 @@
     "Minarae": {
         "classe": "C",
         "velocidade_base": 355,
-        "aceleracao": 3,
+        "aceleracao": 2,
         "direcao": 3,
         "freio": 4,
         "pasta": "minarae",
@@ -146,7 +146,7 @@
     "Rigel": {
         "classe": "D",
         "velocidade_base": 340,
-        "aceleracao": 2,
+        "aceleracao": 1,
         "freio": 3,
         "direcao" : 2,
         "pasta": "rigel",
@@ -158,7 +158,7 @@
     "Orchis": {
         "classe": "D",
         "velocidade_base": 335,
-        "aceleracao": 2,
+        "aceleracao": 1,
         "freio": 2,
         "direcao" : 2,
         "pasta": "orchis",
