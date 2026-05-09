@@ -12,27 +12,27 @@ class Track:
         
         # Mapa do Rio
         self.track_map = [
-            {"length": 200, "curve": 0.0, "hill": 0.0},     
+            {"length": 500, "curve": 0.0, "hill": 0.0},     
             {"length": 50, "curve": 0.01, "hill": 0.009},
-            {"length": 25, "curve": 0.02, "hill": 0.0},    
-            {"length": 25, "curve": 0.01, "hill": 0.007},  
-            {"length": 50, "curve": 0.0, "hill": -0.009},  
-            {"length": 50, "curve": -0.06, "hill": 0.0},
-            {"length": 50, "curve": -0.05, "hill": 0.0},
-            {"length": 50, "curve": -0.04, "hill": 0.0},
-            {"length": 50, "curve": -0.025, "hill": 0.0},
-            {"length": 200, "curve": 0.0, "hill": 0.0},    
-            {"length": 50, "curve": -0.03, "hill": 0.0},
-            {"length": 50, "curve": -0.015, "hill": 0.0}, 
-            {"length": 600, "curve": 0.0, "hill": 0.0}, 
-            {"length": 50, "curve": -0.03, "hill": 0.0},
-            {"length": 50, "curve": -0.03, "hill": 0.0}, 
-            {"length": 100, "curve": 0.0, "hill": 0.0}, 
-            {"length": 100, "curve": -0.05, "hill": 0.0},
-            {"length": 50, "curve": -0.03, "hill": 0.0}, 
-            {"length": 150, "curve": 0.06, "hill": 0.0},
-            {"length": 50, "curve": 0.03, "hill": 0.0}, 
-            {"length": 200, "curve": 0.0, "hill": 0.0}
+            {"length": 50, "curve": 0.02, "hill": 0.0},    
+            {"length": 50, "curve": 0.01, "hill": 0.007},  
+            {"length": 75, "curve": 0.0, "hill": -0.009},  
+            {"length": 75, "curve": -0.06, "hill": 0.0},
+            {"length": 75, "curve": -0.05, "hill": 0.0},
+            {"length": 75, "curve": -0.04, "hill": 0.0},
+            {"length": 75, "curve": -0.025, "hill": 0.0},
+            {"length": 225, "curve": 0.0, "hill": 0.0},    
+            {"length": 75, "curve": -0.03, "hill": 0.0},
+            {"length": 75, "curve": -0.015, "hill": 0.0}, 
+            {"length": 625, "curve": 0.0, "hill": 0.0}, 
+            {"length": 75, "curve": -0.03, "hill": 0.0},
+            {"length": 75, "curve": -0.03, "hill": 0.0}, 
+            {"length": 125, "curve": 0.0, "hill": 0.0}, 
+            {"length": 125, "curve": -0.05, "hill": 0.0},
+            {"length": 75, "curve": -0.03, "hill": 0.0}, 
+            {"length": 175, "curve": 0.06, "hill": 0.0},
+            {"length": 75, "curve": 0.03, "hill": 0.0}, 
+            {"length": 225, "curve": 0.0, "hill": 0.0}
         ]
         self.total_track_length = sum(seg["length"] for seg in self.track_map)
 

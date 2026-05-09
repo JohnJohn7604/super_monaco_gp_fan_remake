@@ -1,12 +1,14 @@
 # car.py
 import pygame
 import math
+import json
 from openal import oalOpen, oalQuit
 from settings import *
 from utils import carregar_img
 
+
 class Car:
-    def __init__(self):
+    def __init__(self, velocidade_maxima=330, nivel_aceleracao=1, nivel_freio=1, nivel_direcao=1):
         self.font = pygame.font.SysFont('Arial', 30, bold=True)
 
         # --- SISTEMA DE TEMPOS E VOLTAS ---
@@ -16,25 +18,53 @@ class Car:
         self.last_lap_time = 0
         self.best_lap_time = 0
 
-        # Física 
+        # ==========================================
+        # FÍSICA DINÂMICA DO MOTOR 
+        # ==========================================
         self.speed = 0
-        self.max_speed = 330 
-        self.accel = 0.5     
+        self.max_speed = velocidade_maxima 
+        self.nivel_aceleracao = nivel_aceleracao 
+        # === NOVOS ATRIBUTOS ===
+        # Nível 1: Freio fraco (0.5) | Nível 7: Freio de cerâmica (1.4)
+        self.brake_power = 0.35 + (nivel_freio * 0.15) 
+        
+        # ==========================================
+        # NOVO SISTEMA DE DIREÇÃO (INÉRCIA / ATRASO)
+        # ==========================================
+        # A velocidade final da curva é igual para todos (para ngm ficar travado)
+        self.max_steering = 0.05 
+        
+        # A inércia atual (começa em 0)
+        self.current_steering = 0.0 
+        
+        # O Fator de Aderência (Grip). 
+        # Nível 1: Demora a virar (0.2) | Nível 7: Vira instantâneo (0.8)
+        self.grip_factor = 0.03 + ((nivel_direcao - 1 ) * 0.05)
+        
+        # Variável para o som do motor no neutro (Largada)
+        self.rpm_neutro = 0
         self.friction = 0.00003
         self.brake_power = 1.0
-        self.position = 0
+        
+        self.position = 0.0 
         self.player_x = 0.0 
-
-        #Variável para suavizar o volante ---
-        self.direcao_atual = 0.0
-        self.tempo_folga = 0 # <-- NOVO: Cronômetro do delay do volante
         
         # Marchas
         self.transmissao = "AUTO"  
         self.marcha_atual = 1
         self.max_marchas = 7
         self.timer_marcha = 0      
-        self.limite_marchas = {1: 60, 2: 110, 3: 160, 4: 210, 5: 260, 6: 300, 7: 335}
+        
+        # A MÁGICA DAS MARCHAS: Agora elas se adaptam à velocidade máxima do carro!
+        self.limite_marchas = {
+            1: self.max_speed * 0.18, 
+            2: self.max_speed * 0.33,
+            3: self.max_speed * 0.48,
+            4: self.max_speed * 0.63,
+            5: self.max_speed * 0.78,
+            6: self.max_speed * 0.90,
+            7: self.max_speed * 1.05  
+        }
         self.torque_marchas = {1: 1.5, 2: 0.5, 3: 0.5, 4: 0.3, 5: 0.25, 6: 0.1, 7: 0.15}
         
         # ÁUDIO MOTOR DO SEU CARRO
@@ -133,12 +163,15 @@ class Car:
         if keys[pygame.K_s]: 
             # O motor tenta empurrar o carro para frente
             forca_motor = self.torque_marchas[self.marcha_atual]
-            taxa_aceleracao = forca_motor * (1.5 - (self.speed / self.max_speed))
+            
+            # --- A MÁGICA DA ACELERAÇÃO (Níveis 1 a 7) ---
+            # Fórmula: Nível 1 = 80% de força | Nível 7 = 140% de força
+            multiplicador_potencia = 0.7 + (self.nivel_aceleracao * 0.1)
+            
+            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / self.max_speed))
             self.speed += taxa_aceleracao
             
-            # --- A MÁGICA DO ATOLAMENTO ---
-            # A grama agora "agarra" os pneus constantemente enquanto você acelera!
-            # Se a força da marcha for menor que 1.2, o carro perde velocidade e morre.
+            # A grama "agarra" os pneus
             if na_grama:
                 self.speed -= 0.5
         else:
@@ -166,7 +199,11 @@ class Car:
         self.position += self.speed * 0.005
         percentual_vel = self.speed / self.max_speed
 
+        # A força com que a curva te joga para fora
         forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 2.8
+        
+        # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
+        # (Isso faz o carro escorregar para a grama se você não virar o volante)
         self.player_x -= forca_centrifuga
 
         if abs(curve_intensity) > 0 and self.speed > 100:
@@ -175,31 +212,27 @@ class Car:
 
         # --- A MÁGICA DA TRAVA DO VOLANTE (COLISÃO) ---
         if self.speed > 10 and not steering_locked: 
-            poder_maximo = 0.03 + (percentual_vel * 0.015)
-            peso_direcao = 0.005 
-            delay_frames = 3 
+            
+            # --- LÓGICA DE DIREÇÃO (Novo Atributo) ---
+            target_steering = 0.0
             
             if keys[pygame.K_LEFT]: 
-                self.tempo_folga += 1
-                if self.tempo_folga > delay_frames: self.direcao_atual -= peso_direcao
+                target_steering = -self.max_steering
             elif keys[pygame.K_RIGHT]: 
-                self.tempo_folga += 1
-                if self.tempo_folga > delay_frames: self.direcao_atual += peso_direcao
-            else:
-                self.tempo_folga = 0 
-                if self.direcao_atual > 0:
-                    self.direcao_atual -= peso_direcao
-                    if self.direcao_atual < 0: self.direcao_atual = 0
-                elif self.direcao_atual < 0:
-                    self.direcao_atual += peso_direcao
-                    if self.direcao_atual > 0: self.direcao_atual = 0
+                target_steering = self.max_steering
 
-            self.direcao_atual = max(-poder_maximo, min(poder_maximo, self.direcao_atual))
-            self.player_x += self.direcao_atual
-        
+            # A inércia atual do carro é puxada em direção ao alvo gradativamente.
+            # Com o Grip 0.03 (Minarae), ele vai levar quase 1 segundo derrapando antes de virar forte!
+            self.current_steering += (target_steering - self.current_steering) * self.grip_factor
+
+            # Aplica a inércia final na posição do jogador na pista
+            self.player_x += self.current_steering
+            
         elif steering_locked:
-            # Se bateram na sua traseira, você solta o volante de susto!
-            self.tempo_folga = 0
+            self.current_steering = 0
+            
+        # Trava para o carro não sair voando muito além da grama
+        self.player_x = max(-1.5, min(1.5, self.player_x))
 
         # 4. Áudio do Motor
         if self.motor_sound:
@@ -259,6 +292,19 @@ class Car:
             # Só atualiza a afinação se o som estiver alto o suficiente para ouvir
             if volume_final > 0.01: 
                 self.skid_sound.set_pitch(pitch_alvo)
+
+    def acelerar_neutro(self, keys):
+        # Simula o giro do motor (RPM) subindo e caindo no neutro
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            self.rpm_neutro += 15  # O giro sobe rápido
+        else:
+            self.rpm_neutro -= 10  # O giro cai rápido quando solta o dedo
+            
+        # Limita o RPM para não passar do máximo e não ficar negativo
+        self.rpm_neutro = max(0, min(self.max_speed, self.rpm_neutro))
+        
+        # Se você tiver lógica de áudio do motor, aplique o self.rpm_neutro aqui
+        # Ex: self.canal_motor.set_volume(0.5 + (self.rpm_neutro / 1000))
 
     # Adicionamos 'bots' e 'bot_sprites' no final
     def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None, posicao_atual=1):

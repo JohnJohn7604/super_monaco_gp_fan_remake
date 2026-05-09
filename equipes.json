@@ -1,0 +1,194 @@
+{
+    "Madonna": {
+        "classe": "S",
+        "velocidade_base": 395,
+        "aceleracao": 6,
+        "freio":7,
+        "direcao":7,
+        "pasta": "madonna",
+        "pilotos": [
+            {"nome": "A. Asselin", "cor_capacete": [255, 0, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [255, 255, 255]}
+        ]
+    },
+    "Firenze": {
+        "classe": "S",
+        "velocidade_base": 388,
+        "aceleracao": 7,
+        "freio":7,
+        "direcao":7,
+        "pasta": "firenze",
+        "pilotos": [
+            {"nome": "F. Elsser", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Millions": {
+        "classe": "A",
+        "velocidade_base": 381,
+        "aceleracao": 5,
+        "freio":7,
+        "direcao":6,
+        "pasta": "millions",
+        "pilotos": [
+            {"nome": "G. Alberti", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Bestowal": {
+        "classe": "A",
+        "velocidade_base": 379,
+        "aceleracao": 5,
+        "freio": 6,
+        "direcao": 6,
+        "pasta": "bestowal",
+        "pilotos": [
+            {"nome": "A. Picos", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Blanche": {
+        "classe": "B",
+        "velocidade_base": 375,
+        "aceleracao": 5,
+        "freio": 6,
+        "direcao": 5,
+        "pasta": "blanche",
+        "pilotos": [
+            {"nome": "J. Herbin", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Tyrant": {
+        "classe": "B",
+        "velocidade_base": 373,
+        "aceleracao": 4,
+        "freio": 5,
+        "direcao": 5,
+        "pasta": "tyrant",
+        "pilotos": [
+            {"nome": "M. Hamano", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Losel": {
+        "classe": "B",
+        "velocidade_base": 370,
+        "aceleracao": 4,
+        "freio": 5,
+        "direcao": 4,
+        "pasta": "Losel",
+        "pilotos": [
+            {"nome": "E. Pacheco", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "May": {
+        "classe": "B",
+        "velocidade_base": 366,
+        "aceleracao": 4,
+        "freio": 5,
+        "direcao": 4,
+        "pasta": "may",
+        "pilotos": [
+            {"nome": "G. Turner", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Bullets": {
+        "classe": "C",
+        "velocidade_base": 362,
+        "aceleracao": 3,
+        "freio": 4,
+        "direcao": 4,
+        "pasta": "bullets",
+        "pilotos": [
+            {"nome": "B. Miller", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Dardan": {
+        "classe": "C",
+        "velocidade_base": 355,
+        "aceleracao": 4,
+        "freio": 4,
+        "direcao": 4,
+        "pasta": "dardan",
+        "pilotos": [
+            {"nome": "E. Bellini", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Linden": {
+        "classe": "C",
+        "velocidade_base": 342,
+        "aceleracao": 3,
+        "freio": 4,
+        "direcao": 3,
+        "pasta": "linden",
+        "pilotos": [
+            {"nome": "M. Moreau", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Minarae": {
+        "classe": "C",
+        "velocidade_base": 355,
+        "aceleracao": 3,
+        "direcao": 3,
+        "freio": 4,
+        "pasta": "minarae",
+        "pilotos": [
+            {"nome": "G. Ceara", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Rigel": {
+        "classe": "D",
+        "velocidade_base": 340,
+        "aceleracao": 2,
+        "freio": 3,
+        "direcao" : 2,
+        "pasta": "rigel",
+        "pilotos": [
+            {"nome": "R. Cotman", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Orchis": {
+        "classe": "D",
+        "velocidade_base": 335,
+        "aceleracao": 2,
+        "freio": 2,
+        "direcao" : 2,
+        "pasta": "orchis",
+        "pilotos": [
+            {"nome": "E. Tornio", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Comet": {
+        "classe": "D",
+        "velocidade_base": 330,
+        "aceleracao": 1,
+        "freio": 1,
+        "direcao" : 1,
+        "pasta": "comet",
+        "pilotos": [
+            {"nome": "G. Tecgner", "cor_capacete": [255, 255, 0]},
+            {"nome": "Piloto 2", "cor_capacete": [0, 0, 0]}
+        ]
+    },
+    "Zeroforce": {
+        "classe": "D",
+        "velocidade_base": 330,
+        "aceleracao": 1,
+        "direcao": 1,
+        "freio" : 1,
+        "pasta": "zeroforce",
+        "pilotos": [
+            {"nome": "P. Klinger", "cor_capacete": [255, 128, 0]},
+            {"nome": "PLAYER", "cor_capacete": [0, 255, 0], "is_player": true}
+        ]
+    }
+}

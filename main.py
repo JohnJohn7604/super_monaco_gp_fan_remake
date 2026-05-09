@@ -2,10 +2,12 @@
 import pygame
 import sys
 import math
+import json
 from settings import *
 from track import Track
 from car import Car
 from utils import carregar_img
+
 
 class Game:
     def __init__(self):
@@ -16,30 +18,29 @@ class Game:
         pygame.display.set_caption("Super Monaco GP - Rio Edition")
         self.clock = pygame.time.Clock()
         
-        self.track = Track()
-        self.car = Car()
+        self.estado_jogo = "MENU"
+        self.track = None
+        self.car = None
 
         self.race_finished = False
         self.final_position = 0
         self.lap_limit = 2 # Definimos aqui o limite de 6 voltas
 
-        self.bots = []
-        for i in range(10): # Ajuste a quantidade que quiser
-            self.bots.append({
-                "pos": -100 + (i * 50), 
-                "x": (i % 3 - 1) * 0.5,
-                "speed": 100, # A velocidade que ele LARGA (pode deixar todos em 100)
-                
-                # --- A MÁGICA ESTÁ AQUI ---
-                # Cada bot terá um motor diferente. O primeiro terá 250km/h, o segundo 255, etc.
-                "max_speed": 250 + (i * 5), 
-                
-                "base_w": 180,
-                "base_h": 100,
-                "frame_idx": 0,
-                "anim_timer": 0,
-                "defesa_timer": 0
-            })
+        # ==========================================
+        # CARREGAR BANCO DE DADOS VIA JSON
+        # ==========================================
+        try:
+            with open('equipes.json', 'r', encoding='utf-8') as f:
+                self.equipes = json.load(f)
+        except FileNotFoundError:
+            print("ERRO: Ficheiro equipes.json não encontrado!")
+            self.equipes = {} # Evita que o jogo crash imediatamente
+
+        # Variáveis de Carreira
+        self.equipe_atual_jogador = "Minarae"
+        self.rival_atual = None
+        self.vitorias_contra_rival = 0
+
 
         # ==========================================
         # ÁUDIO (Batida e Motor do Bot)
@@ -107,16 +108,118 @@ class Game:
         self.bot_img_atual = self.bot_sprites["rear_reto"][0]
         self.bot_img_retro = self.bot_sprites["front_reto"][0]
 
+    def iniciar_corrida(self, track_name):
+        # 1. Escolha da pista
+        if track_name == "rio":
+            self.track = Track()
+            
+        # 2. Carregar performance da sua equipe
+        status = self.equipes[self.equipe_atual_jogador]
+        
+        # AGORA ENVIAMOS O FREIO E A DIREÇÃO TAMBÉM!
+        self.car = Car(
+            velocidade_maxima=status["velocidade_base"], 
+            nivel_aceleracao=status["aceleracao"],
+            nivel_freio=status.get("freio", 1),       # Puxa do dict (padrão 1 se esquecer de por)
+            nivel_direcao=status.get("direcao", 1)    # Puxa do dict (padrão 1 se esquecer de por)
+        )
+        
+        # 3. Limpa a lista e cria os Adversários (Bots) novos
+        self.bots = []
+        contador_pos = 0 
+        
+        for nome_eq, dados in self.equipes.items():
+            for i, piloto in enumerate(dados["pilotos"]):
+                if piloto.get("is_player"): 
+                    continue
+                
+                # ADICIONA O BOT COM TODAS AS CHAVES OBRIGATÓRIAS
+                self.bots.append({
+                    "nome": piloto["nome"],
+                    "pos": 100 + (contador_pos * 30),
+                    "x": -0.5 if i == 0 else 0.5, 
+                    "speed": 0,
+                    "max_speed": dados["velocidade_base"],
+                    "cor_capacete": piloto["cor_capacete"],
+                    "pasta": dados["pasta"],
+                    "frame_idx": 0,
+                    "anim_timer": 0,    # Garantido!
+                    "defesa_timer": 0   # Garantido!
+                })
+                contador_pos += 1
+
+        # 4. Iniciar contagem decrescente
+        self.timer_countdown = pygame.time.get_ticks()
+        self.estado_jogo = "COUNTDOWN"
+        self.race_finished = False
+        self.lap_limit = 3
+
     def run(self):
+        fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         while True:
+            tempo_atual = pygame.time.get_ticks()
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.car.cleanup() 
                     pygame.quit()
                     sys.exit()
 
+                # ENTRADA DO MENU
+                if self.estado_jogo == "MENU":
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN: self.iniciar_corrida("rio")
+                        elif event.key == pygame.K_2: self.iniciar_corrida("eua")
+
             keys = pygame.key.get_pressed()
-            tempo_atual = pygame.time.get_ticks()
+
+            # ==========================================
+            # GAVETA 1: DESENHO DO MENU
+            # ==========================================
+            if self.estado_jogo == "MENU":
+                self.screen.fill((20, 20, 50))
+                # (Desenha textos do menu aqui...)
+                titulo = fonte_menu.render("SUPER MONACO GP\n Pressione 'Enter' para iniciar.", True, (255, 255, 0))
+                self.screen.blit(titulo, (WIDTH//2 - titulo.get_width()//2, 150))
+                
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue 
+
+            # ==========================================
+            # GAVETA 2: LÓGICA DO 3, 2, 1, GO! (NOVO)
+            # ==========================================
+            if self.estado_jogo == "COUNTDOWN":
+                self.track.draw(self.screen, self.car.position, self.car.player_x)
+                
+                # ---> NOVA LINHA AQUI: Aceleração no neutro! <---
+                self.car.acelerar_neutro(keys)
+                
+                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track)
+                
+                segundos = (tempo_atual - self.timer_countdown) // 1000
+                
+                if segundos < 3:
+                    txt = str(3 - segundos)
+                    cor = (255, 0, 0)
+                elif segundos == 3:
+                    txt = "GO!"
+                    cor = (0, 255, 0)
+                else:
+                    self.estado_jogo = "CORRIDA"
+                    self.car.lap_start_tick = pygame.time.get_ticks()
+                    continue
+
+                img_txt = fonte_menu.render(txt, True, cor)
+                self.screen.blit(img_txt, (WIDTH//2 - img_txt.get_width()//2, HEIGHT//2 - 100))
+                
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue
+            
+            # ==========================================
+            # GAVETA 3: LÓGICA DO 3, 2, 1, GO! (NOVO)
+            # ==========================================
 
             # Pega a curva da pista
             curve_intensity = self.track.get_curve(self.car.position)
@@ -129,21 +232,49 @@ class Game:
             
             for bot in self.bots:
                 # ==========================================
-                # IA BÁSICA (Aceleração Justa)
+                # IA BÁSICA (Downforce Dinâmico e Marchas)
                 # ==========================================
-                reducao_curva = abs(curve_intensity) * 4500
-                target_speed = max(100, bot["max_speed"] - reducao_curva) 
+                # Carros mais rápidos têm melhor aerodinâmica e freiam MENOS nas curvas!
+                # Um carro de 330km/h tem fator 4500. A Madonna (395km/h) tem fator ~3500.
+                fator_curva = 4500 - ((bot["max_speed"] - 330) * 15)
+                reducao_curva = abs(curve_intensity) * fator_curva
+                
+                # Ninguém cai para menos de 130 km/h (evita que parem na pista)
+                target_speed = max(130, bot["max_speed"] - reducao_curva) 
 
-                # MUDANÇA AQUI: Aceleração realista igual a do Player!
+                # ==========================================
+                # SISTEMA DE RIVALIDADE (Rubber-Banding)
+                # ==========================================
+                distancia_para_voce = self.car.position - bot["pos"]
+                
+                # Se o bot for de Classe S ou A (carros acima de 380km/h)
+                if bot["max_speed"] >= 380:
+                    # Se você abriu mais de 200 metros de vantagem, eles ativam o MODO FÚRIA
+                    if distancia_para_voce > 200:
+                        target_speed += 15  # O limite de velocidade deles aumenta (trapaça de arcade!)
+                        if bot["speed"] > 160:
+                            bot["speed"] += 0.8 # Eles ganham um boost irreal de aceleração para colar em você
+                
+                # Se você estiver atrás deles pegando o VÁCUO (Slipstream), eles tentam fugir
+                elif -100 < distancia_para_voce < 0 and bot["max_speed"] >= 370:
+                    target_speed += 5
+
+                # --- Aceleração Física ---
                 if bot["speed"] < target_speed: 
-                    # Quanto mais perto da velocidade máxima, menos ele acelera (resistência do vento)
-                    taxa_aceleracao = 1.0 * (1 - (bot["speed"] / bot["max_speed"]))
-                    bot["speed"] += max(0.05, taxa_aceleracao) 
+                    if bot["speed"] < 80:
+                        bot["speed"] += 0.15  # 1ª marcha
+                    elif bot["speed"] < 160:
+                        bot["speed"] += 0.35  # 2ª e 3ª marcha
+                    elif bot["speed"] < 250:
+                        bot["speed"] += 0.50  # 4ª e 5ª marcha
+                    else:
+                        taxa_aceleracao = 0.8 * (1 - (bot["speed"] / (target_speed + 1)))
+                        bot["speed"] += max(0.05, taxa_aceleracao) 
                     
                 elif bot["speed"] > target_speed + 15: 
-                    bot["speed"] -= 3.5  
+                    bot["speed"] -= 3.5  # Freia forte
                 elif bot["speed"] > target_speed: 
-                    bot["speed"] -= 0.8  
+                    bot["speed"] -= 0.8  # Tira o pé
 
                 bot["pos"] += bot["speed"] * 0.005
 
