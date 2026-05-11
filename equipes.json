@@ -133,9 +133,9 @@
     },
     "Minarae": {
         "classe": "C",
-        "velocidade_base": 355,
+        "velocidade_base": 345,
         "aceleracao": 2,
-        "direcao": 3,
+        "direcao": 2,
         "freio": 4,
         "pasta": "minarae",
         "pilotos": [
@@ -145,7 +145,7 @@
     },
     "Rigel": {
         "classe": "D",
-        "velocidade_base": 340,
+        "velocidade_base": 355,
         "aceleracao": 1,
         "freio": 3,
         "direcao" : 2,

@@ -248,13 +248,50 @@ class Game:
             # GAVETA 2: LÓGICA DO 3, 2, 1, GO! (NOVO)
             # ==========================================
             if self.estado_jogo == "COUNTDOWN":
-                self.track.draw(self.screen, self.car.position, self.car.player_x)
+                # 1. Desenha a pista E guarda os segmentos para os bots usarem
+                segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
                 
-                # ---> NOVA LINHA AQUI: Aceleração no neutro! <---
+                # 2. DESENHA OS BOTS PARADOS NO GRID DE LARGADA
+                visiveis = []
+                for bot in self.bots:
+                    dist_view = (bot["pos"] - self.car.position) % self.track.total_track_length
+                    if 2 < dist_view < self.track.draw_distance:
+                        visiveis.append((dist_view, bot))
+
+                visiveis.sort(key=lambda x: x[0], reverse=True)
+                
+                for dist, bot in visiveis:
+                    img_atual = self.bot_sprites["rear_reto"][0] # Na largada estão todos retos!
+                    
+                    indice = int(dist) - 1
+                    if 0 <= indice < len(segmentos):
+                        seg = segmentos[indice]
+                        
+                        img_w = img_atual.get_width()
+                        img_h = img_atual.get_height()
+                        
+                        bot_h = int(seg["largura"] * 0.188)
+                        bot_w = int(bot_h * (img_w / img_h))
+                        
+                        limite_tela_h = 333 
+                        if bot_h > limite_tela_h:
+                            bot_h = limite_tela_h
+                            bot_w = int(bot_h * (img_w / img_h))
+                        
+                        if bot_w > 0 and bot_h > 0:
+                            img_res = pygame.transform.scale(img_atual, (bot_w, bot_h))
+                            bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
+                            by = seg["y"] - bot_h
+                            self.screen.blit(img_res, (bx, by))
+
+                # 3. Aceleração no neutro
                 self.car.acelerar_neutro(keys)
                 
-                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track)
+                # 4. Desenha o cockpit (Adicionamos os parâmetros extras para o retrovisor funcionar na largada!)
+                posicao_inicial = 1 + sum(1 for bot in self.bots if bot["pos"] > self.car.position)
+                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.bot_sprites, posicao_inicial)
                 
+                # 5. Textos do Countdown
                 segundos = (tempo_atual - self.timer_countdown) // 1000
                 
                 if segundos < 3:
@@ -396,8 +433,8 @@ class Game:
                 bot["pos"] += bot["speed"] * 0.005
                 
                 # --- NOVO: 1. VOCÊ PEGA O VÁCUO DESTE BOT ---
-                # Se ele está entre 15 e 80 metros na sua frente e você a mais de 200 km/h
-                if 15 < dist_relativa < 80 and self.car.speed > 200:
+                # Se ele está entre 15 e 80 metros na sua frente e você a mais de 150 km/h
+                if 15 < dist_relativa < 60 and self.car.speed > 150:
                     if abs(self.car.player_x - bot["x"]) < 0.4:
                         jogador_no_vacuo = True
 
@@ -516,7 +553,7 @@ class Game:
             # ==========================================
             # 2. ATUALIZA A SUA FÍSICA (COM A TRAVA)
             # ==========================================
-            self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked)
+            self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
             self.track.update_parallax(self.car.speed, curve_intensity, keys)
             self.car.update_timer(self.track.total_track_length, self.lap_limit)
 
@@ -542,7 +579,7 @@ class Game:
                 dist_view = (bot["pos"] - self.car.position) % self.track.total_track_length
                 if 2 < dist_view < self.track.draw_distance:
                     visiveis.append((dist_view, bot))
-            
+
             visiveis.sort(key=lambda x: x[0], reverse=True)
             
             for dist, bot in visiveis:

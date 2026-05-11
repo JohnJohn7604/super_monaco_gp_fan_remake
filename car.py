@@ -135,10 +135,10 @@ class Car:
             [carregar_img(f"images/cockpit/pneu_dir_vir_dir2{s}.png", tamanho_pneu) for s in ("","a","b")]
         ]
         
-        self.retro_sway_suave = 0.0 # <-- NOVO: Amortecedor do retrovisor
+        self.retro_sway_suave = 0 # <-- NOVO: Amortecedor do retrovisor
 
     # Adicionamos o steering_locked=False no final
-    def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False):
+    def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False, no_vacuo=False):
         # 1. Troca de Marchas
         if keys[pygame.K_t] and (tempo_atual - self.timer_marcha > 500):
             self.transmissao = "MANUAL" if self.transmissao == "AUTO" else "AUTO"
@@ -181,9 +181,18 @@ class Car:
 
         # --- Limites e Corte de Giro ---
         limite_atual = self.limite_marchas[self.marcha_atual]
+        
+        # MÁGICA DO VÁCUO: O limite da marcha estica se você estiver no vácuo!
+        if no_vacuo and self.marcha_atual == self.max_marchas:
+            limite_atual += 15
+
         if not na_grama and self.speed > limite_atual:
-            # Chegou no limite da marcha no asfalto (Corta o giro)
-            self.speed = limite_atual - 2
+            if no_vacuo:
+                # Trava suave no teto do vácuo
+                self.speed = limite_atual 
+            else:
+                # SAIU DO VÁCUO: O vento bate e a velocidade cai aos poucos (efeito realista!)
+                self.speed -= 0.6 
         elif na_grama and self.speed > 120:
             # Tentar voar na grama faz os pneus derraparem em falso (Perde muita velocidade)
             self.speed -= 1.5 
@@ -191,9 +200,8 @@ class Car:
         if keys[pygame.K_a]:
             self.speed -= self.brake_power
             
-        # Impede a velocidade de ficar negativa ou passar do limite absoluto
+        # Impede a velocidade de ficar negativa
         if self.speed < 0: self.speed = 0
-        if self.speed > self.max_speed: self.speed = self.max_speed
 
         # 3. Posição, Força Centrífuga e Direção
         self.position += self.speed * 0.005
