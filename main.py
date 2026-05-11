@@ -113,16 +113,25 @@ class Game:
         if track_name == "rio":
             self.track = Track()
             
+        # Descobre a pasta da equipe do jogador lendo o JSON
+        nome_equipe = self.equipe_atual_jogador
+        if nome_equipe in self.equipes:
+            pasta_do_jogador = self.equipes[nome_equipe]["pasta"]
+        else:
+            pasta_do_jogador = "minarae" # Segurança caso a equipe não exista
+
         # 2. Carregar performance da sua equipe
         status = self.equipes[self.equipe_atual_jogador]
-        
-        # AGORA ENVIAMOS O FREIO E A DIREÇÃO TAMBÉM!
+
         self.car = Car(
             velocidade_maxima=status["velocidade_base"], 
             nivel_aceleracao=status["aceleracao"],
             nivel_freio=status.get("freio", 1),       # Puxa do dict (padrão 1 se esquecer de por)
-            nivel_direcao=status.get("direcao", 1)    # Puxa do dict (padrão 1 se esquecer de por)
+            nivel_direcao=status.get("direcao", 1),    # Puxa do dict (padrão 1 se esquecer de por)
+            pasta_equipe = pasta_do_jogador  # <-- A MÁGICA ENTRA AQUI!
         )
+            
+        
         
         # 3. Limpa a lista e cria os Adversários (Bots) novos
         self.bots = []

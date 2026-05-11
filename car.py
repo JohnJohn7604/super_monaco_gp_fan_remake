@@ -8,7 +8,7 @@ from utils import carregar_img
 
 
 class Car:
-    def __init__(self, velocidade_maxima=330, nivel_aceleracao=1, nivel_freio=1, nivel_direcao=1):
+    def __init__(self, velocidade_maxima=330, nivel_aceleracao=1, nivel_freio=1, nivel_direcao=1, pasta_equipe="minarae"):
         self.font = pygame.font.SysFont('Arial', 30, bold=True)
 
         # --- SISTEMA DE TEMPOS E VOLTAS ---
@@ -136,6 +136,63 @@ class Car:
         ]
         
         self.retro_sway_suave = 0 # <-- NOVO: Amortecedor do retrovisor
+
+        # ==========================================
+        # CARREGA AS IMAGENS BASEADAS NA EQUIPE
+        # ==========================================
+        # É ESTA LINHA ABAIXO QUE CRIA O self.retrovisor_img!
+        self.carregar_sprites_cockpit(pasta_equipe)
+
+    def carregar_sprites_cockpit(self, pasta_equipe):
+        """Lê os PNGs do cockpit buscando primeiro na pasta da equipe. Se não achar, usa os originais."""
+        tamanho_volante = (380, 95)
+        tamanho_pneu = (133, 80)    
+        tamanho_retrovisor = (int(WIDTH // 1.5), 120)
+        
+        pasta_time = f"images/cars/{pasta_equipe}/cockpit"
+        pasta_base = "images/cockpit"
+        
+        def pegar_img(nome_arquivo, tamanho):
+            # Tenta pegar a skin da equipe
+            img = carregar_img(f"{pasta_time}/{nome_arquivo}", tamanho)
+            if not img:
+                # Se a equipe não tem essa imagem ainda, usa a padrão cinza/preta
+                img = carregar_img(f"{pasta_base}/{nome_arquivo}", tamanho)
+            return img
+
+        # 1. Volantes
+        self.volante_reto = pegar_img("volante_reto.png", tamanho_volante)
+        self.volantes_esq = [pegar_img(f"volante_esq{i}.png", tamanho_volante) for i in (1,2,3)]
+        self.volantes_dir = [pegar_img(f"volante_dir{i}.png", tamanho_volante) for i in (1,2,3)]
+        
+        # 2. Pneus Retos
+        self.pneus_esq_reto = [
+            pegar_img("pneu_esq_reto1.png", tamanho_pneu),
+            pegar_img("pneu_esq_reto1a.png", tamanho_pneu),
+            pegar_img("pneu_esq_reto1b.png", tamanho_pneu)
+        ]
+        self.pneus_dir_reto = [pygame.transform.flip(img, True, False) for img in self.pneus_esq_reto]
+        
+        # 3. Pneus Virando
+        self.pneus_dir_virando_esq = [
+            [pegar_img(f"pneu_dir_vir_esq1{s}.png", tamanho_pneu) for s in ("","a","b")],
+            [pegar_img(f"pneu_dir_vir_esq2{s}.png", tamanho_pneu) for s in ("","a","b")]
+        ]
+        self.pneus_esq_virando_esq = [
+            [pegar_img(f"pneu_esq_vir_esq1{s}.png", tamanho_pneu) for s in ("","a","b")],
+            [pegar_img(f"pneu_esq_vir_esq2{s}.png", tamanho_pneu) for s in ("","a","b")]
+        ]
+        self.pneus_esq_virando_dir = [
+            [pegar_img(f"pneu_esq_vir_dir1{s}.png", tamanho_pneu) for s in ("","a","b")],
+            [pegar_img(f"pneu_esq_vir_dir2{s}.png", tamanho_pneu) for s in ("","a","b")]
+        ]
+        self.pneus_dir_virando_dir = [
+            [pegar_img(f"pneu_dir_vir_dir1{s}.png", tamanho_pneu) for s in ("","a","b")],
+            [pegar_img(f"pneu_dir_vir_dir2{s}.png", tamanho_pneu) for s in ("","a","b")]
+        ]
+        
+        # 4. Retrovisor (Carregado apenas uma vez para salvar memória!)
+        self.retrovisor_img = pegar_img("retrovisor.png", tamanho_retrovisor)
 
     # Adicionamos o steering_locked=False no final
     def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False, no_vacuo=False):
@@ -386,11 +443,6 @@ class Car:
         screen.blit(pneu_esq_img, (centro_x - 180 - pneu_esq_img.get_width(), fundo_y - 80))
         screen.blit(pneu_dir_img, (centro_x + 180, fundo_y - 80)) 
         screen.blit(volante_atual, (centro_x - (volante_atual.get_width() // 2), fundo_y - volante_atual.get_height()))
-        
-        # --- NOVO: IMAGEM DO RETROVISOR ---
-        # DICA: Crie um PNG transparente no meio, com apenas a borda de plástico!
-        tamanho_retrovisor = (WIDTH // 1.5, 120)
-        self.retrovisor_img = carregar_img("images/cockpit/retrovisor.png", tamanho_retrovisor)
 
        # ==========================================
         # 4. PAINEL: CONTA-GIROS (RPM) E VELOCIDADE
