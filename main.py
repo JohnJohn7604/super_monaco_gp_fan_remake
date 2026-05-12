@@ -68,45 +68,43 @@ class Game:
         
         self.bot_anim_timer = 0
         self.bot_frame_idx = 0
+        
+        # Cria um "Armário" vazio para guardar as imagens de cada equipe na memória
+        self.cache_sprites = {}
 
-        # Dicionário de Animações
-        self.bot_sprites = {
-            "rear_reto": [
-                carregar_img("images/cars/bot/rear_reto1.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_reto1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_reto1b.png", tamanho_bot)
-            ],
-            "front_reto": [
-                carregar_img("images/cars/bot/front_reto1.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_reto1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_reto1b.png", tamanho_bot)
-            ],
-            "front_esq": [
-                carregar_img("images/cars/bot/front_esq1.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_esq1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_esq1b.png", tamanho_bot)
-            ],
-            "front_dir": [
-                carregar_img("images/cars/bot/front_dir1.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_dir1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/front_dir1b.png", tamanho_bot)
-            ],
-            "rear_esq": [
-                carregar_img("images/cars/bot/rear_esq1.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_esq1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_esq1b.png", tamanho_bot)
-            ],
-            "rear_dir": [
-                carregar_img("images/cars/bot/rear_dir1.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_dir1a.png", tamanho_bot),
-                carregar_img("images/cars/bot/rear_dir1b.png", tamanho_bot)
-            ]
-        }
+    def carregar_sprites_equipe(self, pasta_equipe):
+        """Carrega os 18 frames de uma equipe, usando o bot cinza como plano B (fallback)"""
+        tamanho_bot = (self.bot_base_w, self.bot_base_h)
+        
+        def pegar_img(direcao, tipo, frame):
+            nome_arquivo = f"{direcao}_{tipo}{frame}.png"
+            caminho_equipe = f"images/cars/{pasta_equipe}/{nome_arquivo}"
+            caminho_bot = f"images/cars/bot/{nome_arquivo}"
+            
+            # Tenta carregar a cor da equipe
+            img = carregar_img(caminho_equipe, tamanho_bot)
+            if not img:
+                # Se não tiver, puxa a imagem original do bot genérico
+                img = carregar_img(caminho_bot, tamanho_bot)
+            if not img:
+                # Segurança máxima anti-crash
+                img = pygame.Surface(tamanho_bot, pygame.SRCALPHA)
+            return img
 
-        # --- A CORREÇÃO DO ERRO ---
-        # Inicializa as variáveis no Frame Zero para o jogo não crashar na largada!
-        self.bot_img_atual = self.bot_sprites["rear_reto"][0]
-        self.bot_img_retro = self.bot_sprites["front_reto"][0]
+        sprites = {}
+        perspectivas = ["rear_reto", "front_reto", "front_esq", "front_dir", "rear_esq", "rear_dir"]
+        sufixos = ["1", "1a", "1b"] # Os 3 frames da animação
+        
+        for pers in perspectivas:
+            partes = pers.split('_') 
+            direcao = partes[0]
+            tipo = partes[1]
+            
+            sprites[pers] = []
+            for suf in sufixos:
+                sprites[pers].append(pegar_img(direcao, tipo, suf))
+                
+        return sprites
 
     def iniciar_corrida(self, track_name):
         # 1. Escolha da pista
@@ -135,9 +133,15 @@ class Game:
         
         # 3. Limpa a lista e cria os Adversários (Bots) novos
         self.bots = []
+        self.cache_sprites = {} # Limpa as imagens antigas
         contador_pos = 0 
         
         for nome_eq, dados in self.equipes.items():
+            pasta = dados["pasta"]
+            
+            # CARREGA OS SPRITES DESTA EQUIPE APENAS UMA VEZ E GUARDA NO ARMÁRIO!
+            if pasta not in self.cache_sprites:
+                self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta)
             for i, piloto in enumerate(dados["pilotos"]):
                 
                 # ZIG-ZAG DA LARGADA: Par = Esquerda (-0.5), Ímpar = Direita (0.5)
@@ -270,7 +274,8 @@ class Game:
                 visiveis.sort(key=lambda x: x[0], reverse=True)
                 
                 for dist, bot in visiveis:
-                    img_atual = self.bot_sprites["rear_reto"][0] # Na largada estão todos retos!
+                    # Agora ele vai no armário, procura a pasta da equipe deste bot e pega a imagem reta!
+                    img_atual = self.cache_sprites[bot["pasta"]]["rear_reto"][0]
                     
                     indice = int(dist) - 1
                     if 0 <= indice < len(segmentos):
@@ -296,9 +301,9 @@ class Game:
                 # 3. Aceleração no neutro
                 self.car.acelerar_neutro(keys)
                 
-                # 4. Desenha o cockpit (Adicionamos os parâmetros extras para o retrovisor funcionar na largada!)
+                # 4. Desenha o cockpit
                 posicao_inicial = 1 + sum(1 for bot in self.bots if bot["pos"] > self.car.position)
-                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.bot_sprites, posicao_inicial)
+                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_inicial)
                 
                 # 5. Textos do Countdown
                 segundos = (tempo_atual - self.timer_countdown) // 1000
@@ -608,8 +613,13 @@ class Game:
                 else: direcao_bot = "reto"
 
                 chave_pista = f"rear_{direcao_bot}"
-                if chave_pista not in self.bot_sprites: chave_pista = "rear_reto"
-                img_atual = self.bot_sprites[chave_pista][bot["frame_idx"]]
+                pasta_bot = bot["pasta"] # Descobre de qual equipe o bot é
+                
+                if chave_pista not in self.cache_sprites[pasta_bot]: 
+                    chave_pista = "rear_reto"
+                    
+                # Puxa o frame da animação usando as cores exclusivas dele!
+                img_atual = self.cache_sprites[pasta_bot][chave_pista][bot["frame_idx"]]
 
                 indice = int(dist) - 1
                 if 0 <= indice < len(segmentos):
@@ -649,7 +659,7 @@ class Game:
             posicao_atual = 1 + bots_a_frente
 
             # Agora, passamos esse valor 'posicao_atual' para dentro do draw_cockpit
-            self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.bot_sprites, posicao_atual)
+            self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
 
             # RESULTADO FINAL DA CORRIDA
             if self.estado_jogo == "FINISH":

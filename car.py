@@ -575,15 +575,16 @@ class Car:
                     # Aumentamos a zona morta para 0.4. 
                     # O bot só vira de lado se estiver realmente bem longe do seu centro.
                     diferenca_x = bot["x"] - self.player_x
-                    if diferenca_x < -0.4: direcao = "dir"
-                    elif diferenca_x > 0.4: direcao = "esq"
+                    if diferenca_x < -0.4: direcao = "esq"
+                    elif diferenca_x > 0.4: direcao = "dir"
                     else: direcao = "reto"
                     
                     chave = f"front_{direcao}"
                     img = None
-                    if bot_sprites and chave in bot_sprites:
-                        lista_imgs = bot_sprites[chave]
-                        img = lista_imgs[bot["frame_idx"] % len(lista_imgs)]
+                    
+                    # CORREÇÃO: Primeiro procura a pasta (equipe), depois a direção, depois o frame!
+                    if bot_sprites and bot["pasta"] in bot_sprites:
+                        img = bot_sprites[bot["pasta"]][chave][bot["frame_idx"]]
                     
                     if img:
                         # Matemática de altura fixa (sem amassar o teto!)
@@ -593,12 +594,22 @@ class Car:
                         
                         bx = centro_near + (bot["x"] * width_near) - (bot_w // 2)
                         by = y_near - bot_h
-                        lista_desenho_espelho.append((img, bx, by, bot_w, bot_h))
+                        
+                        # EFEITO DE ESPELHO REALISTA
+                        img_espelhada = pygame.transform.flip(img, True, False)
+                        
+                        # NOVO: Guardamos a distância exata 'dist' (decimal) no final da tupla!
+                        lista_desenho_espelho.append((img_espelhada, bx, by, bot_w, bot_h, dist))
 
-        lista_desenho_espelho.reverse()
+        # ==========================================
+        # ORDENAÇÃO EXATA DE PROFUNDIDADE (Z-SORT)
+        # ==========================================
+        # Apagamos o lista_desenho_espelho.reverse()!
+        # Agora o código ordena do mais LONGE (maior distância) para o mais PERTO (menor distância)
+        lista_desenho_espelho.sort(key=lambda item: item[5], reverse=True)
 
         # Cola os bots e desenha o retrovisor final na tela
-        for img, bx, by, bw, bh in lista_desenho_espelho:
+        for img, bx, by, bw, bh, dist in lista_desenho_espelho:
             if bw > 0 and bh > 0:
                 img_redim = pygame.transform.scale(img, (bw, bh))
                 mini_screen.blit(img_redim, (bx, by))

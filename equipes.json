@@ -61,8 +61,8 @@
     },
     "Tyrant": {
         "classe": "B",
-        "velocidade_base": 358,
-        "aceleracao": 3,
+        "velocidade_base": 362,
+        "aceleracao": 2,
         "freio": 5,
         "direcao": 5,
         "pasta": "tyrant",
@@ -73,8 +73,8 @@
     },
     "Losel": {
         "classe": "B",
-        "velocidade_base": 356,
-        "aceleracao": 3,
+        "velocidade_base": 359,
+        "aceleracao": 2,
         "freio": 5,
         "direcao": 4,
         "pasta": "Losel",
