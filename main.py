@@ -406,8 +406,13 @@ class Game:
                 # ==========================================
                 # IA BÁSICA (Aceleração Explosiva de F1)
                 # ==========================================
+                # O FIM DA TELEPATIA: O bot agora lê a pista na posição DELE!
+                curva_do_bot = self.track.get_curve(bot["pos"])
+                
                 fator_curva = 5000 - ((bot["max_speed"] - 330) * 20)
-                reducao_curva = abs(curve_intensity) * fator_curva
+                
+                # Usa a curva do bot para calcular a frenagem, e não a sua
+                reducao_curva = abs(curva_do_bot) * fator_curva
                 target_speed = max(130, bot["max_speed"] - reducao_curva) 
 
                 distancia_para_voce = self.car.position - bot["pos"]
@@ -421,21 +426,27 @@ class Game:
                 # ==========================================
                 # ACELERAÇÃO COM MOTORES REAIS (Física Corrigida)
                 # ==========================================
-                # O multiplicador agora é muito mais suave:
-                # Nível 1: Força de 0.8x | Nível 7: Força de 1.4x
                 forca_motor = 0.7 + (bot["aceleracao"] * 0.1)
 
+                # --- NOVO: BÔNUS DE FUGA PÓS-ULTRAPASSAGEM ---
+                # Se o bot acabou de te passar (está até 100m na sua frente) e a pista está reta:
+                if -100 < distancia_para_voce < 0 and abs(curva_do_bot) < 0.05:
+                    forca_motor += 0.6  # Ele ganha um boost massivo de tração
+                    target_speed += 15  # Aumenta o limite de velocidade dele para abrir vantagem!
+
                 if bot["speed"] < target_speed: 
-                    # Valores base reduzidos para mais de metade para simular o peso real do carro!
                     if bot["speed"] < 100: 
-                        bot["speed"] += 0.5 * forca_motor  # 1ª Marcha pesada
+                        bot["speed"] += 0.5 * forca_motor  
                     elif bot["speed"] < 200: 
-                        bot["speed"] += 0.7 * forca_motor  # 2ª e 3ª ganham tração
+                        bot["speed"] += 0.7 * forca_motor  
                     elif bot["speed"] < 280: 
-                        bot["speed"] += 0.5 * forca_motor  # 4ª e 5ª perdem fôlego
+                        bot["speed"] += 0.5 * forca_motor  
                     else:
-                        taxa_aceleracao = 0.4 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.05, taxa_aceleracao * forca_motor) 
+                        # --- AJUSTE: RETOMADA DE ALTA VELOCIDADE ---
+                        # Mudamos o multiplicador de 0.4 para 0.8 e o ganho mínimo de 0.05 para 0.15
+                        # Isso faz ele colar o ponteiro no máximo muito mais rápido nas retas!
+                        taxa_aceleracao = 0.8 * (1 - (bot["speed"] / (target_speed + 1)))
+                        bot["speed"] += max(0.15, taxa_aceleracao * forca_motor) 
                         
                 elif bot["speed"] > target_speed + 15: 
                     bot["speed"] -= 3.5  
