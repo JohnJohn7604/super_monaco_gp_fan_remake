@@ -4,6 +4,7 @@ import sys
 import math
 import json
 from settings import *
+from openal import oalOpen, oalQuit
 from track import Track
 from car import Car
 from utils import carregar_img
@@ -43,19 +44,22 @@ class Game:
 
 
         # ==========================================
-        # ÁUDIO (Batida e Motor do Bot)
+        # ÁUDIO 3D VIA OPENAL (Batida e Motor do Bot)
         # ==========================================
-        self.timer_batida = 0 # Cronômetro para o som de amassar lata não bugar
+        self.timer_batida = 0 
+        
         try:
-            self.som_batida = pygame.mixer.Sound("sounds/batida.wav")
-            self.som_bot_motor = pygame.mixer.Sound("sounds/bot_motor.wav")
+            self.som_batida = oalOpen("sounds/batida.wav") 
+            self.som_bot_motor = oalOpen("sounds/bot_motor.wav")
             
-            # O motor dos inimigos fica tocando em loop infinito (-1), 
-            # mas começa mudo (volume 0). Nós vamos controlar o volume pela distância!
-            self.som_bot_motor.play(-1) 
-            self.som_bot_motor.set_volume(0) 
-        except:
-            print("Aviso: batida.wav ou bot_motor.wav não encontrados na pasta sounds!")
+            # --- START DO ZERO ---
+            if self.som_bot_motor:
+                self.som_bot_motor.set_looping(True)
+                self.som_bot_motor.set_gain(0.0) # Nasce mudo
+                self.som_bot_motor.play()        # Fica tocando em silêncio no fundo
+                
+        except Exception as e:
+            print(f"Aviso OpenAL: Erro ao carregar audios dos bots! Detalhes: {e}")
             self.som_batida = None
             self.som_bot_motor = None
 
@@ -452,25 +456,51 @@ class Game:
                     if abs(self.car.player_x - bot["x"]) < 0.4:
                         jogador_no_vacuo = True
 
-                # 2. IA DE DEFESA 
-                if 0 < dist_relativa < 60:
+                # ==========================================
+                # INTELIGÊNCIA ARTIFICIAL TÁTICA (DEFESA/VÁCUO)
+                # ==========================================
+                # CHECAGEM: O jogador está dentro dos limites válidos da pista? 
+                # Se estiver além de -1.0 ou 1.0, o jogador está na grama/zebra e o bot o ignora!
+                jogador_na_pista = -1.0 <= self.car.player_x <= 1.0
+
+                # 2. IA DE DEFESA (Bot na frente bloqueia o jogador se ele estiver na pista)
+                if 0 < dist_relativa < 60 and jogador_na_pista:
                     if tempo_atual > bot["defesa_timer"]:
                         target_x = self.car.player_x * 0.90 
                         if abs(bot["x"] - self.car.player_x) < 0.15:
                             bot["defesa_timer"] = tempo_atual + 2000 
                 
-                # 3. IA DE ULTRAPASSAGEM (Bot atrás de você)
-                elif -80 < dist_relativa < 0 and bot["speed"] > self.car.speed:
+                # 3. IA DE ULTRAPASSAGEM E DESVIO DE OBSTÁCULO
+                elif -100 < dist_relativa < 0 and bot["speed"] > (self.car.speed - 30) and jogador_na_pista:
                     
-                    # --- NOVO: O BOT PEGA O SEU VÁCUO ANTES DE DESVIAR ---
-                    if dist_relativa < -15 and abs(self.car.player_x - bot["x"]) < 0.4 and bot["speed"] > 200:
-                        bot["speed"] += 0.5 # Ele ganha velocidade extra sugando o seu ar!
+                    if dist_relativa < -30 and abs(self.car.player_x - bot["x"]) < 0.4 and bot["speed"] > 200:
+                        bot["speed"] += 0.5 
 
-                    if abs(self.car.player_x - bot["x"]) < 0.4:
-                        target_x = -0.6 if self.car.player_x > 0 else 0.6 
-                        if dist_relativa > -10:
-                            bot["speed"] -= 0.5  
-                            if dist_relativa > -3: bot["speed"] = min(bot["speed"], self.car.speed)
+                    if abs(self.car.player_x - bot["x"]) < 0.45:
+                        
+                        if dist_relativa > -45:
+                            target_x = -0.7 if self.car.player_x > 0 else 0.7 
+                        
+                        # ==========================================
+                        # NOVO: AVALIAÇÃO DE PERIGO (Jogador parado)
+                        # ==========================================
+                        if self.car.speed > 80:
+                            # CENA 1: Corrida normal. Freia suavemente para não bater na asa.
+                            if dist_relativa > -35:
+                                velocidade_alvo = self.car.speed
+                                bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.1
+                                
+                            if dist_relativa > -15:
+                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
+                        else:
+                            # CENA 2: Jogador enguiçado/parado! MODO DESVIO AGRESSIVO!
+                            if dist_relativa > -60:
+                                # Abre a direção muito mais (0.85) para fugir do impacto
+                                target_x = -0.85 if self.car.player_x > 0 else 0.85 
+                                
+                                # Ele NUNCA zera a velocidade. Só tira um pouquinho o pé se estiver colando.
+                                if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.3:
+                                    bot["speed"] *= 0.95 
 
                 # 4. RADAR DE TRÁFEGO (Entre Bots)
                 for outro_bot in self.bots:
@@ -478,19 +508,29 @@ class Game:
                     
                     dist_entre_bots = outro_bot["pos"] - bot["pos"]
                     
-                    # --- NOVO: UM BOT PEGA VÁCUO DO OUTRO BOT ---
-                    if 15 < dist_entre_bots < 80 and bot["speed"] > 200:
-                        if abs(bot["x"] - outro_bot["x"]) < 0.4:
-                            bot["speed"] += 0.5 
-
-                    # Ultrapassagem Agressiva entre Bots
-                    if 0 < dist_entre_bots < 40 and bot["speed"] > outro_bot["speed"]:
+                    if 0 < dist_entre_bots < 80: 
+                        # Se estão próximos lateralmente
                         if abs(bot["x"] - outro_bot["x"]) < 0.45:
-                            target_x = -0.6 if outro_bot["x"] > 0 else 0.6
-                            if dist_entre_bots < 10:
-                                bot["speed"] -= 1.5 
-                                if dist_entre_bots < 3:
-                                    bot["speed"] *= 0.8
+                            
+                            # CENA DE TRÂNSITO: O bot da frente está quase parado!
+                            if outro_bot["speed"] < 50:
+                                # Desvio de Emergência Imediato! Abre tudo para o lado.
+                                target_x = -0.85 if outro_bot["x"] > 0 else 0.85
+                                # IMPORTANTE: Ele não trava a zero!
+                                if dist_entre_bots < 15:
+                                    bot["speed"] *= 0.98 
+                            
+                            # CENA NORMAL: Corrida e Vácuo
+                            else:
+                                if dist_entre_bots > 20 and bot["speed"] > 200:
+                                    bot["speed"] += 0.5 # Vácuo
+                                
+                                target_x = -0.6 if outro_bot["x"] > 0 else 0.6
+                                
+                                # Frenagem suave só se estiverem muito perto
+                                if dist_entre_bots < 15 and bot["speed"] > (outro_bot["speed"] - 20):
+                                    velocidade_alvo = outro_bot["speed"]
+                                    bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.1
 
                 # ==========================================
                 # DIREÇÃO SUAVE (Aplica o volante ao carro)
@@ -554,15 +594,33 @@ class Game:
                 if self.car.speed > limite_vacuo:
                     self.car.speed = limite_vacuo
 
-            # --- NOVO: SOM DINÂMICO DO MOTOR INIMIGO ---
-            # Fica alinhado fora do 'for bot in self.bots:', logo antes de atualizar a SUA física
-            if self.som_bot_motor:
-                if menor_distancia_bot < 80: # Se tiver algum inimigo a menos de 80 metros
-                    # A matemática mágica: 80m = Mudo. 0m (Colado em você) = Volume 0.5
-                    volume_bot = (1.0 - (menor_distancia_bot / 80.0)) * 0.1
-                    self.som_bot_motor.set_volume(volume_bot)
+            # ==========================================
+            # ÁUDIO DINÂMICO DOS BOTS (SISTEMA LIMPO)
+            # ==========================================
+            if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
+                
+                # Só ouvimos bots que estão a menos de 150 metros
+                raio_audicao = 100
+                
+                if menor_distancia_bot < raio_audicao:
+                    # Fator vai de 0.0 (colado em você) até 1.0 (lá nos 150m)
+                    fator = menor_distancia_bot / raio_audicao
+                    
+                    # VOLUME: Máximo de 0.6 (perto) caindo até 0.0 (longe)
+                    volume = (1.0 - fator) * 0.6
+                    self.som_bot_motor.set_gain(volume)
+                    
+                    # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
+                    pitch = 0.8 - (fator * 1.0)
+                    self.som_bot_motor.set_pitch(max(0.5, min(3.0, pitch)))
+                    
+                    # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
+                    if self.som_bot_motor.get_state() != 4114: # 4114 = PLAYING
+                        self.som_bot_motor.play()
+                
                 else:
-                    self.som_bot_motor.set_volume(0) # Fica mudo se todos estiverem longe
+                    # Se não tem ninguém no raio de 150m, muta o som!
+                    self.som_bot_motor.set_gain(0.0)
 
             # ==========================================
             # 2. ATUALIZA A SUA FÍSICA (COM A TRAVA)
@@ -682,10 +740,11 @@ class Game:
                 if tempo_atual - self.timer_finish > 5000:
                     # 1. CALA TODOS OS SONS DA PISTA!
                     self.car.parar_audios() 
+                    
                     if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
-                        self.som_bot_motor.set_volume(0)
-                    if hasattr(self, 'som_batida') and self.som_batida:
-                        self.som_batida.stop() # Para qualquer batida que esteja tocando
+                        self.som_bot_motor.set_gain(0.0)
+                        try: self.som_bot_motor.stop()
+                        except: pass
 
                     # 2. GERA AS TABELAS E MUDA DE TELA
                     self.gerar_resultados()

@@ -575,8 +575,8 @@ class Car:
                     # Aumentamos a zona morta para 0.4. 
                     # O bot só vira de lado se estiver realmente bem longe do seu centro.
                     diferenca_x = bot["x"] - self.player_x
-                    if diferenca_x < -0.4: direcao = "esq"
-                    elif diferenca_x > 0.4: direcao = "dir"
+                    if diferenca_x < -0.7: direcao = "esq"
+                    elif diferenca_x > 0.7: direcao = "dir"
                     else: direcao = "reto"
                     
                     chave = f"front_{direcao}"
