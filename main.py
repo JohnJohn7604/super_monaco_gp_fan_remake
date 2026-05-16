@@ -167,15 +167,28 @@ class Game:
                 if piloto.get("is_player"): 
                     continue
                 
-                # ADICIONA O BOT COM TODAS AS CHAVES OBRIGATÓRIAS
+                # =========================================================
+                # SISTEMA RETRO EQUILIBRADO: CARRO + PILOTO
+                # =========================================================
+                vel_maxima_do_carro = dados["velocidade_base"]
+                
+                # A aceleração final é o motor do CARRO + o reflexo/talento do PILOTO
+                aceleracao_combinada = dados["aceleracao"] + piloto["aceleracao"]
+                
+                freio_piloto = piloto.get("freio", 3)
+                direcao_piloto = piloto.get("direcao", 3)
+
+                # ADICIONA O BOT COMBINANDO AS DUAS ACELERAÇÕES
                 self.bots.append({
                     "equipe": nome_eq,
                     "nome": piloto["nome"],
                     "pos": posicao_z,
                     "x": lado_pista, 
                     "speed": 0,
-                    "max_speed": dados["velocidade_base"],
-                    "aceleracao": dados.get("aceleracao", 1),
+                    "max_speed": vel_maxima_do_carro, 
+                    "aceleracao": aceleracao_combinada, # <--- AQUI OCORRE A MÁGICA!
+                    "freio": freio_piloto,             
+                    "direcao": direcao_piloto,         
                     "cor_capacete": piloto["cor_capacete"],
                     "pasta": dados["pasta"],
                     "frame_idx": 0,
@@ -406,12 +419,14 @@ class Game:
                 # ==========================================
                 # IA BÁSICA (Aceleração Explosiva de F1)
                 # ==========================================
-                # O FIM DA TELEPATIA: O bot agora lê a pista na posição DELE!
                 curva_do_bot = self.track.get_curve(bot["pos"])
                 
-                fator_curva = 5000 - ((bot["max_speed"] - 330) * 20)
+                # --- NOVO: PILOTOS BONS FREIAM MAIS TARDE NAS CURVAS ---
+                # Quanto maior o nível de freio e direção do piloto, menor é o impacto da curva.
+                # Um piloto nível 7.5 sofre menos redução do que um piloto nível 1.0!
+                habilidade_curva = (bot["freio"] + bot["direcao"]) * 150
+                fator_curva = max(2000, 5000 - habilidade_curva)
                 
-                # Usa a curva do bot para calcular a frenagem, e não a sua
                 reducao_curva = abs(curva_do_bot) * fator_curva
                 target_speed = max(130, bot["max_speed"] - reducao_curva) 
 
@@ -426,13 +441,13 @@ class Game:
                 # ==========================================
                 # ACELERAÇÃO COM MOTORES REAIS (Física Corrigida)
                 # ==========================================
-                forca_motor = 0.7 + (bot["aceleracao"] * 0.1)
+                forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
 
                 # --- NOVO: BÔNUS DE FUGA PÓS-ULTRAPASSAGEM ---
                 # Se o bot acabou de te passar (está até 100m na sua frente) e a pista está reta:
                 if -100 < distancia_para_voce < 0 and abs(curva_do_bot) < 0.05:
-                    forca_motor += 0.6  # Ele ganha um boost massivo de tração
-                    target_speed += 15  # Aumenta o limite de velocidade dele para abrir vantagem!
+                    forca_motor += 0.15  # Ele ganha um boost massivo de tração
+                    
 
                 if bot["speed"] < target_speed: 
                     if bot["speed"] < 100: 
@@ -454,9 +469,16 @@ class Game:
                     bot["speed"] -= 0.8 
 
                 # ==========================================
-                # INTELIGÊNCIA DE DIREÇÃO E TRÁFEGO
+                # INTELIGÊNCIA DE DIREÇÃO E TRÁFEGO (PERSONALIDADE)
                 # ==========================================
-                target_x = bot["x"] 
+                # 1. Dá uma "Linha Favorita" para o piloto se ele ainda não tiver
+                if "linha_padrao" not in bot:
+                    import random
+                    # Cada piloto prefere um canto diferente da pista (entre -0.45 e 0.45)
+                    bot["linha_padrao"] = random.uniform(-0.45, 0.45)
+                
+                # 2. O bot sempre tenta voltar para a SUA linha natural de corrida
+                target_x = bot["linha_padrao"]
                 
                 dist_relativa = bot["pos"] - self.car.position 
                 bot["pos"] += bot["speed"] * 0.005
@@ -519,29 +541,44 @@ class Game:
                     
                     dist_entre_bots = outro_bot["pos"] - bot["pos"]
                     
-                    if 0 < dist_entre_bots < 80: 
-                        # Se estão próximos lateralmente
+                    # MAGIA DA ULTRAPASSAGEM: O radar agora lê de 80m à frente até -25m atrás!
+                    # Isto obriga o bot a manter a linha de desvio até concluir a manobra.
+                    if -25 < dist_entre_bots < 80: 
+                        
+                        # Se estão a ocupar a mesma faixa
                         if abs(bot["x"] - outro_bot["x"]) < 0.45:
                             
-                            # CENA DE TRÂNSITO: O bot da frente está quase parado!
-                            if outro_bot["speed"] < 50:
-                                # Desvio de Emergência Imediato! Abre tudo para o lado.
-                                target_x = -0.85 if outro_bot["x"] > 0 else 0.85
-                                # IMPORTANTE: Ele não trava a zero!
-                                if dist_entre_bots < 15:
-                                    bot["speed"] *= 0.98 
-                            
-                            # CENA NORMAL: Corrida e Vácuo
+                            # CENA 1: O outro bot está na frente (+) (Aproximação)
+                            if dist_entre_bots > 0:
+                                
+                                # Carro enguiçado/Lento
+                                if outro_bot["speed"] < 50: 
+                                    target_x = -0.85 if outro_bot["x"] > 0 else 0.85
+                                    if dist_entre_bots < 15: bot["speed"] *= 0.98 
+                                    
+                                # Carro Rápido (Corrida normal)
+                                else:
+                                    # 1. Suga o vácuo de forma muito mais agressiva
+                                    if dist_entre_bots > 25 and bot["speed"] > 200:
+                                        bot["speed"] += 1.2 
+                                    
+                                    # 2. Inicia o desvio!
+                                    target_x = -0.65 if outro_bot["x"] > 0 else 0.65
+                                    
+                                    # 3. Boost do Estilingue: Ganha um embalo final ao sair da traseira
+                                    if dist_entre_bots < 40 and bot["speed"] > 240:
+                                        bot["speed"] += 0.8 
+                                    
+                                    # 4. SÓ TRAVA se estiver a 10m e não tiver conseguido virar o carro a tempo
+                                    if dist_entre_bots < 10 and abs(bot["x"] - outro_bot["x"]) < 0.25:
+                                        velocidade_alvo = outro_bot["speed"]
+                                        bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.2
+                                        
+                            # CENA 2: O bot está do lado ou a passar (-) (Ultrapassagem Ativa)
                             else:
-                                if dist_entre_bots > 20 and bot["speed"] > 200:
-                                    bot["speed"] += 0.5 # Vácuo
-                                
-                                target_x = -0.6 if outro_bot["x"] > 0 else 0.6
-                                
-                                # Frenagem suave só se estiverem muito perto
-                                if dist_entre_bots < 15 and bot["speed"] > (outro_bot["speed"] - 20):
-                                    velocidade_alvo = outro_bot["speed"]
-                                    bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.1
+                                # Ele está entre 0m e 25m à frente do carro que está a ultrapassar.
+                                # Mantém a direção aberta firmemente e não reduz a velocidade!
+                                target_x = -0.65 if outro_bot["x"] > 0 else 0.65
 
                 # ==========================================
                 # DIREÇÃO SUAVE (Aplica o volante ao carro)
@@ -597,7 +634,7 @@ class Game:
             # APLICA O EFEITO ESTILINGUE (VÁCUO) NO JOGADOR
             # ==========================================
             if jogador_no_vacuo and self.car.speed > 200:
-                self.car.speed += 0.6 # Aceleração extra contínua
+                self.car.speed += 0.3 # Aceleração extra contínua
                 
                 # Permite ultrapassar a velocidade máxima real do carro em até 15 km/h!
                 # Exemplo: Se o limite é 330, no vácuo ele vai a 345!

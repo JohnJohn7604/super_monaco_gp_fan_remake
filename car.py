@@ -65,7 +65,7 @@ class Car:
             6: self.max_speed * 0.90,
             7: self.max_speed * 1.05  
         }
-        self.torque_marchas = {1: 1.5, 2: 0.5, 3: 0.5, 4: 0.3, 5: 0.25, 6: 0.1, 7: 0.15}
+        self.torque_marchas = {1: 1.5, 2: 0.5, 3: 0.5, 4: 0.3, 5: 0.25, 6: 0.25, 7: 0.18}
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
