@@ -20,7 +20,8 @@ class Track:
                 {"length": 200, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
                 {"length": 80, "curve": -0.03, "hill": 0.0},        # Curva Mirabeau
                 {"length": 250, "curve": 0.0, "hill": 0.0}, 
-                {"length": 80, "curve": 0.1, "hill": -0.005},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
+                {"length": 80, "curve": 0.01, "hill":  0.002},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
+                {"length": 100, "curve": 0.0, "hill": 0.0},
                 {"length": 50, "curve": -0.02, "hill": 0.0},      # Curva Portier (Entrada do Túnel)
                 {"length": 500, "curve": 0.01, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
                 {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel

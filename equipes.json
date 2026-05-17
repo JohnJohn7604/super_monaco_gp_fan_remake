@@ -1,30 +1,30 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 378,
-        "aceleracao": 7.0,
+        "velocidade_base": 350,
+        "aceleracao": 4.09,
         "direcao": 4.2,
         "pasta": "madonna",
         "pilotos": [
-            {"nome": "A. Asselin", "aceleracao": 1.2, "freio": 7.5, "direcao": 7.5, "cor_capacete": [255, 0, 0]},
-            {"nome": "B. Rossi", "aceleracao": 0.9, "freio": 6.8, "direcao": 7.0, "cor_capacete": [255, 255, 255]}
+            {"nome": "A. Asselin", "aceleracao": 0.8, "freio": 7.5, "direcao": 6.0, "cor_capacete": [255, 0, 0]},
+            {"nome": "B. Rossi", "aceleracao": 0.65, "freio": 6.8, "direcao": 5.7, "cor_capacete": [255, 255, 255]}
         ]
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 374,
-        "aceleracao": 6.8,
+        "velocidade_base": 348,
+        "aceleracao": 4.19,
         "direcao": 4.0,
         "pasta": "firenze",
         "pilotos": [
-            {"nome": "L. Bianchi", "aceleracao": 0.9, "freio": 7.2, "direcao": 6.9, "cor_capacete": [0, 0, 0]},
-            {"nome": "F. Elsser", "aceleracao": 0.7, "freio": 6.5, "direcao": 6.8, "cor_capacete": [255, 255, 0]}
+            {"nome": "L. Bianchi", "aceleracao": 0.2, "freio": 7.2, "direcao": 6.9, "cor_capacete": [0, 0, 0]},
+            {"nome": "F. Elsser", "aceleracao": 0.8, "freio": 6.5, "direcao": 6.8, "cor_capacete": [255, 255, 0]}
         ]
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 352,
-        "aceleracao": 5.8,
+        "velocidade_base": 348,
+        "aceleracao": 4.09,
         "direcao": 3.9,
         "pasta": "millions",
         "pilotos": [

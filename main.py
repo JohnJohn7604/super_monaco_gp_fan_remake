@@ -38,7 +38,7 @@ class Game:
             self.equipes = {} # Evita que o jogo crash imediatamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "May"
+        self.equipe_atual_jogador = "Blanche"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -467,8 +467,8 @@ class Game:
                         # --- AJUSTE: RETOMADA DE ALTA VELOCIDADE ---
                         # Mudamos o multiplicador de 0.4 para 0.8 e o ganho mínimo de 0.05 para 0.15
                         # Isso faz ele colar o ponteiro no máximo muito mais rápido nas retas!
-                        taxa_aceleracao = 0.8 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.15, taxa_aceleracao * forca_motor) 
+                        taxa_aceleracao = 0.5 * (1 - (bot["speed"] / (target_speed + 1)))
+                        bot["speed"] += max(0.9, taxa_aceleracao * forca_motor) 
                         
                 elif bot["speed"] > target_speed + 15: 
                     bot["speed"] -= 3.5  
@@ -525,31 +525,68 @@ class Game:
                         # NOVO: AVALIAÇÃO DE PERIGO (Jogador parado)
                         # ==========================================
                         if self.car.speed > 80:
-                            # CENA 1: Corrida normal. Freia suavemente para não bater na asa.
-                            if dist_relativa > -35:
+                            # CENA 1: Corrida normal. 
+                            
+                            # 1. ANTECIPAÇÃO (A 40 metros ele já joga o volante para o lado para te ultrapassar)
+                            if dist_relativa > -40:
+                                # Ele joga o volante para a linha lateral livre para tentar passar direto
+                                target_x = -0.65 if self.car.player_x > 0 else 0.65
+                                
+                                # Começa a ajustar a velocidade suavemente
                                 velocidade_alvo = self.car.speed
-                                bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.1
+                                bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.15
                                 
-                            if dist_relativa > -15:
-                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
-                        else:
-                            # CENA 2: Jogador enguiçado/parado! MODO DESVIO AGRESSIVO!
-                            if dist_relativa > -60:
-                                # Abre a direção muito mais (0.85) para fugir do impacto
+                            # 2. EMERGÊNCIA (A 15 metros, se ele ainda estiver preso atrás de você, ele freia mais forte)
+                            if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.25:
+                                # Se mesmo desviando ele ainda está na sua traseira, força um desvio mais agressivo
                                 target_x = -0.85 if self.car.player_x > 0 else 0.85 
-                                
-                                # Ele NUNCA zera a velocidade. Só tira um pouquinho o pé se estiver colando.
-                                if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.3:
-                                    bot["speed"] *= 0.95 
+                                # E dá um toque no freio para não engavetar
+                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
 
-                # 4. RADAR DE TRÁFEGO (Entre Bots)
+                # =========================================================
+                # 4. RADAR DE TRÁFEGO E SISTEMA ANTI-ATRAVESSAMENTO (CORRIGIDO)
+                # =========================================================
                 for outro_bot in self.bots:
                     if bot == outro_bot: continue
                     
                     dist_entre_bots = outro_bot["pos"] - bot["pos"]
                     
-                    # MAGIA DA ULTRAPASSAGEM: O radar agora lê de 80m à frente até -25m atrás!
-                    # Isto obriga o bot a manter a linha de desvio até concluir a manobra.
+                    # --- NOVO: SISTEMA DE COLISÃO LATERAL (EVITA FANTASMAS) ---
+                    # Se eles estão colados no comprimento da pista (menos de 8 metros)
+                    if abs(dist_entre_bots) < 8:
+                        # E se estão tentando ocupar a mesma linha lateral (menos de 0.35 de espaço)
+                        distancia_lateral = bot["x"] - outro_bot["x"]
+                        if abs(distancia_lateral) < 0.35:
+                            # Se o 'bot' está ligeiramente à direita, afasta ele para a direita
+                            if distancia_lateral > 0:
+                                bot["x"] += 0.02
+                                outro_bot["x"] -= 0.02
+                            # Se o 'bot' está ligeiramente à esquerda, afasta ele para a esquerda
+                            else:
+                                bot["x"] -= 0.02
+                                outro_bot["x"] += 0.02
+                                
+                            # Trava de segurança nas bordas para eles não saírem voando do cenário
+                            bot["x"] = max(-0.85, min(0.85, bot["x"]))
+                            outro_bot["x"] = max(-0.85, min(0.85, outro_bot["x"]))
+                            
+                            # =========================================================
+                            # QUEBRA DE EMPATE AERODINÂMICA (FIM DOS BOTS UNIDOS)
+                            # =========================================================
+                            # Se a velocidade for idêntica (emparelhados), aplicamos um micro-atrito
+                            # ligeiramente diferente baseado no ID/Nome do bot para quebrar a sincronia física.
+                            if abs(bot["speed"] - outro_bot["speed"]) < 1.0:
+                                # O bot com o nome textualmente "maior" perde um tiquinho de nada a mais
+                                if bot["nome"] > outro_bot["nome"]:
+                                    bot["speed"] *= 0.992  # Perde um micro-fração para recuar
+                                else:
+                                    outro_bot["speed"] *= 0.992
+                            else:
+                                # Pequeno atrito físico normal pelo toque de pneu com pneu
+                                bot["speed"] *= 0.995
+
+                    # --- RADAR DE ULTRAPASSAGEM ORIGINAL INTEGRADO ---
+                    # O radar lê de 80m à frente até -25m atrás
                     if -25 < dist_entre_bots < 80: 
                         
                         # Se estão a ocupar a mesma faixa
@@ -576,14 +613,13 @@ class Game:
                                     if dist_entre_bots < 40 and bot["speed"] > 240:
                                         bot["speed"] += 0.8 
                                     
-                                    # 4. SÓ TRAVA se estiver a 10m e não tiver conseguido virar o carro a tempo
-                                    if dist_entre_bots < 10 and abs(bot["x"] - outro_bot["x"]) < 0.25:
+                                    # 4. SÓ TRAVA se estiver a 6m e não tiver conseguido virar o carro a tempo
+                                    if dist_entre_bots < 6 and abs(bot["x"] - outro_bot["x"]) < 0.25:
                                         velocidade_alvo = outro_bot["speed"]
                                         bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.2
                                         
                             # CENA 2: O bot está do lado ou a passar (-) (Ultrapassagem Ativa)
                             else:
-                                # Ele está entre 0m e 25m à frente do carro que está a ultrapassar.
                                 # Mantém a direção aberta firmemente e não reduz a velocidade!
                                 target_x = -0.65 if outro_bot["x"] > 0 else 0.65
 
@@ -666,7 +702,7 @@ class Game:
                     self.som_bot_motor.set_gain(volume)
                     
                     # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
-                    pitch = 0.8 - (fator * 1.0)
+                    pitch = 1.8 - (fator * 0.8)
                     self.som_bot_motor.set_pitch(max(0.5, min(3.0, pitch)))
                     
                     # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
