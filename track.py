@@ -24,9 +24,11 @@ class Track:
                 {"length": 100, "curve": 0.0, "hill": 0.0},
                 {"length": 50, "curve": -0.02, "hill": 0.0},      # Curva Portier (Entrada do Túnel)
                 {"length": 500, "curve": 0.01, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
+                {"length": 350, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel
                 {"length": 220, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
                 {"length": 60, "curve": -0.04, "hill": 0.0},      # Curva do Tabaco
+                {"length": 350, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": 0.03, "hill": 0.0},       # Chicane Louis Chiron
                 {"length": 200, "curve": -0.02, "hill": 0.0},     # Seção das Piscinas
                 {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse

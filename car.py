@@ -28,21 +28,16 @@ class Car:
         # Nível 1: Freio fraco (0.5) | Nível 7: Freio de cerâmica (1.4)
         self.brake_power = 0.35 + (nivel_freio * 0.15) 
         
-        # ==========================================
-        # NOVO SISTEMA DE DIREÇÃO (INÉRCIA / ATRASO)
-        # ==========================================
-        # A velocidade final da curva é igual para todos (para ngm ficar travado)
-        self.max_steering = 0.04 
         
         # A inércia atual (começa em 0)
         self.current_steering = 0.1 
 
         # ==========================================
-        # PROPRIEDADES DE DIREÇÃO (ADICIONAR AQUI)
+        # PROPRIEDADES DE DIREÇÃO (CORRIGIDO)
         # ==========================================
-        self.steering = 0.0         # <--- NOVA: Garante que o volante comece reto!
-        self.max_steering = 0.17     # Ângulo máximo de curva padrão
-        self.steering_speed = (nivel_direcao / 100) * 1.3   # Velocidade padrão de resposta
+        self.steering = 0.0          # Garante que o volante comece reto
+        self.max_steering = 0.04     # <--- NOVA: Limite base de ângulo (Evita travar em 0)
+        self.steering_speed = 0.1    # <--- NOVA: Velocidade de resposta base
         
         # Variável para o som do motor no neutro (Largada)
         self.rpm_neutro = 0
@@ -68,7 +63,7 @@ class Car:
             6: self.max_speed * 0.90,
             7: self.max_speed * 1.05  
         }
-        self.torque_marchas = {1: 1.5, 2: 0.5, 3: 0.5, 4: 0.3, 5: 0.25, 6: 0.25, 7: 0.18}
+        self.torque_marchas = {1: 1.5, 2: 1.2, 3: 1.0, 4: 0.85, 5: 0.75, 6: 0.62, 7: 0.62}
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
@@ -224,9 +219,10 @@ class Car:
             # O motor tenta empurrar o carro para frente
             forca_motor = self.torque_marchas[self.marcha_atual]
             
-            # --- A MÁGICA DA ACELERAÇÃO (Níveis 1 a 7) ---
-            # Fórmula: Nível 1 = 80% de força | Nível 7 = 140% de força
-            multiplicador_potencia = 0.7 + (self.nivel_aceleracao * 0.1)
+            # --- A MÁGICA DA ACELERAÇÃO ARCADE REALISTA ---
+            # Se o nível for baixo (Rigel = 0.15), o multiplicador vai ser por volta de 0.45.
+            # Se o nível for alto (Madonna = 4.5), vai passar de 1.35!
+            multiplicador_potencia = 0.4 + (self.nivel_aceleracao * 0.22)
             
             taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / self.max_speed))
             self.speed += taxa_aceleracao
@@ -275,7 +271,7 @@ class Car:
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
             # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
-            forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 2.8
+            forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 1.8
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
@@ -294,24 +290,18 @@ class Car:
             target_steering = 0.0
             
             # =========================================================
-            # CONTROLE DE DIREÇÃO DO JOGADOR COM ATRAZO/DELAY DINÂMICO
+            # CONTROLE DE DIREÇÃO DO JOGADOR COM RETORNO DINÂMICO
             # =========================================================
             if keys[pygame.K_LEFT]: 
                 target_steering = -self.max_steering
+                self.steering += (target_steering - self.steering) * self.steering_speed
             elif keys[pygame.K_RIGHT]: 
                 target_steering = self.max_steering
+                self.steering += (target_steering - self.steering) * self.steering_speed
             else:
                 target_steering = 0.0
-                # --- O FIM DO GELO ---
-                # Quando solta o botão, multiplicamos por 3.5 a velocidade de retorno!
-                # Isso faz a física do pneu travar no asfalto no exato momento em que o desenho centraliza.
+                # Quando solta o botão, o retorno é 3.5x mais rápido (Fim do efeito gelo)
                 self.steering += (target_steering - self.steering) * (self.steering_speed * 3.5)
-
-            # --- A MÁGICA DO DELAY POR EQUIPE ---
-            # self.steering_speed agora atua como o filtro de atraso. 
-            # Valores menores (ex: 0.05) fazem o volante demorar múltiplos frames para virar completamente.
-            # Valores maiores (ex: 0.25) tornam a resposta instantânea (como na Madonna).
-            self.steering += (target_steering - self.steering) * self.steering_speed
 
             # Aplica o movimento lateral baseado na velocidade atual do carro
             percentual_vel = self.speed / self.max_speed
@@ -382,14 +372,31 @@ class Car:
             if volume_final > 0.01: 
                 self.skid_sound.set_pitch(pitch_alvo)
     
-    def ajustar_atributos_equipe(self, direcao_equipe):
-        # --- CALIBRAÇÃO DO DELAY DO VOLANTE ---
-        # Se direcao_equipe for 6.5 (Madonna), steering_speed será 0.05 + 0.13 = 0.18 (Muito rápido, quase sem delay)
-        # Se direcao_equipe for 2.5 (Zeroforce), steering_speed será 0.05 + 0.05 = 0.10 (O volante vai parecer uma "banheira", demorando a responder)
+    def ajustar_atributos_equipe(self, dados_equipe):
+        """
+        Agora recebe o dicionário completo da equipe vindo do JSON, 
+        e não apenas a variável isolada de direção.
+        """
+        # Extrai as variáveis base do chassi para a física lateral
+        direcao_equipe = dados_equipe.get("direcao", 3.0)
         self.steering_speed = 0.05 + (direcao_equipe * 0.02)
-        
-        # Define o ângulo máximo que o chassi consegue atingir na curva
         self.max_steering = 0.025 + (direcao_equipe * 0.003)
+        
+        # --- CARREGAMENTO INTEGRADO DO ESCALONAMENTO DE MARCHAS ---
+        # Se o JSON tiver a lista de marchas, nós a carregamos. 
+        # Caso contrário (fallback de segurança), usamos um padrão esperto de F1.
+        lista_marchas = dados_equipe.get("forca_marchas", [1.6, 1.3, 1.05, 0.88, 0.75, 0.65, 0.58])
+        
+        # Transforma a lista do JSON (índices 0 a 6) no dicionário de física (marchas 1 a 7)
+        self.forca_marchas = {
+            1: lista_marchas[0],
+            2: lista_marchas[1],
+            3: lista_marchas[2],
+            4: lista_marchas[3],
+            5: lista_marchas[4],
+            6: lista_marchas[5],
+            7: lista_marchas[6]
+        }
 
     def acelerar_neutro(self, keys):
         # Simula o giro do motor (RPM) subindo e caindo no neutro

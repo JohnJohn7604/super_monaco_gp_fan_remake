@@ -38,7 +38,7 @@ class Game:
             self.equipes = {} # Evita que o jogo crash imediatamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "Blanche"
+        self.equipe_atual_jogador = "Dardan"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -130,8 +130,16 @@ class Game:
             nivel_aceleracao=status["aceleracao"],
             nivel_freio=status.get("freio", 1),       # Puxa do dict (padrão 1 se esquecer de por)
             nivel_direcao=status.get("direcao", 1),    # Puxa do dict (padrão 1 se esquecer de por)
-            pasta_equipe = pasta_do_jogador  # <-- A MÁGICA ENTRA AQUI!
+            pasta_equipe = pasta_do_jogador  
         )
+        
+
+        # =========================================================
+        # INJEÇÃO DAS MARCHAS E ATRIBUTOS DO JSON NO CARRO (NOVO)
+        # =========================================================
+        # Passamos o 'status' (o dicionário completo da equipe) para o carro 
+        # configurar a força das 7 marchas e as velocidades de resposta do volante!
+        self.car.ajustar_atributos_equipe(status)
             
         
         
@@ -173,22 +181,16 @@ class Game:
                 vel_maxima_do_carro = dados["velocidade_base"]
                 aceleracao_combinada = dados["aceleracao"] + piloto["aceleracao"]
                 
-                # --- NOVO: DIREÇÃO COMBINADA (CARRO + PILOTO) ---
-                # Puxa o atributo 'direcao' da equipe no JSON e soma com o do piloto
-                direcao_equipe = dados.get("direcao", dados.get("freio", 3)) # Fallback seguro se não houver
+                # --- DIREÇÃO COMBINADA DOS BOTS ---
+                direcao_equipe = dados.get("direcao", dados.get("freio", 3))
                 direcao_combinada = direcao_equipe + piloto["direcao"]
                 
                 freio_piloto = piloto.get("freio", 3)
 
-                # Se for o jogador, passamos os atributos da equipe direto para o objeto do seu carro!
+                # === BLOCCO CORRIGIDO: O JOGADOR JÁ FOI CONFIGURADO ACIMA ===
+                # Removemos a chamada errada de 'ajustar_atributos_equipe' daqui
+                # para não quebrar a física do seu volante!
                 if nome_eq == self.equipe_atual_jogador and piloto.get("is_player"):
-                    self.car.max_speed = vel_maxima_do_carro
-                    self.car.aceleracao_base = dados["aceleracao"]
-                    # Configura a agilidade de resposta do seu volante baseado na sua equipe!
-                    self.car.ajustar_atributos_equipe(direcao_equipe)
-                    
-                    self.car.player_x = lado_pista
-                    self.car.position = posicao_z
                     contador_pos += 1
                     continue
 
@@ -464,11 +466,11 @@ class Game:
                     elif bot["speed"] < 280: 
                         bot["speed"] += 0.5 * forca_motor  
                     else:
-                        # --- AJUSTE: RETOMADA DE ALTA VELOCIDADE ---
-                        # Mudamos o multiplicador de 0.4 para 0.8 e o ganho mínimo de 0.05 para 0.15
-                        # Isso faz ele colar o ponteiro no máximo muito mais rápido nas retas!
-                        taxa_aceleracao = 0.5 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.9, taxa_aceleracao * forca_motor) 
+                        # --- CORRIGIDO: POTÊNCIA REAL DO CHASSI ---
+                        # Removemos o max(0.9) que igualava todos os carros.
+                        # Agora, carros de classe S (Madonna/Firenze) tracionam muito mais forte em alta velocidade!
+                        taxa_aceleracao = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
+                        bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_aceleracao * forca_motor)
                         
                 elif bot["speed"] > target_speed + 15: 
                     bot["speed"] -= 3.5  
@@ -496,52 +498,54 @@ class Game:
                     if abs(self.car.player_x - bot["x"]) < 0.4:
                         jogador_no_vacuo = True
 
-                # ==========================================
-                # INTELIGÊNCIA ARTIFICIAL TÁTICA (DEFESA/VÁCUO)
-                # ==========================================
-                # CHECAGEM: O jogador está dentro dos limites válidos da pista? 
-                # Se estiver além de -1.0 ou 1.0, o jogador está na grama/zebra e o bot o ignora!
+                # =========================================================
+                # INTELIGÊNCIA ARTIFICIAL TÁTICA SEPARADA (CORRIGIDA)
+                # =========================================================
                 jogador_na_pista = -1.0 <= self.car.player_x <= 1.0
 
-                # 2. IA DE DEFESA (Bot na frente bloqueia o jogador se ele estiver na pista)
-                if 0 < dist_relativa < 60 and jogador_na_pista:
+                # ---------------------------------------------------------
+                # SITUAÇÃO A: O BOT ESTÁ NA SUA FRENTE (Fugindo ou Defendendo)
+                # ---------------------------------------------------------
+                if dist_relativa > 0 and dist_relativa < 60 and jogador_na_pista:
+                    # IA de Defesa: Ele tenta se posicionar na sua frente para bloquear o vácuo
                     if tempo_atual > bot["defesa_timer"]:
                         target_x = self.car.player_x * 0.90 
                         if abs(bot["x"] - self.car.player_x) < 0.15:
-                            bot["defesa_timer"] = tempo_atual + 2000 
-                
-                # 3. IA DE ULTRAPASSAGEM E DESVIO DE OBSTÁCULO
-                elif -100 < dist_relativa < 0 and bot["speed"] > (self.car.speed - 30) and jogador_na_pista:
+                            bot["defesa_timer"] = tempo_atual + 2000
                     
-                    if dist_relativa < -30 and abs(self.car.player_x - bot["x"]) < 0.4 and bot["speed"] > 200:
-                        bot["speed"] += 0.5 
+                    # FIM DO FREIO MAGNÉTICO: Se o bot está na frente, ele NUNCA reduz por você!
+                    # Ele ignora a sua velocidade e foca em tracionar no limite do motor dele.
 
+                # ---------------------------------------------------------
+                # SITUAÇÃO B: O BOT ESTÁ ATRÁS DE VOCÊ (Caçando ou Ultrapassando)
+                # ---------------------------------------------------------
+                elif dist_relativa < 0 and dist_relativa > -100 and jogador_na_pista:
+                    
+                    # Se ele está na sua cola e com velocidade para tentar passar
                     if abs(self.car.player_x - bot["x"]) < 0.45:
                         
-                        if dist_relativa > -45:
-                            target_x = -0.7 if self.car.player_x > 0 else 0.7 
-                        
-                        # ==========================================
-                        # NOVO: AVALIAÇÃO DE PERIGO (Jogador parado)
-                        # ==========================================
                         if self.car.speed > 80:
-                            # CENA 1: Corrida normal. 
-                            
-                            # 1. ANTECIPAÇÃO (A 40 metros ele já joga o volante para o lado para te ultrapassar)
+                            # --- CORRIDA NORMAL ---
+                            # Antecipação: A 40m ele joga de lado para abrir a ultrapassagem
                             if dist_relativa > -40:
-                                # Ele joga o volante para a linha lateral livre para tentar passar direto
                                 target_x = -0.65 if self.car.player_x > 0 else 0.65
-                                
-                                # Começa a ajustar a velocidade suavemente
-                                velocidade_alvo = self.car.speed
-                                bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.15
-                                
-                            # 2. EMERGÊNCIA (A 15 metros, se ele ainda estiver preso atrás de você, ele freia mais forte)
-                            if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.25:
-                                # Se mesmo desviando ele ainda está na sua traseira, força um desvio mais agressivo
-                                target_x = -0.85 if self.car.player_x > 0 else 0.85 
-                                # E dá um toque no freio para não engavetar
-                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
+                                # Ele só tira o pé se estiver prestes a estampar a sua traseira
+                                if bot["speed"] > self.car.speed:
+                                    velocidade_alvo = self.car.speed
+                                    bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.15
+                            
+                            # Emergência: A 15m, se ele não conseguiu sair de trás, ele freia forte
+                            if dist_relativa > -15:
+                                target_x = -0.85 if self.car.player_x > 0 else 0.85
+                                if bot["speed"] > self.car.speed:
+                                    bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
+                        else:
+                            # --- JOGADOR PARADO / ENGUIÇADO ---
+                            # Modo de desvio agressivo a 80 metros de distância
+                            if dist_relativa > -80:
+                                target_x = -0.85 if self.car.player_x > 0 else 0.85
+                                if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.3:
+                                    bot["speed"] *= 0.98
 
                 # =========================================================
                 # 4. RADAR DE TRÁFEGO E SISTEMA ANTI-ATRAVESSAMENTO (CORRIGIDO)
@@ -624,10 +628,12 @@ class Game:
                                 target_x = -0.65 if outro_bot["x"] > 0 else 0.65
 
                 # ==========================================
-                # DIREÇÃO SUAVE (Aplica o volante ao carro)
+                # DIREÇÃO SUAVE DOS BOTS (CORRIGIDO)
                 # ==========================================
-                # Aumentamos a velocidade do volante para eles desviarem mais rápido
-                velocidade_volante = 0.018 
+                # Substitua a linha fixa 'velocidade_volante = 0.018' por esta fórmula dinâmica!
+                # Isso permite que os bots rápidos desviem instantaneamente dos lentos nas curvas,
+                # limpando o tráfego e fazendo o pelotão fluir de verdade.
+                velocidade_volante = 0.014 + (bot["direcao"] * 0.0035)
                 bot["x"] += (target_x - bot["x"]) * velocidade_volante
 
                 # ==========================================
@@ -702,7 +708,7 @@ class Game:
                     self.som_bot_motor.set_gain(volume)
                     
                     # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
-                    pitch = 1.8 - (fator * 0.8)
+                    pitch = 1.0 - (fator * 1.0)
                     self.som_bot_motor.set_pitch(max(0.5, min(3.0, pitch)))
                     
                     # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
