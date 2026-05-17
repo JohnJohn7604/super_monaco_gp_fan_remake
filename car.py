@@ -32,14 +32,17 @@ class Car:
         # NOVO SISTEMA DE DIREÇÃO (INÉRCIA / ATRASO)
         # ==========================================
         # A velocidade final da curva é igual para todos (para ngm ficar travado)
-        self.max_steering = 0.05 
+        self.max_steering = 0.04 
         
         # A inércia atual (começa em 0)
-        self.current_steering = 0.0 
-        
-        # O Fator de Aderência (Grip). 
-        # Nível 1: Demora a virar (0.2) | Nível 7: Vira instantâneo (0.8)
-        self.grip_factor = 0.03 + ((nivel_direcao - 1 ) * 0.05)
+        self.current_steering = 0.1 
+
+        # ==========================================
+        # PROPRIEDADES DE DIREÇÃO (ADICIONAR AQUI)
+        # ==========================================
+        self.steering = 0.0         # <--- NOVA: Garante que o volante comece reto!
+        self.max_steering = 0.17     # Ângulo máximo de curva padrão
+        self.steering_speed = (nivel_direcao / 100) * 1.3   # Velocidade padrão de resposta
         
         # Variável para o som do motor no neutro (Largada)
         self.rpm_neutro = 0
@@ -260,20 +263,29 @@ class Car:
         # Impede a velocidade de ficar negativa
         if self.speed < 0: self.speed = 0
 
-        # 3. Posição, Força Centrífuga e Direção
+        # =========================================================
+        # 3. POSIÇÃO, FORÇA CENTRÍFUGA E DIREÇÃO (CORRIGIDO)
+        # =========================================================
         self.position += self.speed * 0.005
         percentual_vel = self.speed / self.max_speed
 
-        # A força com que a curva te joga para fora
-        forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 2.8
-        
-        # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
-        # (Isso faz o carro escorregar para a grama se você não virar o volante)
-        self.player_x -= forca_centrifuga
+        # Inicializa a força zerada para garantir segurança absoluta nas retas
+        forca_centrifuga = 0.0
 
-        if abs(curve_intensity) > 0 and self.speed > 100:
-            fator_arrasto = 5.0 
-            self.speed -= abs(forca_centrifuga) * fator_arrasto
+        # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
+        if abs(curve_intensity) > 0.001:
+            # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
+            forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 2.8
+            
+            # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
+            # Joga o carro para fora da curva automaticamente
+            self.player_x -= forca_centrifuga
+
+            # --- ARRASTO DE CURVA ---
+            # Reduz a velocidade devido ao atrito dos pneus tentando segurar o chassi
+            if self.speed > 100:
+                fator_arrasto = 7.0 
+                self.speed -= abs(forca_centrifuga) * fator_arrasto
 
         # --- A MÁGICA DA TRAVA DO VOLANTE (COLISÃO) ---
         if self.speed > 10 and not steering_locked: 
@@ -281,23 +293,36 @@ class Car:
             # --- LÓGICA DE DIREÇÃO (Novo Atributo) ---
             target_steering = 0.0
             
+            # =========================================================
+            # CONTROLE DE DIREÇÃO DO JOGADOR COM ATRAZO/DELAY DINÂMICO
+            # =========================================================
             if keys[pygame.K_LEFT]: 
                 target_steering = -self.max_steering
             elif keys[pygame.K_RIGHT]: 
                 target_steering = self.max_steering
+            else:
+                target_steering = 0.0
 
-            # A inércia atual do carro é puxada em direção ao alvo gradativamente.
-            # Com o Grip 0.03 (Minarae), ele vai levar quase 1 segundo derrapando antes de virar forte!
-            self.current_steering += (target_steering - self.current_steering) * self.grip_factor
+            # --- A MÁGICA DO DELAY POR EQUIPE ---
+            # self.steering_speed agora atua como o filtro de atraso. 
+            # Valores menores (ex: 0.05) fazem o volante demorar múltiplos frames para virar completamente.
+            # Valores maiores (ex: 0.25) tornam a resposta instantânea (como na Madonna).
+            self.steering += (target_steering - self.steering) * self.steering_speed
 
-            # Aplica a inércia final na posição do jogador na pista
-            self.player_x += self.current_steering
+            # Aplica o movimento lateral baseado na velocidade atual do carro
+            percentual_vel = self.speed / self.max_speed
+            self.player_x += self.steering * percentual_vel * 0.8
             
         elif steering_locked:
             self.current_steering = 0
             
         # Trava para o carro não sair voando muito além da grama
         self.player_x = max(-1.5, min(1.5, self.player_x))
+
+        # Se nenhuma tecla está apertada, força o volante a lutar para ficar reto com mais ignorância
+        if not keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+            # Faz o volante centralizar 30% a cada frame (ajuste o 0.3 se precisar)
+            self.current_steering += (0.0 - self.current_steering) * 0.3
 
         # 4. Áudio do Motor
         if self.motor_sound:
@@ -357,6 +382,15 @@ class Car:
             # Só atualiza a afinação se o som estiver alto o suficiente para ouvir
             if volume_final > 0.01: 
                 self.skid_sound.set_pitch(pitch_alvo)
+    
+    def ajustar_atributos_equipe(self, direcao_equipe):
+        # --- CALIBRAÇÃO DO DELAY DO VOLANTE ---
+        # Se direcao_equipe for 6.5 (Madonna), steering_speed será 0.05 + 0.13 = 0.18 (Muito rápido, quase sem delay)
+        # Se direcao_equipe for 2.5 (Zeroforce), steering_speed será 0.05 + 0.05 = 0.10 (O volante vai parecer uma "banheira", demorando a responder)
+        self.steering_speed = 0.05 + (direcao_equipe * 0.02)
+        
+        # Define o ângulo máximo que o chassi consegue atingir na curva
+        self.max_steering = 0.025 + (direcao_equipe * 0.003)
 
     def acelerar_neutro(self, keys):
         # Simula o giro do motor (RPM) subindo e caindo no neutro

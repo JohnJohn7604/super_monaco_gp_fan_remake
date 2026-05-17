@@ -168,17 +168,31 @@ class Game:
                     continue
                 
                 # =========================================================
-                # SISTEMA RETRO EQUILIBRADO: CARRO + PILOTO
+                # SISTEMA RETRO EQUILIBRADO: MOTOR DA EQUIPE + ATRIBUTOS DO PILOTO
                 # =========================================================
                 vel_maxima_do_carro = dados["velocidade_base"]
-                
-                # A aceleração final é o motor do CARRO + o reflexo/talento do PILOTO
                 aceleracao_combinada = dados["aceleracao"] + piloto["aceleracao"]
                 
+                # --- NOVO: DIREÇÃO COMBINADA (CARRO + PILOTO) ---
+                # Puxa o atributo 'direcao' da equipe no JSON e soma com o do piloto
+                direcao_equipe = dados.get("direcao", dados.get("freio", 3)) # Fallback seguro se não houver
+                direcao_combinada = direcao_equipe + piloto["direcao"]
+                
                 freio_piloto = piloto.get("freio", 3)
-                direcao_piloto = piloto.get("direcao", 3)
 
-                # ADICIONA O BOT COMBINANDO AS DUAS ACELERAÇÕES
+                # Se for o jogador, passamos os atributos da equipe direto para o objeto do seu carro!
+                if nome_eq == self.equipe_atual_jogador and piloto.get("is_player"):
+                    self.car.max_speed = vel_maxima_do_carro
+                    self.car.aceleracao_base = dados["aceleracao"]
+                    # Configura a agilidade de resposta do seu volante baseado na sua equipe!
+                    self.car.ajustar_atributos_equipe(direcao_equipe)
+                    
+                    self.car.player_x = lado_pista
+                    self.car.position = posicao_z
+                    contador_pos += 1
+                    continue
+
+                # ADICIONA O BOT COMBINANDO AS DUAS FORÇAS DE DIREÇÃO
                 self.bots.append({
                     "equipe": nome_eq,
                     "nome": piloto["nome"],
@@ -186,9 +200,9 @@ class Game:
                     "x": lado_pista, 
                     "speed": 0,
                     "max_speed": vel_maxima_do_carro, 
-                    "aceleracao": aceleracao_combinada, # <--- AQUI OCORRE A MÁGICA!
+                    "aceleracao": aceleracao_combinada,
                     "freio": freio_piloto,             
-                    "direcao": direcao_piloto,         
+                    "direcao": direcao_combinada,       # <--- BOT AGORA VIRA BASEADO NO CHASSI + COMPORTAMENTO
                     "cor_capacete": piloto["cor_capacete"],
                     "pasta": dados["pasta"],
                     "frame_idx": 0,
@@ -419,24 +433,17 @@ class Game:
                 # ==========================================
                 # IA BÁSICA (Aceleração Explosiva de F1)
                 # ==========================================
+                # O bot agora lê a pista na posição DELE!
                 curva_do_bot = self.track.get_curve(bot["pos"])
                 
-                # --- NOVO: PILOTOS BONS FREIAM MAIS TARDE NAS CURVAS ---
-                # Quanto maior o nível de freio e direção do piloto, menor é o impacto da curva.
-                # Um piloto nível 7.5 sofre menos redução do que um piloto nível 1.0!
-                habilidade_curva = (bot["freio"] + bot["direcao"]) * 150
+                freio_bot = bot.get("freio", 3)
+                direcao_bot = bot.get("direcao", 3)
+                habilidade_curva = (freio_bot + direcao_bot) * 150
                 fator_curva = max(2000, 5000 - habilidade_curva)
                 
+                # Usa a curva do bot para calcular a frenagem individual
                 reducao_curva = abs(curva_do_bot) * fator_curva
-                target_speed = max(130, bot["max_speed"] - reducao_curva) 
-
-                distancia_para_voce = self.car.position - bot["pos"]
-                if bot["max_speed"] >= 380:
-                    if distancia_para_voce > 200:
-                        target_speed += 15  
-                        if bot["speed"] > 160: bot["speed"] += 0.8 
-                elif -100 < distancia_para_voce < 0 and bot["max_speed"] >= 370:
-                    target_speed += 5
+                target_speed = max(130, bot["max_speed"] - reducao_curva)
 
                 # ==========================================
                 # ACELERAÇÃO COM MOTORES REAIS (Física Corrigida)
@@ -445,8 +452,8 @@ class Game:
 
                 # --- NOVO: BÔNUS DE FUGA PÓS-ULTRAPASSAGEM ---
                 # Se o bot acabou de te passar (está até 100m na sua frente) e a pista está reta:
-                if -100 < distancia_para_voce < 0 and abs(curva_do_bot) < 0.05:
-                    forca_motor += 0.15  # Ele ganha um boost massivo de tração
+                #if -100 < distancia_para_voce < 0 and abs(curva_do_bot) < 0.05:
+                    #forca_motor += 0.15  # Ele ganha um boost massivo de tração
                     
 
                 if bot["speed"] < target_speed: 
