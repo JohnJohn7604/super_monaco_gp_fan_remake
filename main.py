@@ -38,7 +38,7 @@ class Game:
             self.equipes = {} # Evita que o jogo crash imediatamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "Minarae"
+        self.equipe_atual_jogador = "May"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -640,8 +640,8 @@ class Game:
             # ==========================================
             # APLICA O EFEITO ESTILINGUE (VÁCUO) NO JOGADOR
             # ==========================================
-            if jogador_no_vacuo and self.car.speed > 200:
-                self.car.speed += 0.3 # Aceleração extra contínua
+            if jogador_no_vacuo and self.car.speed > 100: # tem que estar pelomenos a 100 por hora para pegar o vacuo
+                self.car.speed += 0.35 # Aceleração extra contínua
                 
                 # Permite ultrapassar a velocidade máxima real do carro em até 15 km/h!
                 # Exemplo: Se o limite é 330, no vácuo ele vai a 345!
@@ -655,7 +655,7 @@ class Game:
             if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
                 
                 # Só ouvimos bots que estão a menos de 150 metros
-                raio_audicao = 100
+                raio_audicao = 80
                 
                 if menor_distancia_bot < raio_audicao:
                     # Fator vai de 0.0 (colado em você) até 1.0 (lá nos 150m)

@@ -302,6 +302,10 @@ class Car:
                 target_steering = self.max_steering
             else:
                 target_steering = 0.0
+                # --- O FIM DO GELO ---
+                # Quando solta o botão, multiplicamos por 3.5 a velocidade de retorno!
+                # Isso faz a física do pneu travar no asfalto no exato momento em que o desenho centraliza.
+                self.steering += (target_steering - self.steering) * (self.steering_speed * 3.5)
 
             # --- A MÁGICA DO DELAY POR EQUIPE ---
             # self.steering_speed agora atua como o filtro de atraso. 
@@ -318,11 +322,6 @@ class Car:
             
         # Trava para o carro não sair voando muito além da grama
         self.player_x = max(-1.5, min(1.5, self.player_x))
-
-        # Se nenhuma tecla está apertada, força o volante a lutar para ficar reto com mais ignorância
-        if not keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-            # Faz o volante centralizar 30% a cada frame (ajuste o 0.3 se precisar)
-            self.current_steering += (0.0 - self.current_steering) * 0.3
 
         # 4. Áudio do Motor
         if self.motor_sound:

@@ -3,7 +3,7 @@
         "classe": "S",
         "velocidade_base": 378,
         "aceleracao": 7.0,
-        "direcao": 6.5,
+        "direcao": 4.2,
         "pasta": "madonna",
         "pilotos": [
             {"nome": "A. Asselin", "aceleracao": 1.2, "freio": 7.5, "direcao": 7.5, "cor_capacete": [255, 0, 0]},
@@ -14,7 +14,7 @@
         "classe": "S",
         "velocidade_base": 374,
         "aceleracao": 6.8,
-        "direcao": 6.2,
+        "direcao": 4.0,
         "pasta": "firenze",
         "pilotos": [
             {"nome": "L. Bianchi", "aceleracao": 0.9, "freio": 7.2, "direcao": 6.9, "cor_capacete": [0, 0, 0]},
@@ -25,7 +25,7 @@
         "classe": "A",
         "velocidade_base": 352,
         "aceleracao": 5.8,
-        "direcao": 5.5,
+        "direcao": 3.9,
         "pasta": "millions",
         "pilotos": [
             {"nome": "H. Clark", "aceleracao": 0.8, "freio": 6.0, "direcao": 6.1, "cor_capacete": [0, 0, 0]},
@@ -35,8 +35,8 @@
     "Bestowal": {
         "classe": "A",
         "velocidade_base": 346,
-        "aceleracao": 5.3,
-        "direcao": 2.5,
+        "aceleracao": 4.0,
+        "direcao": 3.8,
         "pasta": "bestowal",
         "pilotos": [
             {"nome": "A. Picos", "aceleracao": 0.7, "freio": 5.8, "direcao": 5.5, "cor_capacete": [255, 255, 0]},
@@ -46,19 +46,19 @@
     "Blanche": {
         "classe": "B",
         "velocidade_base": 334,
-        "aceleracao": 4.8,
-        "direcao": 4.8,
+        "aceleracao": 3.7,
+        "direcao": 3.7,
         "pasta": "blanche",
         "pilotos": [
-            {"nome": "T. Dubois", "aceleracao": 0.6, "freio": 4.8, "direcao": 4.5, "cor_capacete": [0, 0, 0]},
-            {"nome": "J. Herbin", "aceleracao": 0.4, "freio": 4.2, "direcao": 4.2, "cor_capacete": [255, 255, 0]}
+            {"nome": "T. Dubois", "aceleracao": 0.4, "freio": 4.8, "direcao": 4.5, "cor_capacete": [0, 0, 0]},
+            {"nome": "J. Herbin", "aceleracao": 0.2, "freio": 4.2, "direcao": 4.2, "cor_capacete": [255, 255, 0]}
         ]
     },
     "Tyrant": {
         "classe": "B",
         "velocidade_base": 328,
-        "aceleracao": 4.6,
-        "direcao": 4.6,
+        "aceleracao": 3.5,
+        "direcao": 3.6,
         "pasta": "tyrant",
         "pilotos": [
             {"nome": "K. Sato", "aceleracao": 0.6, "freio": 4.5, "direcao": 4.4, "cor_capacete": [0, 0, 0]},
@@ -68,8 +68,8 @@
     "Losel": {
         "classe": "B",
         "velocidade_base": 324,
-        "aceleracao": 4.2,
-        "direcao": 4.5,
+        "aceleracao": 3.4,
+        "direcao": 3.5,
         "pasta": "Losel",
         "pilotos": [
             {"nome": "J. Gomez", "aceleracao": 0.5, "freio": 4.2, "direcao": 4.0, "cor_capacete": [0, 0, 0]},
@@ -79,8 +79,8 @@
     "May": {
         "classe": "B",
         "velocidade_base": 320,
-        "aceleracao": 4.0,
-        "direcao": 4.4,
+        "aceleracao": 3.35,
+        "direcao": 3.3,
         "pasta": "may",
         "pilotos": [
             {"nome": "G. Turner", "aceleracao": 0.5, "freio": 3.9, "direcao": 3.6, "cor_capacete": [255, 255, 0]},
@@ -91,7 +91,7 @@
         "classe": "C",
         "velocidade_base": 314,
         "aceleracao": 3.2,
-        "direcao": 4.0,
+        "direcao": 2.9,
         "pasta": "bullets",
         "pilotos": [
             {"nome": "C. Davis", "aceleracao": 0.4, "freio": 3.4, "direcao": 3.5, "cor_capacete": [0, 0, 0]},
@@ -102,7 +102,7 @@
         "classe": "C",
         "velocidade_base": 312,
         "aceleracao": 3.0,
-        "direcao": 3.8,
+        "direcao": 3.1,
         "pasta": "dardan",
         "pilotos": [
             {"nome": "E. Bellini", "aceleracao": 0.4, "freio": 3.2, "direcao": 3.2, "cor_capacete": [255, 255, 0]},
@@ -113,7 +113,7 @@
         "classe": "C",
         "velocidade_base": 308,
         "aceleracao": 2.8,
-        "direcao": 3.6,
+        "direcao": 2.9,
         "pasta": "linden",
         "pilotos": [
             {"nome": "A. Laurent", "aceleracao": 0.4, "freio": 3.0, "direcao": 2.8, "cor_capacete": [0, 0, 0]},
@@ -124,7 +124,7 @@
         "classe": "C",
         "velocidade_base": 306,
         "aceleracao": 2.6,
-        "direcao": 2.8,
+        "direcao": 2.9,
         "pasta": "minarae",
         "pilotos": [
             {"nome": "G. Ceara", "aceleracao": 0.4, "freio": 3.0, "direcao": 2.6, "cor_capacete": [255, 255, 0]},
@@ -135,7 +135,7 @@
         "classe": "D",
         "velocidade_base": 298,
         "aceleracao": 2.0,
-        "direcao": 2.9,
+        "direcao": 2.8,
         "pasta": "rigel",
         "pilotos": [
             {"nome": "R. Cotman", "aceleracao": 0.3, "freio": 2.5, "direcao": 2.2, "cor_capacete": [255, 255, 0]},
@@ -146,7 +146,7 @@
         "classe": "D",
         "velocidade_base": 294,
         "aceleracao": 1.8,
-        "direcao": 2.9,
+        "direcao": 2.7,
         "pasta": "orchis",
         "pilotos": [
             {"nome": "E. Tornio", "aceleracao": 0.3, "freio": 2.2, "direcao": 2.0, "cor_capacete": [255, 255, 0]},
@@ -157,7 +157,7 @@
         "classe": "D",
         "velocidade_base": 290,
         "aceleracao": 1.4,
-        "direcao": 2.8,
+        "direcao": 2.6,
         "pasta": "comet",
         "pilotos": [
             {"nome": "G. Tecgner", "aceleracao": 0.2, "freio": 1.8, "direcao": 1.4, "cor_capacete": [255, 255, 0]},
@@ -168,7 +168,7 @@
         "classe": "D",
         "velocidade_base": 285,
         "aceleracao": 1.0,
-        "direcao": 2.8,
+        "direcao": 2.6,
         "pasta": "zeroforce",
         "pilotos": [
             {"nome": "P. Klinger", "aceleracao": 0.2, "freio": 1.2, "direcao": 1.2, "cor_capacete": [255, 128, 0]},
