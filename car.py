@@ -147,7 +147,7 @@ class Car:
         tamanho_pneu = (133, 80)    
         tamanho_retrovisor = (int(WIDTH // 1.5), 120)
         
-        pasta_time = f"images/cars/{pasta_equipe}/cockpit"
+        pasta_time = f"images/cockpit"
         pasta_base = "images/cockpit"
         
         def pegar_img(nome_arquivo, tamanho):
@@ -303,9 +303,16 @@ class Car:
                 # Quando solta o botão, o retorno é 3.5x mais rápido (Fim do efeito gelo)
                 self.steering += (target_steering - self.steering) * (self.steering_speed * 3.5)
 
-            # Aplica o movimento lateral baseado na velocidade atual do carro
+            # --- A MÁGICA DA AGILIDADE LATERAL (CORRIGIDA) ---
+            # Desvinculamos a direção pura da aceleração do motor!
             percentual_vel = self.speed / self.max_speed
-            self.player_x += self.steering * percentual_vel * 0.8
+            
+            # Criamos uma curva suave: O carro tem sempre pelo menos 45% de agilidade garantida 
+            # pelas molas da suspensão, mais o bónus da velocidade atual.
+            fator_esterco = 0.45 + (percentual_vel * 0.55) 
+            
+            # Aplica o movimento lateral
+            self.player_x += self.steering * fator_esterco * 1.35
             
         elif steering_locked:
             self.current_steering = 0
@@ -371,23 +378,61 @@ class Car:
             # Só atualiza a afinação se o som estiver alto o suficiente para ouvir
             if volume_final > 0.01: 
                 self.skid_sound.set_pitch(pitch_alvo)
-    
+
+    def tingir_carroceria(self, superficie, mapa_cor):
+        """
+        Algoritmo de Substituição de Paleta Cirúrgico.
+        Encontra os 4 tons exatos de azul do PNG original e substitui-os
+        pela paleta personalizada da equipa definida no JSON.
+        """
+        if not superficie or not mapa_cor:
+            return superficie
+            
+        # Cria uma cópia e garante que o formato de pixel suporta indexação de cores
+        imagem_nova = superficie.copy()
+        
+        # 1. Definição dos 4 azuis fixos do PNG original (em RGB)
+        azul_puro     = (0, 0, 255)       # 0000FF
+        azul_escuro   = (0, 0, 148)       # 000094
+        azul_medio    = (106, 148, 189)   # 6A94BD
+        azul_claro    = (189, 222, 255)   # BDDEFF
+        
+        # 2. Extração das novas cores mapeadas vindas do JSON
+        nova_pura   = tuple(mapa_cor.get("puro", [0, 0, 255]))
+        nova_escura = tuple(mapa_cor.get("escuro", [0, 0, 148]))
+        nova_media  = tuple(mapa_cor.get("medio", [106, 148, 189]))
+        nova_clara  = tuple(mapa_cor.get("claro", [189, 222, 255]))
+        
+        conversoes = {
+            azul_puro: nova_pura,
+            azul_escuro: nova_escura,
+            azul_medio: nova_media,
+            azul_claro: nova_clara
+        }
+        
+        # Abrimos o PixelArray
+        px_array = pygame.PixelArray(imagem_nova)
+        
+        for cor_antiga, cor_nova in conversoes.items():
+            cor_antiga_mapeada = imagem_nova.map_rgb(cor_antiga)
+            cor_nova_mapeada = imagem_nova.map_rgb(cor_nova)
+            
+            # Executa a substituição em lote dos inteiros de 32 bits
+            px_array.replace(cor_antiga_mapeada, cor_nova_mapeada)
+            
+        px_array.close()
+        return imagem_nova
+
     def ajustar_atributos_equipe(self, dados_equipe):
         """
-        Agora recebe o dicionário completo da equipe vindo do JSON, 
-        e não apenas a variável isolada de direção.
+        Atualiza as propriedades do carro com base no JSON da equipe.
         """
-        # Extrai as variáveis base do chassi para a física lateral
         direcao_equipe = dados_equipe.get("direcao", 3.0)
         self.steering_speed = 0.05 + (direcao_equipe * 0.02)
         self.max_steering = 0.025 + (direcao_equipe * 0.003)
         
-        # --- CARREGAMENTO INTEGRADO DO ESCALONAMENTO DE MARCHAS ---
-        # Se o JSON tiver a lista de marchas, nós a carregamos. 
-        # Caso contrário (fallback de segurança), usamos um padrão esperto de F1.
         lista_marchas = dados_equipe.get("forca_marchas", [1.6, 1.3, 1.05, 0.88, 0.75, 0.65, 0.58])
         
-        # Transforma a lista do JSON (índices 0 a 6) no dicionário de física (marchas 1 a 7)
         self.forca_marchas = {
             1: lista_marchas[0],
             2: lista_marchas[1],
@@ -397,6 +442,15 @@ class Car:
             6: lista_marchas[5],
             7: lista_marchas[6]
         }
+
+        # --- CORREGIDO: LEITURA COMPATÍVEL COM O SCRIPT ---
+        mapa_cor = dados_equipe.get("mapa_cor", None)
+        
+        if mapa_cor:
+            # Aplica o tingimento usando a cópia modificada
+            self.volante_reto = self.tingir_carroceria(self.volante_reto, mapa_cor)
+            self.volantes_esq = [self.tingir_carroceria(v, mapa_cor) for v in self.volantes_esq]
+            self.volantes_dir = [self.tingir_carroceria(v, mapa_cor) for v in self.volantes_dir]
 
     def acelerar_neutro(self, keys):
         # Simula o giro do motor (RPM) subindo e caindo no neutro

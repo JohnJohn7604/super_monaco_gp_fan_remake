@@ -23,6 +23,10 @@ class Game:
         self.track = None
         self.car = None
 
+        
+        self.ultrapassagens_combo = 0
+        self.timer_combo = 0
+
         self.race_finished = False
         self.final_position = 0
         self.lap_limit = 2 # Definimos aqui o limite de 6 voltas
@@ -38,7 +42,7 @@ class Game:
             self.equipes = {} # Evita que o jogo crash imediatamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "Dardan"
+        self.equipe_atual_jogador = "Blanche"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -358,10 +362,6 @@ class Game:
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 continue
-            
-            # ==========================================
-            # GAVETA 3: LÓGICA DO 3, 2, 1, GO! (NOVO)
-            # ==========================================
 
             # ==========================================
             # GAVETA 4: TELA DE RESULTADOS DOS PILOTOS
@@ -420,274 +420,210 @@ class Game:
                 self.clock.tick(FPS)
                 continue
 
-            # Pega a curva da pista
+            # ==========================================
+            # FÍSICA, IA E COLISÃO DOS BOTS (UNIFICADA)
+            # ==========================================
+            # Pega a curva da pista para o jogador
             curve_intensity = self.track.get_curve(self.car.position)
-
-            # ==========================================
-            # 1. ATUALIZAÇÃO DOS BOTS, IA E COLISÃO
-            # ==========================================
-            self.steering_locked = False 
-            menor_distancia_bot = 9999 # <--- NOVO: Variável para rastrear o som do motor
             
+            self.steering_locked = False 
+            menor_distancia_bot = 9999 
             jogador_no_vacuo = False
 
             for bot in self.bots:
-                # ==========================================
-                # IA BÁSICA (Aceleração Explosiva de F1)
-                # ==========================================
-                # O bot agora lê a pista na posição DELE!
+                
+                # ---> A MÁGICA DA LARGADA (MODO SPRINT) <---
+                # Se for a 1ª volta (0) e menos de 40 segundos, a IA entra em modo fúria!
+                sprint_largada = True
+
+                # 1. Distância Circular Perfeita
+                dist_bruta = bot["pos"] - self.car.position
+                dist_relativa = dist_bruta % self.track.total_track_length
+                if dist_relativa > self.track.total_track_length / 2:
+                    dist_relativa -= self.track.total_track_length
+
+                # 2. IA de Curvas Corajosas
                 curva_do_bot = self.track.get_curve(bot["pos"])
                 
-                freio_bot = bot.get("freio", 3)
-                direcao_bot = bot.get("direcao", 3)
-                habilidade_curva = (freio_bot + direcao_bot) * 150
-                fator_curva = max(2000, 5000 - habilidade_curva)
-                
-                # Usa a curva do bot para calcular a frenagem individual
-                reducao_curva = abs(curva_do_bot) * fator_curva
-                target_speed = max(130, bot["max_speed"] - reducao_curva)
+                # SPRINT: Ignora o limite de velocidade nas primeiras curvas!
+                if abs(curva_do_bot) > 0.05 and not sprint_largada:
+                    multiplicador_curva = 0.80 + (bot["direcao"] * 0.03)
+                    target_speed = bot["max_speed"] * multiplicador_curva
+                    target_speed = min(bot["max_speed"], target_speed)
+                    target_speed = max(200, target_speed)
+                else:
+                    target_speed = bot["max_speed"]
 
-                # ==========================================
-                # ACELERAÇÃO COM MOTORES REAIS (Física Corrigida)
-                # ==========================================
+                # 3. Aceleração Feroz
                 forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
-
-                # --- NOVO: BÔNUS DE FUGA PÓS-ULTRAPASSAGEM ---
-                # Se o bot acabou de te passar (está até 100m na sua frente) e a pista está reta:
-                #if -100 < distancia_para_voce < 0 and abs(curva_do_bot) < 0.05:
-                    #forca_motor += 0.15  # Ele ganha um boost massivo de tração
-                    
+                
+                # SPRINT: Dá um "Nitro Invisível" de 50% a mais na potência dos motores!
+                if sprint_largada:
+                    forca_motor *= 1.5 
 
                 if bot["speed"] < target_speed: 
-                    if bot["speed"] < 100: 
-                        bot["speed"] += 0.5 * forca_motor  
-                    elif bot["speed"] < 200: 
-                        bot["speed"] += 0.7 * forca_motor  
-                    elif bot["speed"] < 280: 
-                        bot["speed"] += 0.5 * forca_motor  
+                    if bot["speed"] < 100: bot["speed"] += 0.6 * forca_motor  
+                    elif bot["speed"] < 200: bot["speed"] += 0.5 * forca_motor  
+                    elif bot["speed"] < 280: bot["speed"] += 0.3 * forca_motor  
                     else:
-                        # --- CORRIGIDO: POTÊNCIA REAL DO CHASSI ---
-                        # Removemos o max(0.9) que igualava todos os carros.
-                        # Agora, carros de classe S (Madonna/Firenze) tracionam muito mais forte em alta velocidade!
-                        taxa_aceleracao = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_aceleracao * forca_motor)
-                        
-                elif bot["speed"] > target_speed + 15: 
-                    bot["speed"] -= 3.5  
-                elif bot["speed"] > target_speed: 
-                    bot["speed"] -= 0.8 
+                        taxa_acel = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
+                        bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_acel * forca_motor)
+                elif bot["speed"] > target_speed + 15: bot["speed"] -= 3.5  
+                elif bot["speed"] > target_speed: bot["speed"] -= 0.8 
 
-                # ==========================================
-                # INTELIGÊNCIA DE DIREÇÃO E TRÁFEGO (PERSONALIDADE)
-                # ==========================================
-                # 1. Dá uma "Linha Favorita" para o piloto se ele ainda não tiver
+                # 4. Personalidade e Vácuo
                 if "linha_padrao" not in bot:
                     import random
-                    # Cada piloto prefere um canto diferente da pista (entre -0.45 e 0.45)
                     bot["linha_padrao"] = random.uniform(-0.45, 0.45)
                 
-                # 2. O bot sempre tenta voltar para a SUA linha natural de corrida
                 target_x = bot["linha_padrao"]
-                
-                dist_relativa = bot["pos"] - self.car.position 
-                bot["pos"] += bot["speed"] * 0.005
-                
-                # --- NOVO: 1. VOCÊ PEGA O VÁCUO DESTE BOT ---
-                # Se ele está entre 15 e 80 metros na sua frente e você a mais de 150 km/h
+                bot["pos"] += bot["speed"] * 0.005 
+
                 if 15 < dist_relativa < 60 and self.car.speed > 150:
                     if abs(self.car.player_x - bot["x"]) < 0.4:
                         jogador_no_vacuo = True
 
-                # =========================================================
-                # INTELIGÊNCIA ARTIFICIAL TÁTICA SEPARADA (CORRIGIDA)
-                # =========================================================
+                # 5. Táticas Contra o Jogador
                 jogador_na_pista = -1.0 <= self.car.player_x <= 1.0
-
-                # ---------------------------------------------------------
-                # SITUAÇÃO A: O BOT ESTÁ NA SUA FRENTE (Fugindo ou Defendendo)
-                # ---------------------------------------------------------
-                if dist_relativa > 0 and dist_relativa < 60 and jogador_na_pista:
-                    # IA de Defesa: Ele tenta se posicionar na sua frente para bloquear o vácuo
-                    if tempo_atual > bot["defesa_timer"]:
-                        target_x = self.car.player_x * 0.90 
-                        if abs(bot["x"] - self.car.player_x) < 0.15:
-                            bot["defesa_timer"] = tempo_atual + 2000
-                    
-                    # FIM DO FREIO MAGNÉTICO: Se o bot está na frente, ele NUNCA reduz por você!
-                    # Ele ignora a sua velocidade e foca em tracionar no limite do motor dele.
-
-                # ---------------------------------------------------------
-                # SITUAÇÃO B: O BOT ESTÁ ATRÁS DE VOCÊ (Caçando ou Ultrapassando)
-                # ---------------------------------------------------------
-                elif dist_relativa < 0 and dist_relativa > -100 and jogador_na_pista:
-                    
-                    # Se ele está na sua cola e com velocidade para tentar passar
-                    if abs(self.car.player_x - bot["x"]) < 0.45:
-                        
+                # --- SITUAÇÃO A: BOT NA FRENTE (Mantém o traçado ideal) ---
+                # A IA ignora o jogador e foca-se apenas em manter a linha de corrida
+                if 0 < dist_relativa < 60:
+                    # Tenta manter a posição X que definiu como "linha_padrao"
+                    target_x = bot["linha_padrao"]
+                elif -100 < dist_relativa < 0 and jogador_na_pista:
+                    largura_radar = 0.45 if self.car.speed > 80 else 0.85
+                    if abs(self.car.player_x - bot["x"]) < largura_radar:
                         if self.car.speed > 80:
-                            # --- CORRIDA NORMAL ---
-                            # Antecipação: A 40m ele joga de lado para abrir a ultrapassagem
-                            if dist_relativa > -40:
-                                target_x = -0.65 if self.car.player_x > 0 else 0.65
-                                # Ele só tira o pé se estiver prestes a estampar a sua traseira
-                                if bot["speed"] > self.car.speed:
-                                    velocidade_alvo = self.car.speed
-                                    bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.15
-                            
-                            # Emergência: A 15m, se ele não conseguiu sair de trás, ele freia forte
-                            if dist_relativa > -15:
-                                target_x = -0.85 if self.car.player_x > 0 else 0.85
-                                if bot["speed"] > self.car.speed:
-                                    bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
+                            if dist_relativa > -60: target_x = -0.75 if self.car.player_x > 0 else 0.75
+                            if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.25:
+                                target_x = -0.85 if self.car.player_x > 0 else 0.85 
+                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
                         else:
-                            # --- JOGADOR PARADO / ENGUIÇADO ---
-                            # Modo de desvio agressivo a 80 metros de distância
-                            if dist_relativa > -80:
-                                target_x = -0.85 if self.car.player_x > 0 else 0.85
-                                if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.3:
-                                    bot["speed"] *= 0.98
+                            if dist_relativa > -80: target_x = -0.85 if self.car.player_x > 0 else 0.85 
+                            if dist_relativa > -15 and abs(self.car.player_x - bot["x"]) < 0.35:
+                                bot["speed"] *= 0.85
+                    
+                    # Se mesmo assim chegar a menos de 10m, força o desvio total
+                    elif abs(dist_relativa) < 10 and abs(bot["x"] - self.car.player_x) < 0.25:
+                        target_x = -0.9 if self.car.player_x > 0 else 0.9
+                        bot["speed"] *= 0.9 # Freio suave apenas em emergência
 
-                # =========================================================
-                # 4. RADAR DE TRÁFEGO E SISTEMA ANTI-ATRAVESSAMENTO (CORRIGIDO)
-                # =========================================================
+                # 6. Radar de Tráfego IA vs IA
                 for outro_bot in self.bots:
                     if bot == outro_bot: continue
                     
-                    dist_entre_bots = outro_bot["pos"] - bot["pos"]
+                    dist_bruta_bots = outro_bot["pos"] - bot["pos"]
+                    dist_entre_bots = dist_bruta_bots % self.track.total_track_length
+                    if dist_entre_bots > self.track.total_track_length / 2:
+                        dist_entre_bots -= self.track.total_track_length
                     
-                    # --- NOVO: SISTEMA DE COLISÃO LATERAL (EVITA FANTASMAS) ---
-                    # Se eles estão colados no comprimento da pista (menos de 8 metros)
+                    # Anti-Fantasma (Afasta em X)
                     if abs(dist_entre_bots) < 8:
-                        # E se estão tentando ocupar a mesma linha lateral (menos de 0.35 de espaço)
                         distancia_lateral = bot["x"] - outro_bot["x"]
                         if abs(distancia_lateral) < 0.35:
-                            # Se o 'bot' está ligeiramente à direita, afasta ele para a direita
-                            if distancia_lateral > 0:
-                                bot["x"] += 0.02
-                                outro_bot["x"] -= 0.02
-                            # Se o 'bot' está ligeiramente à esquerda, afasta ele para a esquerda
-                            else:
-                                bot["x"] -= 0.02
-                                outro_bot["x"] += 0.02
-                                
-                            # Trava de segurança nas bordas para eles não saírem voando do cenário
+                            bot["x"] += 0.02 if distancia_lateral > 0 else -0.02
                             bot["x"] = max(-0.85, min(0.85, bot["x"]))
-                            outro_bot["x"] = max(-0.85, min(0.85, outro_bot["x"]))
-                            
-                            # =========================================================
-                            # QUEBRA DE EMPATE AERODINÂMICA (FIM DOS BOTS UNIDOS)
-                            # =========================================================
-                            # Se a velocidade for idêntica (emparelhados), aplicamos um micro-atrito
-                            # ligeiramente diferente baseado no ID/Nome do bot para quebrar a sincronia física.
-                            if abs(bot["speed"] - outro_bot["speed"]) < 1.0:
-                                # O bot com o nome textualmente "maior" perde um tiquinho de nada a mais
-                                if bot["nome"] > outro_bot["nome"]:
-                                    bot["speed"] *= 0.992  # Perde um micro-fração para recuar
-                                else:
-                                    outro_bot["speed"] *= 0.992
-                            else:
-                                # Pequeno atrito físico normal pelo toque de pneu com pneu
-                                bot["speed"] *= 0.995
 
-                    # --- RADAR DE ULTRAPASSAGEM ORIGINAL INTEGRADO ---
-                    # O radar lê de 80m à frente até -25m atrás
-                    if -25 < dist_entre_bots < 80: 
+                    # Ultrapassagem
+                    if 0 < dist_entre_bots < 45 and abs(bot["x"] - outro_bot["x"]) < 0.45:
+                        target_x = -0.65 if outro_bot["x"] > 0 else 0.65
                         
-                        # Se estão a ocupar a mesma faixa
-                        if abs(bot["x"] - outro_bot["x"]) < 0.45:
-                            
-                            # CENA 1: O outro bot está na frente (+) (Aproximação)
-                            if dist_entre_bots > 0:
-                                
-                                # Carro enguiçado/Lento
-                                if outro_bot["speed"] < 50: 
-                                    target_x = -0.85 if outro_bot["x"] > 0 else 0.85
-                                    if dist_entre_bots < 15: bot["speed"] *= 0.98 
-                                    
-                                # Carro Rápido (Corrida normal)
-                                else:
-                                    # 1. Suga o vácuo de forma muito mais agressiva
-                                    if dist_entre_bots > 25 and bot["speed"] > 200:
-                                        bot["speed"] += 1.2 
-                                    
-                                    # 2. Inicia o desvio!
-                                    target_x = -0.65 if outro_bot["x"] > 0 else 0.65
-                                    
-                                    # 3. Boost do Estilingue: Ganha um embalo final ao sair da traseira
-                                    if dist_entre_bots < 40 and bot["speed"] > 240:
-                                        bot["speed"] += 0.8 
-                                    
-                                    # 4. SÓ TRAVA se estiver a 6m e não tiver conseguido virar o carro a tempo
-                                    if dist_entre_bots < 6 and abs(bot["x"] - outro_bot["x"]) < 0.25:
-                                        velocidade_alvo = outro_bot["speed"]
-                                        bot["speed"] += (velocidade_alvo - bot["speed"]) * 0.2
-                                        
-                            # CENA 2: O bot está do lado ou a passar (-) (Ultrapassagem Ativa)
-                            else:
-                                # Mantém a direção aberta firmemente e não reduz a velocidade!
-                                target_x = -0.65 if outro_bot["x"] > 0 else 0.65
+                        # SPRINT: Nos primeiros 40 segundos, a IA é proibida de usar o freio contra outros bots!
+                        if dist_entre_bots < 10 and bot["speed"] > 50 and not sprint_largada:
+                            bot["speed"] *= 0.95
 
-                # ==========================================
-                # DIREÇÃO SUAVE DOS BOTS (CORRIGIDO)
-                # ==========================================
-                # Substitua a linha fixa 'velocidade_volante = 0.018' por esta fórmula dinâmica!
-                # Isso permite que os bots rápidos desviem instantaneamente dos lentos nas curvas,
-                # limpando o tráfego e fazendo o pelotão fluir de verdade.
-                velocidade_volante = 0.014 + (bot["direcao"] * 0.0035)
+                # 7. Direção Dinâmica
+                velocidade_volante = 0.025 + (bot["direcao"] * 0.005) 
                 bot["x"] += (target_x - bot["x"]) * velocidade_volante
 
                 # ==========================================
-                # COLISÃO ABSOLUTA (Barreira Impenetrável)
+                # COLISÃO ABSOLUTA E HITBOX 3D
                 # ==========================================
-                hitbox_x = 0.15 # Largura lateral para bater
+                hitbox_x = 0.22 # Aumentamos de 0.15 para 0.22 (Bate roda com roda)
                 
-                # --- NOVO: HITBOX CIRÚRGICA ---
-                # A distância de colisão agora muda se é você batendo neles, ou eles em você
+                # --- A MÁGICA DA PROFUNDIDADE 3D ---
                 if dist_relativa > 0:
-                    # VOCÊ batendo na frente (Hitbox maior por causa do bico)
-                    bateu = (dist_relativa < 2.0) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
+                    # VOCÊ batendo na frente. 
+                    # A câmera é a sua cabeça! O bico do carro tem quase 4 metros na sua frente.
+                    # Subimos a colisão de 2.0 para 5.5 metros!
+                    bateu = (dist_relativa < 5.5) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
                 else:
-                    # ELES batendo atrás (Hitbox minúscula, precisam encostar na asa!)
-                    bateu = (abs(dist_relativa) < 0.8) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
+                    # ELES batendo na sua traseira.
+                    # O motor e a asa traseira estão uns 2 metros atrás de você.
+                    bateu = (abs(dist_relativa) < 1.5) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
 
                 dist_abs = abs(dist_relativa)
                 if dist_abs < menor_distancia_bot:
                     menor_distancia_bot = dist_abs
                 
                 if bateu:
-                    # Toca o som da batida
+                    # Trava do som (para não estourar os alto-falantes a 60fps)
                     if tempo_atual - self.timer_batida > 500: 
                         if hasattr(self, 'som_batida') and self.som_batida: 
                             self.som_batida.play()
                         self.timer_batida = tempo_atual
                         
                     if dist_relativa > 0: 
-                        # VOCÊ BATEU NA TRASEIRA DELE
-                        self.car.position = bot["pos"] - 2.1 
-                        self.car.speed = min(self.car.speed * 0.7, bot["speed"]) 
-                    else: 
-                        # ELE BATEU NA SUA TRASEIRA
-                        # PUNIÇÃO SEVERA: O bot cometeu um erro e destrói a própria aerodinâmica!
-                        bot["speed"] *= 0.4  # Ele perde 60% da velocidade na mesma hora!
+                        # --- VOCÊ BATEU NA TRASEIRA DELE ---
+                        self.car.position = bot["pos"] - 5.6 
                         
-                        # O empurrão físico que você recebe ao tomar a batida
+                        # A sua penalidade (Você perde sempre 30% para não abusar de bater)
+                        self.car.speed = min(self.car.speed * 0.7, bot["speed"]) 
+                        
+                        # --- NOVA LÓGICA DE RESISTÊNCIA A PANCADAS DA IA ---
+                        # Se passou mais de 10 segundos (10000 ms) desde a última batida, reseta a memória!
+                        if tempo_atual - bot.get("tempo_ultima_batida", 0) > 10000:
+                            bot["contador_batidas"] = 0
+                            
+                        # Regista a batida atual
+                        bot["contador_batidas"] = bot.get("contador_batidas", 0) + 1
+                        bot["tempo_ultima_batida"] = tempo_atual
+                        
+                        # Aplica o peso da batida
+                        if bot["contador_batidas"] == 1:
+                            # 1ª Pancada: Punição pesada (perde 30% da velocidade)
+                            bot["speed"] *= 0.7  
+                        else:
+                            # 2ª Pancada em diante: Fica resistente (perde apenas 10% da velocidade)
+                            bot["speed"] *= 0.9  
+                            
+                    else: 
+                        # --- ELE BATEU NA SUA TRASEIRA ---
+                        bot["speed"] *= 0.4  
                         self.car.speed = min(self.car.max_speed, self.car.speed + 8) 
-                        self.steering_locked = True 
+                        self.steering_locked = True
 
-                # Animação do pneu
+                # 9. Animação
                 if tempo_atual - bot["anim_timer"] > 50: 
                     bot["frame_idx"] = (bot["frame_idx"] + 1) % 3
                     bot["anim_timer"] = tempo_atual
+
+                # 10. COMBO DE ULTRAPASSAGEM (Ataque de 3 seguidas)
+                # Verifica se você ultrapassou alguém recentemente
+                if dist_relativa > -5 and dist_relativa < 0 and bot["speed"] < self.car.speed:
+                    self.ultrapassagens_combo += 1
+                    self.timer_combo = tempo_atual
+                
+                # Reseta o combo se passar 4 segundos sem ultrapassar
+                if tempo_atual - self.timer_combo > 4000:
+                    self.ultrapassagens_combo = 0
+
+                # Se o combo chegar a 3, o bot à frente ativa o "Modo Bloqueio"
+                if self.ultrapassagens_combo >= 3 and 0 < dist_relativa < 40:
+                    # O bot vira agressivamente para o seu X
+                    target_x += (self.car.player_x - bot["x"]) * 0.5
+                    # E trava o movimento para garantir que você não passa
+                    bot["defesa_timer"] = tempo_atual + 2000
 
             # ==========================================
             # APLICA O EFEITO ESTILINGUE (VÁCUO) NO JOGADOR
             # ==========================================
             if jogador_no_vacuo and self.car.speed > 100: # tem que estar pelomenos a 100 por hora para pegar o vacuo
-                self.car.speed += 0.35 # Aceleração extra contínua
+                self.car.speed += 0.37 # Aceleração extra contínua
                 
                 # Permite ultrapassar a velocidade máxima real do carro em até 15 km/h!
                 # Exemplo: Se o limite é 330, no vácuo ele vai a 345!
-                limite_vacuo = self.car.max_speed + 15
+                limite_vacuo = self.car.max_speed + 17
                 if self.car.speed > limite_vacuo:
                     self.car.speed = limite_vacuo
 
@@ -709,7 +645,7 @@ class Game:
                     
                     # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
                     pitch = 1.0 - (fator * 1.0)
-                    self.som_bot_motor.set_pitch(max(0.5, min(3.0, pitch)))
+                    self.som_bot_motor.set_pitch(max(0.68, min(3.0, pitch)))
                     
                     # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
                     if self.som_bot_motor.get_state() != 4114: # 4114 = PLAYING
@@ -788,7 +724,7 @@ class Game:
                     
                     # 1. Calculamos a ALTURA primeiro! 
                     # FATOR_ESCALA! O 0.188 é a escala matemática exata para a altura base.
-                    bot_h = int(seg["largura"] * 0.188)
+                    bot_h = int(seg["largura"] * 0.159)
                     
                     # 2. A largura se adapta automaticamente para manter a proporção do seu PNG!
                     bot_w = int(bot_h * (img_w / img_h))

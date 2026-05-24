@@ -12,7 +12,7 @@ class Track:
         
         # Mapa do Rio
         self.track_map = [
-                {"length": 350, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
+                {"length": 1550, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
                 {"length": 80, "curve": 0.04, "hill": 0.0015},     # Curva de Sainte-Devote (Subindo)
                 {"length": 250, "curve": 0.0, "hill": 0.002},      # Subida da Beau Rivage
                 {"length": 60, "curve": -0.03, "hill": 0.0},      # Curva Massenet
