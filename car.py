@@ -19,11 +19,25 @@ class Car:
         self.best_lap_time = 0
 
         # ==========================================
-        # FÍSICA DINÂMICA DO MOTOR 
+        # FÍSICA DINÂMICA DO MOTOR (COM HANDICAP DO PLAYER)
         # ==========================================
         self.speed = 0
-        self.max_speed = velocidade_maxima 
-        self.nivel_aceleracao = nivel_aceleracao 
+        
+        # 1. Ajuste de Velocidade Máxima
+        # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
+        # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
+        self.max_speed = velocidade_maxima * 0.975 
+        
+        # 2. Ajuste Dinâmico de Aceleração (A Mágica)
+        # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
+        # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
+        # Fórmula: Base de 60% + 5% por cada nível da equipe.
+        fator_nerf_acel = 0.60 + (nivel_aceleracao * 0.05)
+        
+        # Trava de segurança para nunca passar de 100% dos status originais
+        fator_nerf_acel = min(1.0, fator_nerf_acel) 
+        
+        self.nivel_aceleracao = nivel_aceleracao * fator_nerf_acel
         # === NOVOS ATRIBUTOS ===
         # Nível 1: Freio fraco (0.5) | Nível 7: Freio de cerâmica (1.4)
         self.brake_power = 0.35 + (nivel_freio * 0.15) 
@@ -662,26 +676,29 @@ class Car:
             pygame.draw.polygon(mini_screen, color_road, [(centro_near - width_near, y_near), (centro_near + width_near, y_near), (centro_far + width_far, y_far), (centro_far - width_far, y_far)])
             pygame.draw.polygon(mini_screen, color_zebra, [(centro_near - width_near - (width_near*0.2), y_near), (centro_near - width_near, y_near), (centro_far - width_far, y_far), (centro_far - width_far - (width_far*0.2), y_far)])
             pygame.draw.polygon(mini_screen, color_zebra, [(centro_near + width_near, y_near), (centro_near + width_near + (width_near*0.2), y_near), (centro_far + width_far + (width_far*0.2), y_far), (centro_far + width_far, y_far)])
-
-            # --- MÁGICA 3: RENDERIZAÇÃO DOS BOTS SEM "PICAR" ---
+            
+            # --- MÁGICA 3: RENDERIZAÇÃO DOS BOTS NO RETROVISOR ---
             for dist, bot in bots_no_espelho:
                 if int(dist) == n:
-                    # Aumentamos a zona morta para 0.4. 
-                    # O bot só vira de lado se estiver realmente bem longe do seu centro.
-                    diferenca_x = bot["x"] - self.player_x
-                    if diferenca_x < -0.7: direcao = "esq"
-                    elif diferenca_x > 0.7: direcao = "dir"
-                    else: direcao = "reto"
+                    # ---> LÊ A FÍSICA REAL DO VOLANTE DO BOT <---
+                    # O ".get" pega o valor do steer_real que criámos no main.py
+                    forca_volante = bot.get("steer_real", 0)
+                    
+                    # Se ele estiver fazendo força real para mudar de faixa, vira o sprite!
+                    if forca_volante < -0.15: 
+                        direcao = "esq"  # Ele está virando fisicamente para a esquerda
+                    elif forca_volante > 0.15: 
+                        direcao = "dir"  # Ele está virando fisicamente para a direita
+                    else: 
+                        direcao = "reto" # Ele está com o volante reto na pista
                     
                     chave = f"front_{direcao}"
                     img = None
                     
-                    # CORREÇÃO: Primeiro procura a pasta (equipe), depois a direção, depois o frame!
                     if bot_sprites and bot["pasta"] in bot_sprites:
-                        img = bot_sprites[bot["pasta"]][chave][bot["frame_idx"]]
+                        img = bot_sprites[bot["pasta"]][chave][bot.get("frame_idx", 0)]
                     
                     if img:
-                        # Matemática de altura fixa (sem amassar o teto!)
                         img_w, img_h = img.get_width(), img.get_height()
                         bot_h = int(width_near * 0.22) 
                         bot_w = int(bot_h * (img_w / img_h))
@@ -689,10 +706,7 @@ class Car:
                         bx = centro_near + (bot["x"] * width_near) - (bot_w // 2)
                         by = y_near - bot_h
                         
-                        # EFEITO DE ESPELHO REALISTA
                         img_espelhada = pygame.transform.flip(img, True, False)
-                        
-                        # NOVO: Guardamos a distância exata 'dist' (decimal) no final da tupla!
                         lista_desenho_espelho.append((img_espelhada, bx, by, bot_w, bot_h, dist))
 
         # ==========================================
@@ -810,6 +824,45 @@ class Car:
             pygame.draw.circle(screen, (0, 255, 0), (int(px), int(py)), 5)
         else:
             pygame.draw.circle(screen, WHITE, (int(px), int(py)), 5)
+
+        # =========================================================
+        # 9. DEBUG VISUAL: VELOCIDADE DOS 3 BOTS À FRENTE
+        # =========================================================
+        if bots:
+            bots_a_frente = []
+            for bot in bots:
+                # Calcula a distância usando a posição do seu carro
+                dist_relativa = (bot["pos"] - self.position) % track.total_track_length
+                
+                # Só regista se estiver na sua frente (até meia pista de distância)
+                if 0 < dist_relativa < (track.total_track_length / 2):
+                    bots_a_frente.append((dist_relativa, bot))
+
+            # Ordena a lista pela distância (do mais perto para o mais longe)
+            bots_a_frente.sort(key=lambda x: x[0])
+            top_3_frente = bots_a_frente[:3]
+
+            fonte_debug = pygame.font.SysFont('Arial', 20, bold=True)
+            cor_vermelha = (255, 50, 50)
+            
+            # Posiciona logo abaixo do minimapa (x=1000, e desce o y para 400)
+            pos_x_debug = 1000 
+            pos_y_debug = 400 
+
+            # Desenha o Título
+            titulo_debug = fonte_debug.render("BOTS À FRENTE:", True, cor_vermelha)
+            screen.blit(titulo_debug, (pos_x_debug, pos_y_debug - 25))
+
+            # Desenha as informações dos 3 bots
+            for i, (dist, bot) in enumerate(top_3_frente):
+                vel_bot = int(bot["speed"])
+                dist_bot = int(dist)
+                nome_bot = bot.get("pasta", "Bot").capitalize()
+                
+                texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
+                surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
+                screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (i * 25)))
+
 
     ## LOGICA DA CRONOMETRAGEM
     def update_timer(self, total_track_length, lap_limit):

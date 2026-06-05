@@ -17,18 +17,18 @@ class Track:
                 {"length": 250, "curve": 0.0, "hill": 0.002},      # Subida da Beau Rivage
                 {"length": 60, "curve": -0.03, "hill": 0.0},      # Curva Massenet
                 {"length": 60, "curve": 0.03, "hill": -0.001},     # Praça do Cassino (Descendo)
-                {"length": 200, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
+                {"length": 156, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
                 {"length": 80, "curve": -0.03, "hill": 0.0},        # Curva Mirabeau
-                {"length": 250, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": 0.01, "hill":  0.002},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
-                {"length": 100, "curve": 0.0, "hill": 0.0},
+                {"length": 80, "curve": 0.0, "hill": 0.0},
                 {"length": 50, "curve": -0.02, "hill": 0.0},      # Curva Portier (Entrada do Túnel)
                 {"length": 500, "curve": 0.01, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
-                {"length": 350, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel
-                {"length": 220, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
+                {"length": 120, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
                 {"length": 60, "curve": -0.04, "hill": 0.0},      # Curva do Tabaco
-                {"length": 350, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": 0.03, "hill": 0.0},       # Chicane Louis Chiron
                 {"length": 200, "curve": -0.02, "hill": 0.0},     # Seção das Piscinas
                 {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
@@ -171,6 +171,6 @@ class Track:
             zebra_w_far = width_far * 0.25
             pygame.draw.polygon(screen, color_zebra, [(center_near - width_near - zebra_w_near, y_near), (center_near - width_near, y_near), (center_far - width_far, y_far), (center_far - width_far - zebra_w_far, y_far)])
             pygame.draw.polygon(screen, color_zebra, [(center_near + width_near, y_near), (center_near + width_near + zebra_w_near, y_near), (center_far + width_far + zebra_w_far, y_far), (center_far + width_far, y_far)])
-
+            
         # ---> DEVOLVE A LISTA PARA O MAIN.PY!
         return segmentos_pista

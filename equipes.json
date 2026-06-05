@@ -1,9 +1,9 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 283,
-        "aceleracao": 0.2,
-        "direcao": 6.8,
+        "velocidade_base": 295,
+        "aceleracao": 5,
+        "direcao": 6,
         "pasta": "madonna",
         "forca_marchas": [1.7919, 1.4335, 1.1349, 0.8959, 0.7404, 0.5853, 0.4899],
         "mapa_cor": {
@@ -19,9 +19,9 @@
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 281,
-        "aceleracao": 0.2,
-        "direcao": 5.0,
+        "velocidade_base": 293,
+        "aceleracao": 5,
+        "direcao": 5,
         "pasta": "firenze",
         "forca_marchas": [1.7397, 1.3917, 1.1018, 0.8698, 0.7188, 0.5683, 0.4756],
         "mapa_cor": {
@@ -37,9 +37,9 @@
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 281,
-        "aceleracao": 0.2,
-        "direcao": 5.9,
+        "velocidade_base": 289,
+        "aceleracao": 4,
+        "direcao": 5,
         "pasta": "millions",
         "forca_marchas": [1.689, 1.3512, 1.0697, 0.8445, 0.6979, 0.5517, 0.4617],
         "mapa_cor": {
@@ -55,9 +55,9 @@
     },
     "Bestowal": {
         "classe": "A",
-        "velocidade_base": 282,
-        "aceleracao": 0.2,
-        "direcao": 5.8,
+        "velocidade_base": 286,
+        "aceleracao": 4,
+        "direcao": 7,
         "pasta": "bestowal",
         "forca_marchas": [1.6398, 1.3118, 1.0385, 0.8199, 0.6776, 0.5356, 0.4483],
         "mapa_cor": {
@@ -73,9 +73,9 @@
     },
     "Blanche": {
         "classe": "B",
-        "velocidade_base": 281,
-        "aceleracao": 0.2,
-        "direcao": 3.7,
+        "velocidade_base": 285,
+        "aceleracao": 3.2,
+        "direcao": 6.7,
         "pasta": "blanche",
         "forca_marchas": [1.592, 1.2736, 1.0083, 0.796, 0.6579, 0.52, 0.4352],
         "mapa_cor": {
@@ -91,8 +91,8 @@
     },
     "Tyrant": {
         "classe": "B",
-        "velocidade_base": 280,
-        "aceleracao": 0.2,
+        "velocidade_base": 283,
+        "aceleracao": 3,
         "direcao": 3.6,
         "pasta": "tyrant",
         "forca_marchas": [1.5762, 1.261, 0.9983, 0.7881, 0.6514, 0.5149, 0.4309],
@@ -109,8 +109,8 @@
     },
     "Losel": {
         "classe": "B",
-        "velocidade_base": 280,
-        "aceleracao": 0.15,
+        "velocidade_base": 275,
+        "aceleracao": 3,
         "direcao": 3.5,
         "pasta": "Losel",
         "forca_marchas": [1.5606, 1.2485, 0.9884, 0.7803, 0.645, 0.5098, 0.4266],
@@ -127,8 +127,8 @@
     },
     "May": {
         "classe": "B",
-        "velocidade_base": 279,
-        "aceleracao": 0.13,
+        "velocidade_base": 271,
+        "aceleracao": 2.5,
         "direcao": 3.3,
         "pasta": "may",
         "forca_marchas": [1.5606, 1.2485, 0.9884, 0.7803, 0.645, 0.5098, 0.4266],
@@ -145,8 +145,8 @@
     },
     "Bullets": {
         "classe": "C",
-        "velocidade_base": 274,
-        "aceleracao": 0.11,
+        "velocidade_base": 268,
+        "aceleracao": 2,
         "direcao": 2.9,
         "pasta": "bullets",
         "forca_marchas": [1.6, 1.2, 1, 0.78, 0.65, 0.58, 0.49],
@@ -163,8 +163,8 @@
     },
     "Dardan": {
         "classe": "C",
-        "velocidade_base": 273,
-        "aceleracao": 0.115,
+        "velocidade_base": 270,
+        "aceleracao": 2,
         "direcao": 3.1,
         "pasta": "dardan",
         "forca_marchas": [1.53, 1.224, 0.969, 0.765, 0.6324, 0.4998, 0.4182],
@@ -181,8 +181,8 @@
     },
     "Linden": {
         "classe": "C",
-        "velocidade_base": 273,
-        "aceleracao": 0.1,
+        "velocidade_base": 265,
+        "aceleracao": 2,
         "direcao": 2.9,
         "pasta": "linden",
         "forca_marchas": [1.6, 1.2, 1, 0.76, 0.63, 0.57, 0.47],
@@ -199,8 +199,8 @@
     },
     "Minarae": {
         "classe": "C",
-        "velocidade_base": 272,
-        "aceleracao": 0.11,
+        "velocidade_base": 266,
+        "aceleracao": 2,
         "direcao": 2.6,
         "pasta": "minarae",
         "forca_marchas": [1.5, 1.2, 0.95, 0.75, 0.62, 0.49, 0.41],
@@ -218,7 +218,7 @@
     "Rigel": {
         "classe": "D",
         "velocidade_base": 270,
-        "aceleracao": 0.1,
+        "aceleracao": 1.9,
         "direcao": 2.5,
         "pasta": "rigel",
         "forca_marchas": [1.425, 1.14, 0.9025, 0.71, 0.58, 0.46, 0.38],
@@ -236,7 +236,7 @@
     "Orchis": {
         "classe": "D",
         "velocidade_base": 269,
-        "aceleracao": 0.11,
+        "aceleracao": 1.8,
         "direcao": 2.4,
         "pasta": "orchis",
         "forca_marchas": [1.3538, 1.083, 0.8574, 0.6769, 0.5595, 0.4422, 0.37],
@@ -254,7 +254,7 @@
     "Comet": {
         "classe": "D",
         "velocidade_base": 269,
-        "aceleracao": 0.11,
+        "aceleracao": 1.8,
         "direcao": 2.3,
         "pasta": "comet",
         "forca_marchas": [1.3267, 1.0613, 0.8403, 0.6634, 0.5483, 0.4334, 0.3626],
@@ -272,7 +272,7 @@
     "Zeroforce": {
         "classe": "D",
         "velocidade_base": 268,
-        "aceleracao": 0.12,
+        "aceleracao": 1.6,
         "direcao": 2.2,
         "pasta": "zeroforce",
         "forca_marchas": [1.3134, 1.0507, 0.8319, 0.6568, 0.5428, 0.4291, 0.359],
