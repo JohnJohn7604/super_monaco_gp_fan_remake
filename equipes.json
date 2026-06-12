@@ -3,7 +3,7 @@
         "classe": "S",
         "velocidade_base": 295,
         "aceleracao": 5,
-        "direcao": 6,
+        "direcao": 1,
         "pasta": "madonna",
         "forca_marchas": [1.7919, 1.4335, 1.1349, 0.8959, 0.7404, 0.5853, 0.4899],
         "mapa_cor": {
@@ -21,7 +21,7 @@
         "classe": "S",
         "velocidade_base": 293,
         "aceleracao": 5,
-        "direcao": 5,
+        "direcao": 1,
         "pasta": "firenze",
         "forca_marchas": [1.7397, 1.3917, 1.1018, 0.8698, 0.7188, 0.5683, 0.4756],
         "mapa_cor": {
@@ -39,7 +39,7 @@
         "classe": "A",
         "velocidade_base": 289,
         "aceleracao": 4,
-        "direcao": 5,
+        "direcao": 1,
         "pasta": "millions",
         "forca_marchas": [1.689, 1.3512, 1.0697, 0.8445, 0.6979, 0.5517, 0.4617],
         "mapa_cor": {
@@ -57,7 +57,7 @@
         "classe": "A",
         "velocidade_base": 286,
         "aceleracao": 4,
-        "direcao": 7,
+        "direcao": 1,
         "pasta": "bestowal",
         "forca_marchas": [1.6398, 1.3118, 1.0385, 0.8199, 0.6776, 0.5356, 0.4483],
         "mapa_cor": {
@@ -68,14 +68,14 @@
         },
         "pilotos": [
             {"nome": "A. Picos", "aceleracao": 0.67, "freio": 5.8, "direcao": 5.5, "cor_capacete": [255, 255, 0]},
-            {"nome": "R. Silva", "aceleracao": 0.57, "freio": 5.2, "direcao": 5.0, "cor_capacete": [0, 0, 0]}
+            {"nome": "R. Silva", "aceleracao": 0, "freio": 0, "direcao": 0, "cor_capacete": [0, 0, 0]}
         ]
     },
     "Blanche": {
         "classe": "B",
         "velocidade_base": 285,
         "aceleracao": 3.2,
-        "direcao": 6.7,
+        "direcao": 1,
         "pasta": "blanche",
         "forca_marchas": [1.592, 1.2736, 1.0083, 0.796, 0.6579, 0.52, 0.4352],
         "mapa_cor": {
@@ -93,7 +93,7 @@
         "classe": "B",
         "velocidade_base": 283,
         "aceleracao": 3,
-        "direcao": 3.6,
+        "direcao": 1,
         "pasta": "tyrant",
         "forca_marchas": [1.5762, 1.261, 0.9983, 0.7881, 0.6514, 0.5149, 0.4309],
         "mapa_cor": {
@@ -111,7 +111,7 @@
         "classe": "B",
         "velocidade_base": 275,
         "aceleracao": 3,
-        "direcao": 3.5,
+        "direcao": 1,
         "pasta": "Losel",
         "forca_marchas": [1.5606, 1.2485, 0.9884, 0.7803, 0.645, 0.5098, 0.4266],
         "mapa_cor": {
@@ -129,7 +129,7 @@
         "classe": "B",
         "velocidade_base": 271,
         "aceleracao": 2.5,
-        "direcao": 3.3,
+        "direcao": 1,
         "pasta": "may",
         "forca_marchas": [1.5606, 1.2485, 0.9884, 0.7803, 0.645, 0.5098, 0.4266],
         "mapa_cor": {
@@ -147,7 +147,7 @@
         "classe": "C",
         "velocidade_base": 268,
         "aceleracao": 2,
-        "direcao": 2.9,
+        "direcao": 1,
         "pasta": "bullets",
         "forca_marchas": [1.6, 1.2, 1, 0.78, 0.65, 0.58, 0.49],
         "mapa_cor": {
@@ -163,9 +163,9 @@
     },
     "Dardan": {
         "classe": "C",
-        "velocidade_base": 270,
+        "velocidade_base": 272,
         "aceleracao": 2,
-        "direcao": 3.1,
+        "direcao": 1,
         "pasta": "dardan",
         "forca_marchas": [1.53, 1.224, 0.969, 0.765, 0.6324, 0.4998, 0.4182],
         "mapa_cor": {
@@ -183,7 +183,7 @@
         "classe": "C",
         "velocidade_base": 265,
         "aceleracao": 2,
-        "direcao": 2.9,
+        "direcao": 1,
         "pasta": "linden",
         "forca_marchas": [1.6, 1.2, 1, 0.76, 0.63, 0.57, 0.47],
         "mapa_cor": {
@@ -199,16 +199,19 @@
     },
     "Minarae": {
         "classe": "C",
-        "velocidade_base": 266,
+        "velocidade_base": 270,
         "aceleracao": 2,
         "direcao": 2.6,
         "pasta": "minarae",
         "forca_marchas": [1.5, 1.2, 0.95, 0.75, 0.62, 0.49, 0.41],
         "mapa_cor": {
-            "puro":   [239, 0, 0],     
-            "escuro": [140, 0, 0],   
-            "medio":  [140, 0, 0],   
-            "claro":  [239, 0, 0]    
+            "puro":     [255, 255, 255],
+            "escuro":  [160, 161, 170], 
+            "medio":   [127, 51, 0],  
+            "claro":   [239, 239, 0]
+             
+               
+            
         },
         "pilotos": [
             {"nome": "G. Ceara", "aceleracao": 0.4, "freio": 3.0, "direcao": 2.6, "cor_capacete": [255, 255, 0]},
@@ -218,7 +221,7 @@
     "Rigel": {
         "classe": "D",
         "velocidade_base": 270,
-        "aceleracao": 1.9,
+        "aceleracao": 1,
         "direcao": 2.5,
         "pasta": "rigel",
         "forca_marchas": [1.425, 1.14, 0.9025, 0.71, 0.58, 0.46, 0.38],
@@ -237,7 +240,7 @@
         "classe": "D",
         "velocidade_base": 269,
         "aceleracao": 1.8,
-        "direcao": 2.4,
+        "direcao": 1,
         "pasta": "orchis",
         "forca_marchas": [1.3538, 1.083, 0.8574, 0.6769, 0.5595, 0.4422, 0.37],
         "mapa_cor": {
@@ -255,7 +258,7 @@
         "classe": "D",
         "velocidade_base": 269,
         "aceleracao": 1.8,
-        "direcao": 2.3,
+        "direcao": 1,
         "pasta": "comet",
         "forca_marchas": [1.3267, 1.0613, 0.8403, 0.6634, 0.5483, 0.4334, 0.3626],
         "mapa_cor": {
@@ -273,7 +276,7 @@
         "classe": "D",
         "velocidade_base": 268,
         "aceleracao": 1.6,
-        "direcao": 2.2,
+        "direcao": 1,
         "pasta": "zeroforce",
         "forca_marchas": [1.3134, 1.0507, 0.8319, 0.6568, 0.5428, 0.4291, 0.359],
         "mapa_cor": {

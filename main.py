@@ -19,30 +19,50 @@ class Game:
         pygame.display.set_caption("Super Monaco GP - Rio Edition")
         self.clock = pygame.time.Clock()
         
-        self.estado_jogo = "MENU"
+        self.estado_jogo = "INPUT_NAME"
+        self.nome_digitado = ""         # Guarda as letras que o jogador vai digitar
         self.track = None
         self.car = None
 
-        
         self.ultrapassagens_combo = 0
         self.timer_combo = 0
 
         self.race_finished = False
         self.final_position = 0
-        self.lap_limit = 2 # Definimos aqui o limite de 6 voltas
+        self.lap_limit = 1 # Definimos aqui o limite de 6 voltas
 
         # ==========================================
-        # CARREGAR BANCO DE DADOS VIA JSON
+        # CARREGAR BANCO DE DADOS VIA JSON E MESCLAR
         # ==========================================
         try:
+            # 1. Carrega os carros
             with open('equipes.json', 'r', encoding='utf-8') as f:
                 self.equipes = json.load(f)
-        except FileNotFoundError:
-            print("ERRO: Ficheiro equipes.json não encontrado!")
-            self.equipes = {} # Evita que o jogo crash imediatamente
+                
+            # 2. Carrega os pilotos atualizados
+            with open('pilotos.json', 'r', encoding='utf-8') as f:
+                pilotos_externos = json.load(f)
+                
+            # 3. Agrupa os pilotos por equipe
+            pilotos_por_equipe = {}
+            for p in pilotos_externos:
+                eq = p["equipe"]
+                if eq not in pilotos_por_equipe:
+                    pilotos_por_equipe[eq] = []
+                pilotos_por_equipe[eq].append(p)
+                
+            # 4. Substitui os pilotos antigos dentro da self.equipes
+            for eq_nome, pilotos_lista in pilotos_por_equipe.items():
+                if eq_nome in self.equipes:
+                    self.equipes[eq_nome]["pilotos"] = pilotos_lista
+                    
+        except FileNotFoundError as e:
+            print(f"ERRO: Ficheiro JSON não encontrado! Detalhes: {e}")
+            if not hasattr(self, 'equipes'):
+                self.equipes = {} # Evita que o jogo quebre completamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "Blanche"
+        self.equipe_atual_jogador = "Minarae"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -120,7 +140,25 @@ class Game:
         if track_name == "rio":
             self.track = Track()
             
-        # Descobre a pasta da equipe do jogador lendo o JSON
+        # =========================================================
+        # LÊ O JSON PARA DESCOBRIR A SUA EQUIPA AUTOMATICAMENTE!
+        # =========================================================
+        # Pega o nome que você acabou de digitar
+        self.nome_jogador_formatado = getattr(self, 'nome_digitado', "PILOTO")
+        
+        for nome_eq, dados in self.equipes.items():
+            for piloto in dados.get("pilotos", []):
+                
+                # Procura a vaga do jogador no JSON
+                nome_json = str(piloto.get("nome", "")).upper()
+                if piloto.get("is_player", False) or nome_json in ["PLAYER", "VOCÊ"]:
+                    
+                    self.equipe_atual_jogador = nome_eq
+                    # SUBSTITUI O NOME DO JSON PELO NOME QUE VOCÊ DIGITOU!
+                    piloto["nome"] = self.nome_jogador_formatado 
+                    break
+
+        # Descobre a pasta da equipe do jogador agora que já sabe onde você está
         nome_equipe = self.equipe_atual_jogador
         if nome_equipe in self.equipes:
             pasta_do_jogador = self.equipes[nome_equipe]["pasta"]
@@ -155,7 +193,9 @@ class Game:
         # =========================================================
         # CONFIGURAÇÃO DO GRID E DO JOGADOR
         # =========================================================
-        posicao_jogador = 10 # <--- MUDE AQUI! (1 = Pole Position, 32 = Último)
+        # Pega a posição exata que você escolheu na tela dos quadradinhos!
+        # (Se por algum motivo o jogo pular o menu, ele coloca-o em 32º por segurança)
+        posicao_jogador = getattr(self, 'posicao_jogador', 32) 
         espaco_grid = 6     # Distância em metros entre os carros no grid
 
         # 1. Coloca o JOGADOR na pista
@@ -173,9 +213,13 @@ class Game:
                 self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta)
                 
             for i, piloto in enumerate(dados["pilotos"]):
-                # Ignora a sua própria vaga (já criámos o seu carro ali em cima)
-                if nome_eq == self.equipe_atual_jogador and piloto.get("is_player"):
-                    continue
+                
+                # Ignora a vaga do jogador! Se for o seu piloto, ele não cria um Bot para ele.
+                nome_formatado = str(piloto.get("nome", "")).upper()
+                is_player = piloto.get("is_player", False) or nome_formatado in ["PLAYER", "VOCÊ"]
+                
+                if is_player:
+                    continue # Pula para o próximo, essa vaga é do jogador humano!
                 
                 # Leitura dos Status
                 vel_maxima_do_carro = dados["velocidade_base"]
@@ -254,7 +298,8 @@ class Game:
     def gerar_resultados(self):
         # 1. Junta você e todos os bots numa lista só
         corredores = [{
-            "nome": "VOCÊ",
+            # Usa exatamente o nome que está no JSON (Ex: PLAYER, VOCÊ, ou Ayrton Senna)
+            "nome": getattr(self, "nome_jogador_formatado", "VOCÊ").upper(),
             "equipe": self.equipe_atual_jogador,
             "pos": self.car.position
         }]
@@ -284,46 +329,158 @@ class Game:
             reverse=True
         )
 
+    def desenhar_tela_nome(self):
+        self.screen.fill((30, 30, 30)) # Fundo escuro
+        
+        # Título
+        fonte_titulo = pygame.font.SysFont('Arial', 50, bold=True)
+        texto = fonte_titulo.render("DIGITE O SEU NOME", True, (255, 255, 255))
+        self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, 120))
+        
+        # Caixa de Texto
+        largura_caixa = 400
+        x_caixa = WIDTH // 2 - largura_caixa // 2
+        y_caixa = 250
+        
+        pygame.draw.rect(self.screen, (50, 50, 50), (x_caixa, y_caixa, largura_caixa, 60), border_radius=10)
+        pygame.draw.rect(self.screen, (255, 200, 0), (x_caixa, y_caixa, largura_caixa, 60), 3, border_radius=10) # Borda amarela
+        
+        # Renderiza o texto que está sendo digitado
+        fonte_input = pygame.font.SysFont('Arial', 40, bold=True)
+        texto_input = fonte_input.render(self.nome_digitado, True, (255, 255, 255))
+        self.screen.blit(texto_input, (WIDTH // 2 - texto_input.get_width() // 2, y_caixa + 5))
+        
+        # Instrução
+        fonte_inst = pygame.font.SysFont('Arial', 25)
+        inst = fonte_inst.render("Pressione ENTER para continuar", True, (200, 200, 0))
+        self.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, 400))
+
+    def desenhar_tela_posicao(self):
+        self.screen.fill((30, 30, 30)) # Fundo escuro
+        
+        # Título
+        fonte_titulo = pygame.font.SysFont('Arial', 40, bold=True)
+        texto = fonte_titulo.render("ESCOLHA A SUA POSIÇÃO DE LARGADA", True, (255, 255, 255))
+        self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, 50))
+        
+        # Garante que a variável existe
+        if not hasattr(self, 'posicao_jogador'):
+            self.posicao_jogador = 32
+
+        # ==========================================
+        # DESENHAR A GRELHA DOS 32 QUADRADINHOS
+        # ==========================================
+        fonte_pos = pygame.font.SysFont('Arial', 25, bold=True)
+        
+        # Matemáticas para centralizar a grelha (8 colunas x 4 linhas)
+        tamanho_quadrado = 60
+        espaco = 10
+        largura_total_grelha = 8 * tamanho_quadrado + 7 * espaco
+        start_x = WIDTH // 2 - largura_total_grelha // 2
+        start_y = 150
+        
+        for i in range(32):
+            pos_num = i + 1
+            linha = i // 8
+            coluna = i % 8
+            
+            x = start_x + coluna * (tamanho_quadrado + espaco)
+            y = start_y + linha * (tamanho_quadrado + espaco)
+            
+            rect = pygame.Rect(x, y, tamanho_quadrado, tamanho_quadrado)
+            
+            # Se for a posição que o jogador está a selecionar, pinta de VERMELHO
+            if pos_num == self.posicao_jogador:
+                pygame.draw.rect(self.screen, (255, 50, 50), rect, border_radius=8)
+                pygame.draw.rect(self.screen, (255, 255, 255), rect, 3, border_radius=8) # Borda branca
+            else:
+                # Quadrados normais a cinzento
+                pygame.draw.rect(self.screen, (80, 80, 80), rect, border_radius=8)
+                
+            # Desenha o número dentro do quadrado
+            texto_num = fonte_pos.render(str(pos_num), True, (255, 255, 255))
+            self.screen.blit(texto_num, (x + tamanho_quadrado//2 - texto_num.get_width()//2, 
+                                         y + tamanho_quadrado//2 - texto_num.get_height()//2))
+
+        # Instruções na base do ecrã
+        fonte_inst = pygame.font.SysFont('Arial', 25)
+        inst = fonte_inst.render("Use as SETAS para mover | ENTER para Iniciar Corrida", True, (200, 200, 0))
+        self.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, 480))
+
     def run(self):
         fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         while True:
             tempo_atual = pygame.time.get_ticks()
+            keys = pygame.key.get_pressed()
 
+            # ==========================================
+            # 1. LOOP DE EVENTOS (Teclado para Menus)
+            # ==========================================
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     if self.car: self.car.cleanup() 
                     pygame.quit()
                     sys.exit()
 
-                # --- NOVO CONTROLE DE MENUS ---
                 if event.type == pygame.KEYDOWN:
-                    if self.estado_jogo == "MENU":
-                        if event.key == pygame.K_RETURN: self.iniciar_corrida("rio")
-                        elif event.key == pygame.K_2: self.iniciar_corrida("eua")
-                        
-                    # Aperta Enter para avançar nos resultados
-                    elif self.estado_jogo == "RESULTADOS_CORRIDA" and event.key == pygame.K_RETURN:
-                        self.estado_jogo = "RESULTADOS_CONSTRUTORES"
-                    elif self.estado_jogo == "RESULTADOS_CONSTRUTORES" and event.key == pygame.K_RETURN:
-                        self.estado_jogo = "MENU" # Volta para o Menu Principal
-
-            keys = pygame.key.get_pressed()
-
-            # ==========================================
-            # GAVETA 1: DESENHO DO MENU
-            # ==========================================
-            if self.estado_jogo == "MENU":
-                self.screen.fill((20, 20, 50))
-                # (Desenha textos do menu aqui...)
-                titulo = fonte_menu.render("SUPER MONACO GP\n Pressione 'Enter' para iniciar.", True, (255, 255, 0))
-                self.screen.blit(titulo, (WIDTH//2 - titulo.get_width()//2, 150))
                 
+                    # TELA 1: DIGITAR O NOME
+                    if self.estado_jogo == "INPUT_NAME":
+                        if event.key == pygame.K_RETURN:
+                            if self.nome_digitado.strip() == "":
+                                self.nome_digitado = "PILOTO"
+                            self.estado_jogo = "SELECT_POS" 
+                            
+                        elif event.key == pygame.K_BACKSPACE:
+                            self.nome_digitado = self.nome_digitado[:-1]
+                        else:
+                            if len(self.nome_digitado) < 12 and event.unicode.isprintable(): 
+                                self.nome_digitado += event.unicode.upper()
+
+                    # TELA 2: ESCOLHER POSIÇÃO
+                    elif self.estado_jogo == "SELECT_POS":
+                        if not hasattr(self, 'posicao_jogador'):
+                            self.posicao_jogador = 32
+                            
+                        # CORREÇÃO: event.key ao invés de event.type
+                        if event.key == pygame.K_RIGHT:
+                            self.posicao_jogador += 1
+                            if self.posicao_jogador > 32: self.posicao_jogador = 1
+                            
+                        elif event.key == pygame.K_LEFT:
+                            self.posicao_jogador -= 1
+                            if self.posicao_jogador < 1: self.posicao_jogador = 32
+                            
+                        elif event.key == pygame.K_DOWN:
+                            self.posicao_jogador += 8 
+                            if self.posicao_jogador > 32: self.posicao_jogador -= 32
+                            
+                        elif event.key == pygame.K_UP:
+                            self.posicao_jogador -= 8 
+                            if self.posicao_jogador < 1: self.posicao_jogador += 32
+                        
+                        elif event.key == pygame.K_RETURN:
+                            # CRÍTICO: É AQUI QUE A PISTA E O CARRO SÃO CRIADOS!
+                            self.iniciar_corrida("rio")
+                            self.estado_jogo = "COUNTDOWN"         
+
+            # ==========================================
+            # 2. RENDERIZAÇÃO DOS MENUS (AS TRAVAS ANTI-CRASH)
+            # ==========================================
+            if self.estado_jogo == "INPUT_NAME":
+                self.desenhar_tela_nome()
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue 
+                continue # <-- Impede a física de rodar no fundo!
+
+            if self.estado_jogo == "SELECT_POS":
+                self.desenhar_tela_posicao()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue # <-- Impede a física de rodar no fundo!
 
             # ==========================================
-            # GAVETA 2: LÓGICA DO 3, 2, 1, GO! (NOVO)
+            # GAVETA 1: LÓGICA DO 3, 2, 1, GO! (NOVO)
             # ==========================================
             if self.estado_jogo == "COUNTDOWN":
                 # 1. Desenha a pista E guarda os segmentos para os bots usarem
@@ -372,7 +529,7 @@ class Game:
                 
 
             # ==========================================
-            # GAVETA 4: TELA DE RESULTADOS DOS PILOTOS
+            # GAVETA 2: TELA DE RESULTADOS DOS PILOTOS
             # ==========================================
             if self.estado_jogo == "RESULTADOS_CORRIDA":
                 self.screen.fill((20, 20, 50))
@@ -405,7 +562,7 @@ class Game:
                 continue
 
             # ==========================================
-            # GAVETA 5: TELA DAS CONSTRUTORAS
+            # GAVETA 3: TELA DAS CONSTRUTORAS
             # ==========================================
             if self.estado_jogo == "RESULTADOS_CONSTRUTORES":
                 self.screen.fill((20, 20, 50))
@@ -441,34 +598,57 @@ class Game:
             for bot in self.bots:
                 
                 # ---> A MÁGICA DA LARGADA (MODO SPRINT) <---
-                
-                # ---> A MÁGICA DA LARGADA (MODO SPRINT) <---
-                
+                # A IA entra em modo fúria (ignora freio de curva) APENAS nos primeiros 8 segundos!
+                sprint_largada = (self.car.laps_completed == 0 and self.car.current_lap_time < 8)
 
+                # ==========================================
                 # 1. Distância Circular Perfeita
+                # ==========================================
                 dist_bruta = bot["pos"] - self.car.position
                 dist_relativa = dist_bruta % self.track.total_track_length
                 if dist_relativa > self.track.total_track_length / 2:
                     dist_relativa -= self.track.total_track_length
 
+                # ==========================================
+                # 1.5. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
+                # ==========================================
+                # O bot só tem problemas se estiver bem à sua frente e fora do seu ecrã (> 200 metros)
+                if not bot.get("falha_mecanica", False):
+                    if 200 < dist_relativa < (self.track.total_track_length / 2):
+                        import random
+                        # Sorteia 1 número entre 1 e 1500 por frame. 
+                        # Isso garante que a cada corrida, 1 ou 2 carros lá na frente vão engasgar!
+                        if random.randint(1, 1500) == 1:
+                            bot["falha_mecanica"] = True
+                            bot["fim_falha"] = tempo_atual + random.randint(5000, 9000) # O problema dura entre 5 e 9 segundos
+                else:
+                    # Verifica se o mecânico avisou no rádio que o problema já foi resolvido
+                    if tempo_atual > bot.get("fim_falha", 0):
+                        bot["falha_mecanica"] = False
+
+                # ==========================================
                 # 2. IA de Curvas Corajosas
+                # ==========================================
                 curva_do_bot = self.track.get_curve(bot["pos"])
                 
-                # SPRINT: Ignora o limite de velocidade nas primeiras curvas!
-                if abs(curva_do_bot) > 0.04:
-                    multiplicador_curva = 0.80 + (bot["direcao"] * 0.07)
+                if abs(curva_do_bot) > 0.02 and not sprint_largada:
+                    intensidade_curva = abs(curva_do_bot) * 5.0  
+                    bonus_direcao = bot.get("direcao", 3) * 0.015 
+                    
+                    multiplicador_curva = 1.0 - intensidade_curva + bonus_direcao
+                    
                     target_speed = bot["max_speed"] * multiplicador_curva
                     target_speed = min(bot["max_speed"], target_speed)
-                    target_speed = max(150, target_speed)
+                    target_speed = max(150, target_speed) 
                 else:
                     target_speed = bot["max_speed"]
 
-                # =========================================================
-                # O PEDAL DE FREIO (O QUE FALTAVA!)
-                # =========================================================
+                # O PEDAL DE FREIO
                 if bot["speed"] > target_speed:
-                    # Se ele está mais rápido que o limite da curva, pisa no freio bruscamente!
-                    bot["speed"] -= 3.5
+                    forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
+                    bot["speed"] -= forca_freio 
+
+                # (Daqui para baixo continua a sua Seção 3. Aceleração Feroz...)
 
                 # 3. Aceleração Feroz e Controle de Largada (Launch Control)
                 forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
@@ -514,7 +694,7 @@ class Game:
                 if "linha_reta" not in bot:
                     import random
                     # Atribui uma das 3 pistas rígidas: Linha 1, 2 ou 3.
-                    bot["linha_reta"] = random.choice([-0.65, 0.0, 0.65])
+                    bot["linha_reta"] = random.choice([-0.65, -0.21, 0.0, 0.21, 0.65])
                 
                 # ---> O CÉREBRO DA CURVA: Lê a pista 30 metros à frente! <---
                 curva_futura = self.track.get_curve(bot["pos"] + 30)
@@ -533,8 +713,10 @@ class Game:
                 target_x = tracado_ideal
                 bot["pos"] += bot["speed"] * 0.005 
 
-                if 15 < dist_relativa < 60 and self.car.speed > 150:
-                    if abs(self.car.player_x - bot["x"]) < 0.4:
+                #SENSOR DE VÁCUO
+                if 1 < dist_relativa < 60 and self.car.speed > 100:
+                    #SE A DIFERENÇA DA POSIÇAÕ HORIZONTAL ENTRE VOCê E O BOT FOR MENOR QUE 0.5 O VÁCUO É ATIVADO
+                    if abs(self.car.player_x - bot["x"]) < 0.5: 
                         jogador_no_vacuo = True
 
                 # ==========================================
@@ -712,18 +894,6 @@ class Game:
                     # Correção da tremedeira: Agora ele assume a sua linha suavemente, sem somar infinitamente
                     target_x = self.car.player_x
                     bot["defesa_timer"] = tempo_atual + 2000
-
-            # ==========================================
-            # APLICA O EFEITO ESTILINGUE (VÁCUO) NO JOGADOR
-            # ==========================================
-            if jogador_no_vacuo and self.car.speed > 100: # tem que estar pelomenos a 100 por hora para pegar o vacuo
-                self.car.speed += 0.37 # Aceleração extra contínua
-                
-                # Permite ultrapassar a velocidade máxima real do carro em até 15 km/h!
-                # Exemplo: Se o limite é 330, no vácuo ele vai a 345!
-                limite_vacuo = self.car.max_speed + 17
-                if self.car.speed > limite_vacuo:
-                    self.car.speed = limite_vacuo
 
             # ==========================================
             # ÁUDIO DINÂMICO DOS BOTS (SISTEMA LIMPO)

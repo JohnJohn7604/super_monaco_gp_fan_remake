@@ -23,10 +23,10 @@ class Car:
         # ==========================================
         self.speed = 0
         
-        # 1. Ajuste de Velocidade Máxima
+        # 1. Ajuste de Velocidade Máxima HANDCAP
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        self.max_speed = velocidade_maxima * 0.975 
+        self.max_speed = velocidade_maxima * 0.95 
         
         # 2. Ajuste Dinâmico de Aceleração (A Mágica)
         # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
@@ -35,7 +35,7 @@ class Car:
         fator_nerf_acel = 0.60 + (nivel_aceleracao * 0.05)
         
         # Trava de segurança para nunca passar de 100% dos status originais
-        fator_nerf_acel = min(1.0, fator_nerf_acel) 
+        
         
         self.nivel_aceleracao = nivel_aceleracao * fator_nerf_acel
         # === NOVOS ATRIBUTOS ===
@@ -233,12 +233,18 @@ class Car:
             # O motor tenta empurrar o carro para frente
             forca_motor = self.torque_marchas[self.marcha_atual]
             
-            # --- A MÁGICA DA ACELERAÇÃO ARCADE REALISTA ---
-            # Se o nível for baixo (Rigel = 0.15), o multiplicador vai ser por volta de 0.45.
-            # Se o nível for alto (Madonna = 4.5), vai passar de 1.35!
             multiplicador_potencia = 0.4 + (self.nivel_aceleracao * 0.22)
             
-            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / self.max_speed))
+            # --- A MÁGICA DA ACELERAÇÃO NO VÁCUO ---
+            # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
+            vel_referencia = self.max_speed + 26 if no_vacuo else self.max_speed
+            
+            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / vel_referencia))
+            
+            # O Vácuo tira a resistência do ar: aceleração aumenta 20% para sugar o carro!
+            if no_vacuo and self.speed > 100:
+                taxa_aceleracao *= 1.8
+                
             self.speed += taxa_aceleracao
             
             # A grama "agarra" os pneus
@@ -249,20 +255,24 @@ class Car:
             atrito_terreno = 1.2 if na_grama else (0.05 + (self.speed / self.max_speed) * 0.2)
             self.speed -= atrito_terreno 
 
-        # --- Limites e Corte de Giro ---
+        # ==========================================
+        # LIMITES, CORTE DE GIRO E PAREDE DE VENTO
+        # ==========================================
         limite_atual = self.limite_marchas[self.marcha_atual]
         
-        # MÁGICA DO VÁCUO: O limite da marcha estica se você estiver no vácuo!
+        # MÁGICA DO VÁCUO: O teto da última marcha sobe os exatos 15 km/h
         if no_vacuo and self.marcha_atual == self.max_marchas:
-            limite_atual += 15
+            limite_atual += 45
 
         if not na_grama and self.speed > limite_atual:
             if no_vacuo:
-                # Trava suave no teto do vácuo
+                # Trava cravada no teto do vácuo (+15)
                 self.speed = limite_atual 
             else:
-                # SAIU DO VÁCUO: O vento bate e a velocidade cai aos poucos (efeito realista!)
-                self.speed -= 0.6 
+                # SAIU DO VÁCUO: A resistência do ar bate como uma parede!
+                # O carro perde velocidade super rápido (-1.2 por frame) até voltar ao limite normal.
+                self.speed -= 0.8
+                
         elif na_grama and self.speed > 120:
             # Tentar voar na grama faz os pneus derraparem em falso (Perde muita velocidade)
             self.speed -= 1.5 
@@ -285,7 +295,7 @@ class Car:
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
             # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
-            forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 1.8
+            forca_centrifuga = (percentual_vel ** 1.14) * curve_intensity * 1.8
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
