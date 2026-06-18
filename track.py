@@ -35,7 +35,24 @@ class Track:
                 {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
                 {"length": 250, "curve": 0.0, "hill": 0.0}        # Reta Final
             ]
+        # (O seu track_map original continua aqui em cima)
         self.total_track_length = sum(seg["length"] for seg in self.track_map)
+        
+        # ==========================================
+        # PRÉ-CARREGAMENTO MATEMÁTICO DA PISTA (O(1) Lookup)
+        # ==========================================
+        self.track_data = []
+        for seg in self.track_map:
+            # Para cada metro deste segmento, guarda a curva e a colina exatas!
+            for _ in range(int(seg["length"])):
+                self.track_data.append({
+                    "curve": seg["curve"],
+                    "hill": seg.get("hill", 0.0)
+                })
+        # Atualiza o tamanho exato da pista baseado no array
+        self.total_track_length = len(self.track_data)
+        
+        # (O código de carregar o bg_rio.png continua aqui para baixo...)
 
         # Fundo (Parallax)
         try:
@@ -49,13 +66,8 @@ class Track:
             pygame.draw.polygon(self.bg_img, (46, 120, 80), [(1000, HEIGHT//2), (1600, 150), (2560, HEIGHT//2)])
 
     def get_curve(self, position):
-        pos_atual = position % self.total_track_length
-        dist_acumulada = 0
-        for seg in self.track_map:
-            dist_acumulada += seg["length"]
-            if pos_atual < dist_acumulada:
-                return seg["curve"]
-        return 0
+        indice = int(position) % self.total_track_length
+        return self.track_data[indice]["curve"]
 
     def update_parallax(self, speed, curve_intensity, keys):
         if speed > 0:
@@ -110,16 +122,10 @@ class Track:
             p_near = self.cam_height / z_near
             p_far = self.cam_height / z_far
             
-            pos_futura = (position + n) % self.total_track_length
-            curva_n = 0
-            colina_n = 0 
-            dist_check = 0
-            for seg in self.track_map:
-                dist_check += seg["length"]
-                if pos_futura < dist_check:
-                    curva_n = seg["curve"]
-                    colina_n = seg.get("hill", 0.0) 
-                    break
+            # Leitura O(1) instantânea do nosso pré-carregamento!
+            indice_futuro = int((position + n) % self.total_track_length)
+            curva_n = self.track_data[indice_futuro]["curve"]
+            colina_n = self.track_data[indice_futuro]["hill"]
             
             dx += curva_n
             curva_x += dx
@@ -152,11 +158,11 @@ class Track:
             color_road = GRAY_DARK if (n + int(position)) % 6 > 3 else GRAY_LIGHT
             color_grass = GREEN_DARK if (n + int(position)) % 6 > 3 else GREEN_LIGHT
             color_zebra = RED if (n + int(position)) % 6 > 3 else WHITE
-            
-            # Linha de Largada
-            if pos_futura < 5: 
+
+            # Usa o índice O(1) que criámos! Se estiver nos primeiros 8 metros da pista:
+            if indice_futuro < 8: 
                 color_road = WHITE
-                color_zebra = GRAY_DARK 
+                color_zebra = GRAY_DARK
             
             # Desenha a pista
             altura_grama = max(1, (y_near - y_far) + 1)

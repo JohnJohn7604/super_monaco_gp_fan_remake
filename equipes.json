@@ -1,7 +1,7 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 294,
+        "velocidade_base": 364,
         "aceleracao": 5,
         "direcao": 1,
         "pasta": "madonna",
@@ -19,7 +19,7 @@
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 292,
+        "velocidade_base": 362,
         "aceleracao": 5,
         "direcao": 1,
         "pasta": "firenze",
@@ -37,7 +37,7 @@
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 289,
+        "velocidade_base": 359,
         "aceleracao": 4,
         "direcao": 1,
         "pasta": "millions",
@@ -55,7 +55,7 @@
     },
     "Bestowal": {
         "classe": "A",
-        "velocidade_base": 286,
+        "velocidade_base": 356,
         "aceleracao": 4,
         "direcao": 1,
         "pasta": "bestowal",
@@ -73,7 +73,7 @@
     },
     "Blanche": {
         "classe": "B",
-        "velocidade_base": 285,
+        "velocidade_base": 355,
         "aceleracao": 3.2,
         "direcao": 1,
         "pasta": "blanche",
@@ -91,7 +91,7 @@
     },
     "Tyrant": {
         "classe": "B",
-        "velocidade_base": 283,
+        "velocidade_base": 353,
         "aceleracao": 3,
         "direcao": 1,
         "pasta": "tyrant",
@@ -109,7 +109,7 @@
     },
     "Losel": {
         "classe": "B",
-        "velocidade_base": 275,
+        "velocidade_base": 349,
         "aceleracao": 3,
         "direcao": 1,
         "pasta": "Losel",
@@ -127,7 +127,7 @@
     },
     "May": {
         "classe": "B",
-        "velocidade_base": 271,
+        "velocidade_base": 345,
         "aceleracao": 2.5,
         "direcao": 2,
         "pasta": "may",
@@ -145,7 +145,7 @@
     },
     "Bullets": {
         "classe": "C",
-        "velocidade_base": 268,
+        "velocidade_base": 343,
         "aceleracao": 2,
         "direcao": 1,
         "pasta": "bullets",
@@ -163,7 +163,7 @@
     },
     "Dardan": {
         "classe": "C",
-        "velocidade_base": 272,
+        "velocidade_base": 342,
         "aceleracao": 2,
         "direcao": 1,
         "pasta": "dardan",
@@ -181,7 +181,7 @@
     },
     "Linden": {
         "classe": "C",
-        "velocidade_base": 265,
+        "velocidade_base": 340,
         "aceleracao": 2,
         "direcao": 1,
         "pasta": "linden",
@@ -199,7 +199,7 @@
     },
     "Minarae": {
         "classe": "C",
-        "velocidade_base": 270,
+        "velocidade_base": 340,
         "aceleracao": 2,
         "direcao": 1.6,
         "pasta": "minarae",
@@ -220,7 +220,7 @@
     },
     "Rigel": {
         "classe": "D",
-        "velocidade_base": 270,
+        "velocidade_base": 340,
         "aceleracao": 1,
         "direcao": 2.5,
         "pasta": "rigel",
@@ -238,7 +238,7 @@
     },
     "Orchis": {
         "classe": "D",
-        "velocidade_base": 269,
+        "velocidade_base": 339,
         "aceleracao": 1.8,
         "direcao": 1,
         "pasta": "orchis",
@@ -256,7 +256,7 @@
     },
     "Comet": {
         "classe": "D",
-        "velocidade_base": 269,
+        "velocidade_base": 339,
         "aceleracao": 1.8,
         "direcao": 1,
         "pasta": "comet",
@@ -274,7 +274,7 @@
     },
     "Zeroforce": {
         "classe": "D",
-        "velocidade_base": 268,
+        "velocidade_base": 338,
         "aceleracao": 1.6,
         "direcao": 1,
         "pasta": "zeroforce",

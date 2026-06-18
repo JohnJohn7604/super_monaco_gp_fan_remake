@@ -8,6 +8,7 @@ from openal import oalOpen, oalQuit
 from track import Track
 from car import Car
 from utils import carregar_img
+from ui import MenuUI
 
 
 class Game:
@@ -15,9 +16,19 @@ class Game:
         pygame.init()
         pygame.font.init()
         pygame.mixer.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        # O SCALED e o DOUBLEBUF transferem o peso do jogo para a Placa de Vídeo!
+        flags = pygame.SCALED | pygame.DOUBLEBUF
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+        # Ignora tudo o que for rato e foca o processador SÓ no teclado!
+        pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
         pygame.display.set_caption("Super Monaco GP - Rio Edition")
         self.clock = pygame.time.Clock()
+        self.imagem_cache = {}
+        # Inicializa a Interface de Menus e passa o jogo (self) para ela
+        self.ui = MenuUI(self)
+
+        self.fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
+        self.fonte_normal = pygame.font.SysFont('Arial', 30)
         
         self.estado_jogo = "INPUT_NAME"
         self.nome_digitado = ""         # Guarda as letras que o jogador vai digitar
@@ -100,28 +111,69 @@ class Game:
         # Cria um "Armário" vazio para guardar as imagens de cada equipe na memória
         self.cache_sprites = {}
 
-    def carregar_sprites_equipe(self, pasta_equipe):
-        """Carrega os 18 frames de uma equipe, usando o bot cinza como plano B (fallback)"""
+    def tingir_carroceria(self, superficie, mapa_cor):
+        """ Pinta o sprite do bot base (azul) com as cores da equipe do JSON """
+        if not superficie or not mapa_cor:
+            return superficie
+            
+        imagem_nova = superficie.copy()
+        
+        # 1. Definição dos 4 azuis fixos do PNG do Bot (em RGB)
+        azul_puro     = (0, 0, 255)       
+        azul_escuro   = (0, 0, 148)       
+        azul_medio    = (106, 148, 189)   
+        azul_claro    = (189, 222, 255)   
+        
+        # 2. Extração das novas cores do JSON
+        nova_pura   = tuple(mapa_cor.get("puro", [0, 0, 255]))
+        nova_escura = tuple(mapa_cor.get("escuro", [0, 0, 148]))
+        nova_media  = tuple(mapa_cor.get("medio", [106, 148, 189]))
+        nova_clara  = tuple(mapa_cor.get("claro", [189, 222, 255]))
+        
+        conversoes = {
+            azul_puro: nova_pura,
+            azul_escuro: nova_escura,
+            azul_medio: nova_media,
+            azul_claro: nova_clara
+        }
+        
+        # Faz a mágica da substituição de pixels
+        px_array = pygame.PixelArray(imagem_nova)
+        for cor_antiga, cor_nova in conversoes.items():
+            cor_antiga_mapeada = imagem_nova.map_rgb(cor_antiga)
+            cor_nova_mapeada = imagem_nova.map_rgb(cor_nova)
+            px_array.replace(cor_antiga_mapeada, cor_nova_mapeada)
+            
+        px_array.close()
+        return imagem_nova
+
+    # Adicionamos o 'mapa_cor' aqui em cima
+    def carregar_sprites_equipe(self, pasta_equipe, mapa_cor=None):
+        """Carrega os 18 frames de uma equipe, usando o bot base se não existir a pasta."""
         tamanho_bot = (self.bot_base_w, self.bot_base_h)
         
         def pegar_img(direcao, tipo, frame):
             nome_arquivo = f"{direcao}_{tipo}{frame}.png"
             caminho_equipe = f"images/cars/{pasta_equipe}/{nome_arquivo}"
-            caminho_bot = f"images/cars/bot/{nome_arquivo}"
+            caminho_bot = f"images/cars/bot/{nome_arquivo}" # O bot base azul
             
-            # Tenta carregar a cor da equipe
+            # 1. Tenta carregar um PNG feito à mão (se você tiver feito um no Photoshop)
             img = carregar_img(caminho_equipe, tamanho_bot)
+            
+            # 2. Se não tem PNG feito à mão, puxa o Bot Base e PINTA ELE!
             if not img:
-                # Se não tiver, puxa a imagem original do bot genérico
                 img = carregar_img(caminho_bot, tamanho_bot)
+                if img and mapa_cor:
+                    # MÁGICA: Pinta o bot base instantaneamente!
+                    img = self.tingir_carroceria(img, mapa_cor)
+                    
             if not img:
-                # Segurança máxima anti-crash
                 img = pygame.Surface(tamanho_bot, pygame.SRCALPHA)
             return img
 
         sprites = {}
         perspectivas = ["rear_reto", "front_reto", "front_esq", "front_dir", "rear_esq", "rear_dir"]
-        sufixos = ["1", "1a", "1b"] # Os 3 frames da animação
+        sufixos = ["1", "1a", "1b"]
         
         for pers in perspectivas:
             partes = pers.split('_') 
@@ -133,6 +185,44 @@ class Game:
                 sprites[pers].append(pegar_img(direcao, tipo, suf))
                 
         return sprites
+    
+    def redimensionar_bot_otimizado(self, img_original, pasta, perspectiva, frame, w, h):
+        # A traseira tem uma animação suave (passo 5). O resto é agressivo (passo 15) para poupar RAM!
+        passo = 5 if perspectiva == "rear_reto" else 15
+        
+        # MÁGICA ANTI-LAG: Arredonda a altura pedida para o degrau mais próximo
+        h_arredondado = max(10, min(332, round(h / passo) * passo))
+        w_arredondado = int(h_arredondado * (img_original.get_width() / img_original.get_height()))
+        
+        # Evita crash de largura zero
+        if w_arredondado <= 0: w_arredondado = 1 
+            
+        chave = f"{pasta}_{perspectiva}_{frame}_{w_arredondado}x{h_arredondado}"
+        
+        # Puxa do armário. Se não existir (como as frentes e os lados), cria na hora e guarda!
+        if chave not in self.imagem_cache:
+            self.imagem_cache[chave] = pygame.transform.scale(img_original, (w_arredondado, h_arredondado))
+            
+        return self.imagem_cache[chave]
+    
+    def pre_aquecer_cache(self):
+        """ Gera APENAS os tamanhos da TRASEIRA dos carros antes da corrida começar! """
+        for pasta in self.cache_sprites.keys():
+            
+            # FOCAMOS APENAS NA TRASEIRA RETA (Poupa 80% da Memória RAM instantaneamente!)
+            perspectiva = "rear_reto"
+            for frame in range(3):
+                img_original = self.cache_sprites[pasta][perspectiva][frame]
+                img_w = img_original.get_width()
+                img_h = img_original.get_height()
+                
+                # Passo 5: Salta de 5 em 5 pixels. 
+                # Em vez de gerar 300 imagens por carro, gera apenas umas 60!
+                for h in range(10, 334, 5):
+                    w = int(h * (img_w / img_h))
+                    if w > 0:
+                        chave = f"{pasta}_{perspectiva}_{frame}_{w}x{h}"
+                        self.imagem_cache[chave] = pygame.transform.scale(img_original, (w, h))
     
 
     def iniciar_corrida(self, track_name):
@@ -214,10 +304,12 @@ class Game:
         
         for nome_eq, dados in self.equipes.items():
             pasta = dados["pasta"]
+            mapa_cor = dados.get("mapa_cor", None) # <--- LÊ AS CORES DESTA EQUIPA NO JSON
             
             # CARREGA OS SPRITES DESTA EQUIPE APENAS UMA VEZ E GUARDA NO ARMÁRIO!
             if pasta not in self.cache_sprites:
-                self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta)
+                # Passa o mapa de cores para o carregador pintar na hora!
+                self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta, mapa_cor)
                 
             for i, piloto in enumerate(dados["pilotos"]):
                 
@@ -336,84 +428,6 @@ class Game:
             reverse=True
         )
 
-    def desenhar_tela_nome(self):
-        self.screen.fill((30, 30, 30)) # Fundo escuro
-        
-        # Título
-        fonte_titulo = pygame.font.SysFont('Arial', 50, bold=True)
-        texto = fonte_titulo.render("DIGITE O SEU NOME", True, (255, 255, 255))
-        self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, 120))
-        
-        # Caixa de Texto
-        largura_caixa = 400
-        x_caixa = WIDTH // 2 - largura_caixa // 2
-        y_caixa = 250
-        
-        pygame.draw.rect(self.screen, (50, 50, 50), (x_caixa, y_caixa, largura_caixa, 60), border_radius=10)
-        pygame.draw.rect(self.screen, (255, 200, 0), (x_caixa, y_caixa, largura_caixa, 60), 3, border_radius=10) # Borda amarela
-        
-        # Renderiza o texto que está sendo digitado
-        fonte_input = pygame.font.SysFont('Arial', 40, bold=True)
-        texto_input = fonte_input.render(self.nome_digitado, True, (255, 255, 255))
-        self.screen.blit(texto_input, (WIDTH // 2 - texto_input.get_width() // 2, y_caixa + 5))
-        
-        # Instrução
-        fonte_inst = pygame.font.SysFont('Arial', 25)
-        inst = fonte_inst.render("Pressione ENTER para continuar", True, (200, 200, 0))
-        self.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, 400))
-
-    def desenhar_tela_posicao(self):
-        self.screen.fill((30, 30, 30)) # Fundo escuro
-        
-        # Título
-        fonte_titulo = pygame.font.SysFont('Arial', 40, bold=True)
-        texto = fonte_titulo.render("ESCOLHA A SUA POSIÇÃO DE LARGADA", True, (255, 255, 255))
-        self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, 50))
-        
-        # Garante que a variável existe
-        if not hasattr(self, 'posicao_jogador'):
-            self.posicao_jogador = 32
-
-        # ==========================================
-        # DESENHAR A GRELHA DOS 32 QUADRADINHOS
-        # ==========================================
-        fonte_pos = pygame.font.SysFont('Arial', 25, bold=True)
-        
-        # Matemáticas para centralizar a grelha (8 colunas x 4 linhas)
-        tamanho_quadrado = 60
-        espaco = 10
-        largura_total_grelha = 8 * tamanho_quadrado + 7 * espaco
-        start_x = WIDTH // 2 - largura_total_grelha // 2
-        start_y = 150
-        
-        for i in range(32):
-            pos_num = i + 1
-            linha = i // 8
-            coluna = i % 8
-            
-            x = start_x + coluna * (tamanho_quadrado + espaco)
-            y = start_y + linha * (tamanho_quadrado + espaco)
-            
-            rect = pygame.Rect(x, y, tamanho_quadrado, tamanho_quadrado)
-            
-            # Se for a posição que o jogador está a selecionar, pinta de VERMELHO
-            if pos_num == self.posicao_jogador:
-                pygame.draw.rect(self.screen, (255, 50, 50), rect, border_radius=8)
-                pygame.draw.rect(self.screen, (255, 255, 255), rect, 3, border_radius=8) # Borda branca
-            else:
-                # Quadrados normais a cinzento
-                pygame.draw.rect(self.screen, (80, 80, 80), rect, border_radius=8)
-                
-            # Desenha o número dentro do quadrado
-            texto_num = fonte_pos.render(str(pos_num), True, (255, 255, 255))
-            self.screen.blit(texto_num, (x + tamanho_quadrado//2 - texto_num.get_width()//2, 
-                                         y + tamanho_quadrado//2 - texto_num.get_height()//2))
-
-        # Instruções na base do ecrã
-        fonte_inst = pygame.font.SysFont('Arial', 25)
-        inst = fonte_inst.render("Use as SETAS para mover | ENTER para Iniciar Corrida", True, (200, 200, 0))
-        self.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, 480))
-
     def run(self):
         fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         while True:
@@ -467,28 +481,42 @@ class Game:
                             if self.posicao_jogador < 1: self.posicao_jogador += 32
                         
                         elif event.key == pygame.K_RETURN:
-                            # CRÍTICO: É AQUI QUE A PISTA E O CARRO SÃO CRIADOS!
                             self.iniciar_corrida("rio")
-                            self.estado_jogo = "COUNTDOWN"         
+                            self.estado_jogo = "LOADING"        
 
             # ==========================================
             # 2. RENDERIZAÇÃO DOS MENUS (AS TRAVAS ANTI-CRASH)
             # ==========================================
             if self.estado_jogo == "INPUT_NAME":
-                self.desenhar_tela_nome()
+                self.ui.desenhar_tela_nome()  # <--- Agora puxa do ui.py!
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue # <-- Impede a física de rodar no fundo!
+                continue 
 
             if self.estado_jogo == "SELECT_POS":
-                self.desenhar_tela_posicao()
+                self.ui.desenhar_tela_posicao() # <--- Agora puxa do ui.py!
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue # <-- Impede a física de rodar no fundo!
+                continue
 
             # ==========================================
-            # GAVETA 1: LÓGICA DO 3, 2, 1, GO! (NOVO)
+            # GAVETA NOVA: TELA DE LOADING
             # ==========================================
+            if self.estado_jogo == "LOADING":
+                # 1. Desenha o aviso e FORÇA o Pygame a mostrá-lo na tela
+                self.screen.fill((20, 20, 25))
+                texto = self.fonte_grande.render("LOADING ENGINE...", True, (255, 200, 0))
+                self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, HEIGHT // 2 - 40))
+                pygame.display.flip() 
+                
+                # 2. Roda a função pesada (o jogo vai congelar por ~1 segundo aqui)
+                self.pre_aquecer_cache()
+                
+                # 3. Terminou de carregar? Inicia o relógio do GO! e vai para a pista
+                self.timer_countdown = pygame.time.get_ticks()
+                self.estado_jogo = "COUNTDOWN"
+                continue
+
             if self.estado_jogo == "COUNTDOWN":
                 # 1. Desenha a pista E guarda os segmentos para os bots usarem
                 segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
@@ -522,7 +550,9 @@ class Game:
                             bot_w = int(bot_h * (img_w / img_h))
                         
                         if bot_w > 0 and bot_h > 0:
-                            img_res = pygame.transform.scale(img_atual, (bot_w, bot_h))
+                            # ---> SUBSTITUA APENAS ESTA LINHA <---
+                            img_res = self.redimensionar_bot_otimizado(img_atual, bot["pasta"], "rear_reto", 0, bot_w, bot_h)
+                            
                             bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
                             by = seg["y"] - bot_h
                             self.screen.blit(img_res, (bx, by))
@@ -655,44 +685,32 @@ class Game:
                     forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
                     bot["speed"] -= forca_freio 
 
-                # (Daqui para baixo continua a sua Seção 3. Aceleração Feroz...)
-
+                # ==================================================
                 # 3. Aceleração Feroz e Controle de Largada (Launch Control)
+                # ==================================================
                 forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
- 
-                
-                # Controle de largada sincronizado para durar os mesmos 8 segundos
                 arrancada_grid = (self.car.laps_completed == 0 and self.car.current_lap_time < 8)
 
                 if bot["speed"] < target_speed: 
                     if bot["speed"] < 100: 
-                        # Arrancada: Se for a largada do grid, o impulso salta de 0.8 para 3.0!
                         impulso = 1.5 if arrancada_grid else 0.8
                         bot["speed"] += impulso * forca_motor  
                         
                     elif bot["speed"] < 200: 
-                        # Transição: Mantém o embalo do Launch Control até aos 200 km/h
                         impulso = 1.8 if arrancada_grid else 0.5
                         bot["speed"] += impulso * forca_motor  
                         
                     elif bot["speed"] < 280: 
-                        # O peso do vento volta ao normal (0.3)
                         bot["speed"] += 0.3 * forca_motor  
                         
                     else:
                         taxa_acel = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
                         bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_acel * forca_motor)
-                 
-
-                if bot["speed"] < target_speed: 
-                    if bot["speed"] < 100: bot["speed"] += 0.6 * forca_motor  
-                    elif bot["speed"] < 200: bot["speed"] += 0.5 * forca_motor  
-                    elif bot["speed"] < 280: bot["speed"] += 0.3 * forca_motor  
-                    else:
-                        taxa_acel = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_acel * forca_motor)
-                elif bot["speed"] > target_speed + 15: bot["speed"] -= 3.5  
-                elif bot["speed"] > target_speed: bot["speed"] -= 0.8 
+                        
+                elif bot["speed"] > target_speed + 15: 
+                    bot["speed"] -= 3.5  
+                elif bot["speed"] > target_speed: 
+                    bot["speed"] -= 0.8 
 
                 # ==========================================
                 # 4. O SISTEMA DE 3 LINHAS E TANGÊNCIA (RACING LINE)
@@ -1017,7 +1035,8 @@ class Game:
                         bot_w = int(bot_h * (img_w / img_h))
                     
                     if bot_w > 0 and bot_h > 0:
-                        img_res = pygame.transform.scale(img_atual, (bot_w, bot_h))
+                        img_res = self.redimensionar_bot_otimizado(img_atual, pasta_bot, chave_pista, bot["frame_idx"], bot_w, bot_h)
+                        
                         bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
                         by = seg["y"] - bot_h
                         self.screen.blit(img_res, (bx, by))
@@ -1040,12 +1059,11 @@ class Game:
                 overlay.fill((0, 0, 0, 180))
                 self.screen.blit(overlay, (0, 0))
                 
-                fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
-                texto_finish = fonte_grande.render("FINISH!", True, (255, 200, 0))
-                
+                texto_finish = self.fonte_grande.render("FINISH!", True, (255, 200, 0))
+
                 pos_texto = f"{self.final_position}º PLACE"
                 cor_pos = (0, 255, 0) if self.final_position == 1 else (255, 255, 255)
-                texto_rank = fonte_grande.render(pos_texto, True, cor_pos)
+                texto_rank = self.fonte_grande.render(pos_texto, True, cor_pos)
                 
                 self.screen.blit(texto_finish, (WIDTH//2 - texto_finish.get_width()//2, HEIGHT//2 - 100))
                 self.screen.blit(texto_rank, (WIDTH//2 - texto_rank.get_width()//2, HEIGHT//2))
@@ -1060,8 +1078,7 @@ class Game:
                         try: self.som_bot_motor.stop()
                         except: pass
 
-                    # 2. MUDA DE TELA (A tabela já foi gerada lá atrás!)
-                    self.gerar_resultados()
+                    # 2. MUDA DE TELA (Apagamos a duplicação daqui!)
                     self.estado_jogo = "RESULTADOS_CORRIDA"
                     continue # Sai do modo corrida e vai para as telas de pontuação!
             
