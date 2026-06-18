@@ -62,7 +62,7 @@ class Game:
                 self.equipes = {} # Evita que o jogo quebre completamente
 
         # Variáveis de Carreira
-        self.equipe_atual_jogador = "Minarae"
+        self.equipe_atual_jogador = "Blanche"
         self.rival_atual = None
         self.vitorias_contra_rival = 0
 
@@ -143,19 +143,20 @@ class Game:
         # =========================================================
         # LÊ O JSON PARA DESCOBRIR A SUA EQUIPA AUTOMATICAMENTE!
         # =========================================================
-        # Pega o nome que você acabou de digitar
         self.nome_jogador_formatado = getattr(self, 'nome_digitado', "PILOTO")
+        self.dados_do_meu_piloto = {} # <--- NOVO: Guarda as suas skills!
         
         for nome_eq, dados in self.equipes.items():
             for piloto in dados.get("pilotos", []):
                 
-                # Procura a vaga do jogador no JSON
                 nome_json = str(piloto.get("nome", "")).upper()
                 if piloto.get("is_player", False) or nome_json in ["PLAYER", "VOCÊ"]:
                     
                     self.equipe_atual_jogador = nome_eq
-                    # SUBSTITUI O NOME DO JSON PELO NOME QUE VOCÊ DIGITOU!
                     piloto["nome"] = self.nome_jogador_formatado 
+                    piloto["is_player"] = True 
+                    
+                    self.dados_do_meu_piloto = piloto # <--- SALVA TUDO AQUI!
                     break
 
         # Descobre a pasta da equipe do jogador agora que já sabe onde você está
@@ -167,13 +168,19 @@ class Game:
 
         # 2. Carregar performance da sua equipe
         status = self.equipes[self.equipe_atual_jogador]
+        
+        # SOMA A VELOCIDADE DO CARRO + A SKILL "SPEED" DO SEU PILOTO
+        vel_carro_base = status["velocidade_base"]
+        minha_skill_speed = self.dados_do_meu_piloto.get("speed", 0)
+        velocidade_final_jogador = vel_carro_base + minha_skill_speed
 
+        # Passa a velocidade final turbinada para o carro!
         self.car = Car(
-            velocidade_maxima=status["velocidade_base"], 
-            nivel_aceleracao=status["aceleracao"],
-            nivel_freio=status.get("freio", 1),       # Puxa do dict (padrão 1 se esquecer de por)
-            nivel_direcao=status.get("direcao", 1),    # Puxa do dict (padrão 1 se esquecer de por)
-            pasta_equipe = pasta_do_jogador  
+            velocidade_maxima = velocidade_final_jogador,
+            nivel_aceleracao = status.get("aceleracao", 1) + self.dados_do_meu_piloto.get("aceleracao", 0),
+            nivel_freio = self.dados_do_meu_piloto.get("freio", 3),
+            nivel_direcao = self.dados_do_meu_piloto.get("direcao", 3),
+            pasta_equipe = pasta_do_jogador
         )
         
 
@@ -214,16 +221,16 @@ class Game:
                 
             for i, piloto in enumerate(dados["pilotos"]):
                 
-                # Ignora a vaga do jogador! Se for o seu piloto, ele não cria um Bot para ele.
-                nome_formatado = str(piloto.get("nome", "")).upper()
-                is_player = piloto.get("is_player", False) or nome_formatado in ["PLAYER", "VOCÊ"]
-                
-                if is_player:
+                # Agora o jogo só olha para o carimbo oficial! Se for o jogador, ignora.
+                if piloto.get("is_player", False):
                     continue # Pula para o próximo, essa vaga é do jogador humano!
                 
-                # Leitura dos Status
-                vel_maxima_do_carro = dados["velocidade_base"]
-                aceleracao_combinada = dados["aceleracao"] + piloto["aceleracao"]
+                # ----------------------------------------------------
+                # MATEMÁTICA DE STATUS (Unindo Piloto + Carro)
+                # ----------------------------------------------------
+                # O bot pega a base do carro e soma a skill de speed dele!
+                vel_maxima_do_carro = dados["velocidade_base"] + piloto.get("speed", 0)
+                aceleracao_combinada = dados.get("aceleracao", 0) + piloto.get("aceleracao", 0)
                 direcao_equipe = dados.get("direcao", dados.get("freio", 3))
                 direcao_combinada = direcao_equipe + piloto["direcao"]
                 freio_piloto = piloto.get("freio", 3)
@@ -937,10 +944,16 @@ class Game:
                 self.race_finished = True
                 self.estado_jogo = "FINISH" 
                 self.timer_finish = tempo_atual # <--- NOVO: Ativa o cronômetro de 5 segundos
+                # =======================================================
+                # CONGELA OS RESULTADOS AGORA! (NÃO ESPERA OS 5 SEGUNDOS)
+                # =======================================================
+                self.gerar_resultados()
                 
                 bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
                 self.final_position = 1 + bots_a_frente
                 self.car.speed *= 0.5
+
+                
 
             # ==========================================
             # 4. RENDERIZAÇÃO DOS CARROS E CENÁRIO
@@ -1047,7 +1060,7 @@ class Game:
                         try: self.som_bot_motor.stop()
                         except: pass
 
-                    # 2. GERA AS TABELAS E MUDA DE TELA
+                    # 2. MUDA DE TELA (A tabela já foi gerada lá atrás!)
                     self.gerar_resultados()
                     self.estado_jogo = "RESULTADOS_CORRIDA"
                     continue # Sai do modo corrida e vai para as telas de pontuação!

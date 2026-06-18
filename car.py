@@ -295,7 +295,7 @@ class Car:
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
             # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
-            forca_centrifuga = (percentual_vel ** 1.14) * curve_intensity * 1.8
+            forca_centrifuga = (percentual_vel ** 1.04) * curve_intensity * 1.4
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
