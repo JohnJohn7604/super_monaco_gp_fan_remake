@@ -1,4 +1,4 @@
-# main.py
+from bot_ai import BotAI
 import pygame
 import sys
 import math
@@ -24,8 +24,10 @@ class Game:
         pygame.display.set_caption("Super Monaco GP - Rio Edition")
         self.clock = pygame.time.Clock()
         self.imagem_cache = {}
-        # Inicializa a Interface de Menus e passa o jogo (self) para ela
+
+        # Interface de Menus e bots
         self.ui = MenuUI(self)
+        self.ai = BotAI(self)
 
         self.fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
@@ -428,6 +430,57 @@ class Game:
             reverse=True
         )
 
+    def renderizar_corrida(self, tempo_atual, keys):
+        # 1. RENDERIZA O CHÃO E GUARDA OS SEGMENTOS
+        segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
+        
+        # 2. FILTRA OS BOTS VISÍVEIS
+        visiveis = []
+        for bot in self.bots:
+            dist_view = (bot["pos"] - self.car.position) % self.track.total_track_length
+            if 2 < dist_view < self.track.draw_distance:
+                visiveis.append((dist_view, bot))
+        visiveis.sort(key=lambda x: x[0], reverse=True)
+        
+        # 3. DESENHA OS BOTS NO HORIZONTE
+        for dist, bot in visiveis:
+            diferenca_x = bot["x"] - self.car.player_x
+            if diferenca_x < -0.35: direcao_bot = "esq"
+            elif diferenca_x > 0.35: direcao_bot = "dir"
+            else: direcao_bot = "reto"
+
+            chave_pista = f"rear_{direcao_bot}"
+            pasta_bot = bot["pasta"]
+            if chave_pista not in self.cache_sprites[pasta_bot]: 
+                chave_pista = "rear_reto"
+                
+            img_atual = self.cache_sprites[pasta_bot][chave_pista][bot["frame_idx"]]
+            indice = int(dist) - 1
+            if 0 <= indice < len(segmentos):
+                seg = segmentos[indice]
+                img_w, img_h = img_atual.get_width(), img_atual.get_height()
+                bot_h = int(seg["largura"] * 0.159)
+                bot_w = int(bot_h * (img_w / img_h))
+                
+                # Trava de Gigantismo
+                limite_tela_h = 333 
+                if bot_h > limite_tela_h:
+                    bot_h = limite_tela_h
+                    bot_w = int(bot_h * (img_w / img_h))
+                
+                if bot_w > 0 and bot_h > 0:
+                    img_res = self.redimensionar_bot_otimizado(img_atual, pasta_bot, chave_pista, bot["frame_idx"], bot_w, bot_h)
+                    bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
+                    by = seg["y"] - bot_h
+                    self.screen.blit(img_res, (bx, by))
+
+        # 4. CALCULA POSIÇÃO EM TEMPO REAL PARA O HUD
+        bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
+        posicao_atual = 1 + bots_a_frente
+
+        # 5. DESENHA O COCKPIT POR CIMA DE TUDO
+        self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
+        
     def run(self):
         fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         while True:
@@ -482,7 +535,16 @@ class Game:
                         
                         elif event.key == pygame.K_RETURN:
                             self.iniciar_corrida("rio")
-                            self.estado_jogo = "LOADING"        
+                            self.estado_jogo = "LOADING"  
+                    # TELA 3: RESULTADOS DOS PILOTOS
+                    elif self.estado_jogo == "RESULTADOS_CORRIDA":
+                        if event.key == pygame.K_RETURN:
+                            self.estado_jogo = "RESULTADOS_CONSTRUTORES"
+                            
+                    # TELA 4: RESULTADOS DAS CONSTRUTORAS
+                    elif self.estado_jogo == "RESULTADOS_CONSTRUTORES":
+                        if event.key == pygame.K_RETURN:
+                            self.estado_jogo = "SELECT_POS" # Volta para o início para correr de novo!
 
             # ==========================================
             # 2. RENDERIZAÇÃO DOS MENUS (AS TRAVAS ANTI-CRASH)
@@ -516,49 +578,6 @@ class Game:
                 self.timer_countdown = pygame.time.get_ticks()
                 self.estado_jogo = "COUNTDOWN"
                 continue
-
-            if self.estado_jogo == "COUNTDOWN":
-                # 1. Desenha a pista E guarda os segmentos para os bots usarem
-                segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
-                
-                # 2. DESENHA OS BOTS PARADOS NO GRID DE LARGADA
-                visiveis = []
-                for bot in self.bots:
-                    dist_view = (bot["pos"] - self.car.position) % self.track.total_track_length
-                    if 2 < dist_view < self.track.draw_distance:
-                        visiveis.append((dist_view, bot))
-
-                visiveis.sort(key=lambda x: x[0], reverse=True)
-                
-                for dist, bot in visiveis:
-                    # Agora ele vai no armário, procura a pasta da equipe deste bot e pega a imagem reta!
-                    img_atual = self.cache_sprites[bot["pasta"]]["rear_reto"][0]
-                    
-                    indice = int(dist) - 1
-                    if 0 <= indice < len(segmentos):
-                        seg = segmentos[indice]
-                        
-                        img_w = img_atual.get_width()
-                        img_h = img_atual.get_height()
-                        
-                        bot_h = int(seg["largura"] * 0.188)
-                        bot_w = int(bot_h * (img_w / img_h))
-                        
-                        limite_tela_h = 333 
-                        if bot_h > limite_tela_h:
-                            bot_h = limite_tela_h
-                            bot_w = int(bot_h * (img_w / img_h))
-                        
-                        if bot_w > 0 and bot_h > 0:
-                            # ---> SUBSTITUA APENAS ESTA LINHA <---
-                            img_res = self.redimensionar_bot_otimizado(img_atual, bot["pasta"], "rear_reto", 0, bot_w, bot_h)
-                            
-                            bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
-                            by = seg["y"] - bot_h
-                            self.screen.blit(img_res, (bx, by))
-
-                # 3. Aceleração no neutro
-                self.car.acelerar_neutro(keys)
                 
                 # 4. Desenha o cockpit
                 posicao_inicial = 1 + sum(1 for bot in self.bots if bot["pos"] > self.car.position)
@@ -625,432 +644,111 @@ class Game:
             # ==========================================
             # FÍSICA, IA E COLISÃO DOS BOTS (UNIFICADA)
             # ==========================================
-            # Pega a curva da pista para o jogador
-            curve_intensity = self.track.get_curve(self.car.position)
-            
-            self.steering_locked = False 
-            menor_distancia_bot = 9999 
-            jogador_no_vacuo = False
-
-            for bot in self.bots:
-                
-                # ---> A MÁGICA DA LARGADA (MODO SPRINT) <---
-                # A IA entra em modo fúria (ignora freio de curva) APENAS nos primeiros 8 segundos!
-                sprint_largada = (self.car.laps_completed == 0 and self.car.current_lap_time < 8)
+            # Física continua rodando no FINISH para o carro não congelar!
+            if self.estado_jogo in ["RACING", "FINISH"]:
+                # Envia a lógica pesada para a mente brilhante do BotAI!
+                curve_intensity, jogador_no_vacuo, menor_distancia_bot = self.ai.atualizar_bots(tempo_atual)
 
                 # ==========================================
-                # 1. Distância Circular Perfeita
+                # ÁUDIO DINÂMICO DOS BOTS (SISTEMA LIMPO)
                 # ==========================================
-                dist_bruta = bot["pos"] - self.car.position
-                dist_relativa = dist_bruta % self.track.total_track_length
-                if dist_relativa > self.track.total_track_length / 2:
-                    dist_relativa -= self.track.total_track_length
-
-                # ==========================================
-                # 1.5. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
-                # ==========================================
-                # O bot só tem problemas se estiver bem à sua frente e fora do seu ecrã (> 200 metros)
-                if not bot.get("falha_mecanica", False):
-                    if 200 < dist_relativa < (self.track.total_track_length / 2):
-                        import random
-                        # Sorteia 1 número entre 1 e 1500 por frame. 
-                        # Isso garante que a cada corrida, 1 ou 2 carros lá na frente vão engasgar!
-                        if random.randint(1, 1500) == 1:
-                            bot["falha_mecanica"] = True
-                            bot["fim_falha"] = tempo_atual + random.randint(5000, 9000) # O problema dura entre 5 e 9 segundos
-                else:
-                    # Verifica se o mecânico avisou no rádio que o problema já foi resolvido
-                    if tempo_atual > bot.get("fim_falha", 0):
-                        bot["falha_mecanica"] = False
-
-                # ==========================================
-                # 2. IA de Curvas Corajosas
-                # ==========================================
-                curva_do_bot = self.track.get_curve(bot["pos"])
-                
-                if abs(curva_do_bot) > 0.02 and not sprint_largada:
-                    intensidade_curva = abs(curva_do_bot) * 5.0  
-                    bonus_direcao = bot.get("direcao", 3) * 0.015 
+                if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
                     
-                    multiplicador_curva = 1.0 - intensidade_curva + bonus_direcao
+                    # Só ouvimos bots que estão a menos de 150 metros
+                    raio_audicao = 80
                     
-                    target_speed = bot["max_speed"] * multiplicador_curva
-                    target_speed = min(bot["max_speed"], target_speed)
-                    target_speed = max(150, target_speed) 
-                else:
-                    target_speed = bot["max_speed"]
-
-                # O PEDAL DE FREIO
-                if bot["speed"] > target_speed:
-                    forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
-                    bot["speed"] -= forca_freio 
-
-                # ==================================================
-                # 3. Aceleração Feroz e Controle de Largada (Launch Control)
-                # ==================================================
-                forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
-                arrancada_grid = (self.car.laps_completed == 0 and self.car.current_lap_time < 8)
-
-                if bot["speed"] < target_speed: 
-                    if bot["speed"] < 100: 
-                        impulso = 1.5 if arrancada_grid else 0.8
-                        bot["speed"] += impulso * forca_motor  
+                    if menor_distancia_bot < raio_audicao:
+                        # Fator vai de 0.0 (colado em você) até 1.0 (lá nos 150m)
+                        fator = menor_distancia_bot / raio_audicao
                         
-                    elif bot["speed"] < 200: 
-                        impulso = 1.8 if arrancada_grid else 0.5
-                        bot["speed"] += impulso * forca_motor  
+                        # VOLUME: Máximo de 0.6 (perto) caindo até 0.0 (longe)
+                        volume = (1.0 - fator) * 0.6
+                        self.som_bot_motor.set_gain(volume)
                         
-                    elif bot["speed"] < 280: 
-                        bot["speed"] += 0.3 * forca_motor  
+                        # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
+                        pitch = 1.0 - (fator * 1.0)
+                        self.som_bot_motor.set_pitch(max(0.68, min(3.0, pitch)))
                         
+                        # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
+                        if self.som_bot_motor.get_state() != 4114: # 4114 = PLAYING
+                            self.som_bot_motor.play()
+                    
                     else:
-                        taxa_acel = 0.6 * (1 - (bot["speed"] / (target_speed + 1)))
-                        bot["speed"] += max(0.2 + (bot["aceleracao"] * 0.15), taxa_acel * forca_motor)
-                        
-                elif bot["speed"] > target_speed + 15: 
-                    bot["speed"] -= 3.5  
-                elif bot["speed"] > target_speed: 
-                    bot["speed"] -= 0.8 
+                        # Se não tem ninguém no raio de 150m, muta o som!
+                        self.som_bot_motor.set_gain(0.0)
 
-                # ==========================================
-                # 4. O SISTEMA DE 3 LINHAS E TANGÊNCIA (RACING LINE)
-                # ==========================================
-                # Sorteia a linha de preferência do bot para as retas
-                if "linha_reta" not in bot:
-                    import random
-                    # Atribui uma das 3 pistas rígidas: Linha 1, 2 ou 3.
-                    bot["linha_reta"] = random.choice([-0.65, -0.21, 0.0, 0.21, 0.65])
-                
-                # ---> O CÉREBRO DA CURVA: Lê a pista 30 metros à frente! <---
-                curva_futura = self.track.get_curve(bot["pos"] + 30)
-                
-                if curva_futura > 0.05:
-                    # Vem aí uma Curva para a Direita -> Abre na Esquerda (Linha 1)
-                    tracado_ideal = -0.65  
-                elif curva_futura < -0.05:
-                    # Vem aí uma Curva para a Esquerda -> Abre na Direita (Linha 3)
-                    tracado_ideal = 0.65   
-                else:
-                    # É uma Reta -> Volta para a sua linha de corrida favorita
-                    tracado_ideal = bot["linha_reta"] 
-                
-                # Define o destino base do bot
-                target_x = tracado_ideal
-                bot["pos"] += bot["speed"] * 0.005 
+                # ATUALIZA A SUA FÍSICA
+                self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
+                self.track.update_parallax(self.car.speed, curve_intensity, keys)
+                self.car.update_timer(self.track.total_track_length, self.lap_limit)
 
-                #SENSOR DE VÁCUO
-                if 1 < dist_relativa < 60 and self.car.speed > 100:
-                    #SE A DIFERENÇA DA POSIÇAÕ HORIZONTAL ENTRE VOCê E O BOT FOR MENOR QUE 0.5 O VÁCUO É ATIVADO
-                    if abs(self.car.player_x - bot["x"]) < 0.5: 
-                        jogador_no_vacuo = True
+                # VERIFICAÇÃO DE FIM DE CORRIDA
+                if not self.race_finished and self.car.laps_completed >= self.lap_limit:
+                    self.race_finished = True
+                    self.estado_jogo = "FINISH" 
+                    self.timer_finish = tempo_atual
+                    self.gerar_resultados()
+                    bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
+                    self.final_position = 1 + bots_a_frente
+                    self.car.speed *= 0.5
 
-                # ==========================================
-                # REGRA DA LARGADA (MANTER AS LINHAS)
-                # ==========================================
-                # O grid mantém as 3 linhas por exatos 15 segundos após o sinal verde!
-                if self.car.laps_completed == 0 and self.car.current_lap_time < 15:
-                    # Na primeira volta, não há ataques. O grid organiza-se em 3 filas perfeitas!
-                    for outro_bot in self.bots:
-                        if bot == outro_bot: continue
-                        dist_bruta_bots = outro_bot["pos"] - bot["pos"]
-                        dist_entre_bots = dist_bruta_bots % self.track.total_track_length
-                        if dist_entre_bots > self.track.total_track_length / 2: dist_entre_bots -= self.track.total_track_length
-                        
-                        if abs(dist_entre_bots) < 8:
-                            distancia_lateral = bot["x"] - outro_bot["x"]
-                            if abs(distancia_lateral) < 0.35:
-                                target_x = bot["x"] + (0.3 if distancia_lateral > 0 else -0.3)
-                else:
-                    # ==========================================
-                    # DA VOLTA 1 EM DIANTE: TÁTICAS LIBERADAS
-                    # ==========================================
-                    # 5. Táticas Contra o Jogador (Sistema de 3 Linhas)
-                    jogador_na_pista = -1.0 <= self.car.player_x <= 1.0
+
+            # ==========================================
+            # RENDERIZAÇÃO VISUAL DA PISTA E COCKPIT
+            # ==========================================
+            if self.estado_jogo in ["COUNTDOWN", "RACING", "FINISH"]:
+                
+                if self.estado_jogo == "COUNTDOWN":
+                    self.car.acelerar_neutro(keys)
                     
-                    # 1º Passo: O bot faz a leitura de qual "LANE" você está ocupando agora
-                    if self.car.player_x < -0.33:
-                        linha_jogador = 1 # Você está na Esquerda
-                    elif self.car.player_x > 0.33:
-                        linha_jogador = 3 # Você está na Direita
+                    # --- MÁGICA: O SOM DO MOTOR DO PLAYER NO NEUTRO ---
+                    if self.car.motor_sound:
+                        # O pitch acompanha o seu giro no neutro (rpm_neutro)
+                        rpm_falso = self.car.rpm_neutro / self.car.max_speed
+                        self.car.motor_sound.set_gain(0.3 + (rpm_falso * 0.5))
+                        self.car.motor_sound.set_pitch(0.6 + (rpm_falso * 0.8))
+                        if self.car.motor_sound.get_state() != 4114:
+                            self.car.motor_sound.play()
+                
+                # Desenha a pista, bots, horizonte e cockpit (Tudo de uma vez só!)
+                self.renderizar_corrida(tempo_atual, keys)
+
+                # --- MÁGICA DO COUNTDOWN NA TELA ---
+                if self.estado_jogo == "COUNTDOWN":
+                    tempo_passado = tempo_atual - self.timer_countdown
+                    fonte_contagem = pygame.font.SysFont('Arial', 120, bold=True)
+                    
+                    if tempo_passado < 1000:
+                        texto = fonte_contagem.render("3", True, (255, 0, 0))
+                    elif tempo_passado < 2000:
+                        texto = fonte_contagem.render("2", True, (255, 128, 0))
+                    elif tempo_passado < 3000:
+                        texto = fonte_contagem.render("1", True, (255, 255, 0))
+                    elif tempo_passado < 4000:
+                        texto = fonte_contagem.render("GO!", True, (0, 255, 0))
                     else:
-                        linha_jogador = 2 # Você está no Centro
-                    
-                    if 0 < dist_relativa < 60:
-                        target_x = tracado_ideal
-                        
-                    elif -150 < dist_relativa < 0 and jogador_na_pista:
-                        # RADAR DO RETROVISOR: Percebe você a 150 metros de distância!
-                        if abs(dist_relativa) < 150 and bot["speed"] > self.car.speed:
+                        # ACABOU O TEMPO: LIGA A FÍSICA DA CORRIDA!
+                        if self.estado_jogo == "COUNTDOWN": # Garante que o impulso só acontece 1 vez
+                            self.estado_jogo = "RACING"
+                            self.car.lap_start_tick = tempo_atual 
                             
-                            # Escolha Definitiva de Linha de Ultrapassagem (Lá de trás)
-                            if linha_jogador == 2:
-                                if curva_futura > 0.05: target_x = 0.65 
-                                elif curva_futura < -0.05: target_x = -0.65 
-                                else: target_x = -0.65 if bot["x"] < 0 else 0.65 
-                                    
-                            elif linha_jogador == 1:
-                                target_x = 0.65 if curva_futura > 0.05 else 0.0
-                                
-                            elif linha_jogador == 3:
-                                target_x = -0.65 if curva_futura < -0.05 else 0.0
+                            # ---> LARGADA REALISTA <---
+                            # Agora o carro não "teletransporta". 
+                            # Se o RPM estiver muito alto (acima de 70%), as rodas patinam e você perde tempo!
+                            rpm_ratio = self.car.rpm_neutro / self.car.max_speed
                             
-                            # Acelera apenas se já estiver fora da sua reta de colisão
-                            if abs(bot["x"] - self.car.player_x) > 0.35: 
-                                bot["speed"] += 0.5 
-                                
-                            # Golpe de Volante de Emergência (Se chegar a 25m e ainda estiver alinhado)
-                            if abs(dist_relativa) < 25 and abs(bot["x"] - self.car.player_x) < 0.4:
-                                target_x = 0.85 if bot["x"] >= self.car.player_x else -0.85
-                                bot["speed"] = min(bot["speed"], self.car.speed * 0.95)
-
-                    # 6. Radar de Tráfego IA vs IA
-                    for outro_bot in self.bots:
-                        if bot == outro_bot: continue
-                        
-                        dist_bruta_bots = outro_bot["pos"] - bot["pos"]
-                        dist_entre_bots = dist_bruta_bots % self.track.total_track_length
-                        if dist_entre_bots > self.track.total_track_length / 2: dist_entre_bots -= self.track.total_track_length
-                        
-                        if abs(dist_entre_bots) < 8:
-                            distancia_lateral = bot["x"] - outro_bot["x"]
-                            if abs(distancia_lateral) < 0.35:
-                                target_x = bot["x"] + (0.3 if distancia_lateral > 0 else -0.3)
-
-                        if 0 < dist_entre_bots < 45 and abs(bot["x"] - outro_bot["x"]) < 0.45:
-                            target_x = -0.65 if outro_bot["x"] > 0 else 0.65
-
-                    # Ultrapassagem
-                    if 0 < dist_entre_bots < 45 and abs(bot["x"] - outro_bot["x"]) < 0.45:
-                        target_x = -0.65 if outro_bot["x"] > 0 else 0.65
-
-                # 7. Direção Dinâmica (Física do Volante Real)
-                velocidade_volante = 0.025 + (bot["direcao"] * 0.005) 
-                
-                # ---> CRIAMOS UMA VARIÁVEL REAL PARA O VOLANTE <---
-                # Mede a força exata que a IA está a fazer para mudar de faixa
-                bot["steer_real"] = target_x - bot["x"]
-                
-                # Aplica a força real no eixo X do carro
-                bot["x"] += bot["steer_real"] * velocidade_volante
-
-                #    ==========================================
-                # 8.  COLISÃO ABSOLUTA E HITBOX 3D
-                #    ==========================================
-                hitbox_x = 0.22 # Aumentamos de 0.15 para 0.22 (Bate roda com roda)
-                
-                # --- A MÁGICA DA PROFUNDIDADE 3D ---
-                if dist_relativa > 0:
-                    # ==========================================
-                    # HITBOX "Y" DIANTEIRA (O bico do seu carro)
-                    # ==========================================
-                    # Este 3.5 é o limite! Se quiser que o bico do seu carro 
-                    # bata mais cedo de longe, aumente para 4.0 ou 4.5.
-                    bateu = (dist_relativa < 2.5) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
-                else:
-                    # ==========================================
-                    # HITBOX "Y" TRASEIRA (O motor do seu carro)
-                    # ==========================================
-                    # Este 1.5 é o limite! É a distância que a IA tem de chegar 
-                    # da sua câmera para bater na sua traseira.
-                    bateu = (abs(dist_relativa) < 1.5) and (abs(self.car.player_x - bot["x"]) < hitbox_x)
-
-                dist_abs = abs(dist_relativa)
-                if dist_abs < menor_distancia_bot:
-                    menor_distancia_bot = dist_abs
-                
-                if bateu:
-                    # Trava do som (para não estourar os alto-falantes a 60fps)
-                    if tempo_atual - self.timer_batida > 500: 
-                        if hasattr(self, 'som_batida') and self.som_batida: 
-                            self.som_batida.play()
-                        self.timer_batida = tempo_atual
-                        
-                    if dist_relativa > 0: 
-                        # Rebate o seu carro para trás da zona de colisão
-                        self.car.position = bot["pos"] - 3.6 
-                        self.car.speed = min(self.car.speed * 0.7, bot["speed"]) 
-                        
-                        # ==================================================
-                        # EMPURRÃO LATERAL (TRANSFERÊNCIA DE MOMENTO)
-                        # ==================================================
-                        if self.car.player_x < bot["x"]:
-                            # Você está na Esquerda do bot -> Empurra ele para a DIREITA
-                            bot["x"] += 0.15
-                        else:
-                            # Você está na Direita do bot -> Empurra ele para a ESQUERDA
-                            bot["x"] -= 0.15
+                            if rpm_ratio > 0.7:
+                                # Rodas patinando (Burnout): Perde tração, ganha menos velocidade
+                                self.car.speed = (self.car.max_speed * 0.15) 
+                            else:
+                                # Largada perfeita (Grip): Ganha velocidade controlada
+                                self.car.speed = (self.car.rpm_neutro * 0.1) 
                             
-                        # Limite para garantir que o empurrão não jogue ele para fora do mapa
-                        bot["x"] = max(-0.95, min(0.95, bot["x"]))
-                        # ==================================================
+                        texto = None
                         
-                        # Memória de Batidas da IA
-                        if tempo_atual - bot.get("tempo_ultima_batida", 0) > 10000:
-                            bot["contador_batidas"] = 0
-                            
-                        bot["contador_batidas"] = bot.get("contador_batidas", 0) + 1
-                        bot["tempo_ultima_batida"] = tempo_atual
-                        
-                        if bot["contador_batidas"] == 1:
-                            bot["speed"] *= 0.7  
-                        else:
-                            bot["speed"] *= 0.9  
-                            
-                    else: 
-                        # --- ELE BATEU NA SUA TRASEIRA ---
-                        bot["speed"] *= 0.4  
-                        self.car.speed = min(self.car.max_speed, self.car.speed + 8) 
-                        self.steering_locked = True
-
-                # 9. Animação
-                if tempo_atual - bot["anim_timer"] > 50: 
-                    bot["frame_idx"] = (bot["frame_idx"] + 1) % 3
-                    bot["anim_timer"] = tempo_atual
-
-                # 10. COMBO DE ULTRAPASSAGEM (Ataque de 3 seguidas)
-                if dist_relativa > -5 and dist_relativa < 0 and bot["speed"] < self.car.speed:
-                    self.ultrapassagens_combo += 1
-                    self.timer_combo = tempo_atual
-                
-                if tempo_atual - self.timer_combo > 4000:
-                    self.ultrapassagens_combo = 0
-
-                if self.ultrapassagens_combo >= 3 and 0 < dist_relativa < 40:
-                    # Correção da tremedeira: Agora ele assume a sua linha suavemente, sem somar infinitamente
-                    target_x = self.car.player_x
-                    bot["defesa_timer"] = tempo_atual + 2000
-
-            # ==========================================
-            # ÁUDIO DINÂMICO DOS BOTS (SISTEMA LIMPO)
-            # ==========================================
-            if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
-                
-                # Só ouvimos bots que estão a menos de 150 metros
-                raio_audicao = 80
-                
-                if menor_distancia_bot < raio_audicao:
-                    # Fator vai de 0.0 (colado em você) até 1.0 (lá nos 150m)
-                    fator = menor_distancia_bot / raio_audicao
-                    
-                    # VOLUME: Máximo de 0.6 (perto) caindo até 0.0 (longe)
-                    volume = (1.0 - fator) * 0.6
-                    self.som_bot_motor.set_gain(volume)
-                    
-                    # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
-                    pitch = 1.0 - (fator * 1.0)
-                    self.som_bot_motor.set_pitch(max(0.68, min(3.0, pitch)))
-                    
-                    # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
-                    if self.som_bot_motor.get_state() != 4114: # 4114 = PLAYING
-                        self.som_bot_motor.play()
-                
-                else:
-                    # Se não tem ninguém no raio de 150m, muta o som!
-                    self.som_bot_motor.set_gain(0.0)
-
-            # ==========================================
-            # 2. ATUALIZA A SUA FÍSICA (COM A TRAVA)
-            # ==========================================
-            self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
-            self.track.update_parallax(self.car.speed, curve_intensity, keys)
-            self.car.update_timer(self.track.total_track_length, self.lap_limit)
-
-            # ==========================================
-            # 3. VERIFICAÇÃO DE FIM DE CORRIDA
-            # ==========================================
-            if not self.race_finished and self.car.laps_completed >= self.lap_limit:
-                self.race_finished = True
-                self.estado_jogo = "FINISH" 
-                self.timer_finish = tempo_atual # <--- NOVO: Ativa o cronômetro de 5 segundos
-                # =======================================================
-                # CONGELA OS RESULTADOS AGORA! (NÃO ESPERA OS 5 SEGUNDOS)
-                # =======================================================
-                self.gerar_resultados()
-                
-                bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
-                self.final_position = 1 + bots_a_frente
-                self.car.speed *= 0.5
-
-                
-
-            # ==========================================
-            # 4. RENDERIZAÇÃO DOS CARROS E CENÁRIO
-            # ==========================================
-            segmentos = self.track.draw(self.screen, self.car.position, self.car.player_x)
-            
-            visiveis = []
-            for bot in self.bots:
-                dist_view = (bot["pos"] - self.car.position) % self.track.total_track_length
-                if 2 < dist_view < self.track.draw_distance:
-                    visiveis.append((dist_view, bot))
-
-            visiveis.sort(key=lambda x: x[0], reverse=True)
-            
-            for dist, bot in visiveis:
-                
-                # ==========================================
-                # LÓGICA DE PERSPECTIVA 3D (VISÃO FRONTAL)
-                # ==========================================
-                # Subtrai a sua posição da posição dele para saber o ângulo relativo
-                diferenca_x = bot["x"] - self.car.player_x
-                
-                #Margem para mudar o Sprite de perspectiva de visao do oponente
-                # Se ele está à sua esquerda (negativo)
-                if diferenca_x < -0.35: direcao_bot = "esq"
-                # Se ele está à sua direita (positivo)
-                elif diferenca_x > 0.35: direcao_bot = "dir"
-                # Se ele está na mesma reta
-                else: direcao_bot = "reto"
-
-                chave_pista = f"rear_{direcao_bot}"
-                pasta_bot = bot["pasta"] # Descobre de qual equipe o bot é
-                
-                if chave_pista not in self.cache_sprites[pasta_bot]: 
-                    chave_pista = "rear_reto"
-                    
-                # Puxa o frame da animação usando as cores exclusivas dele!
-                img_atual = self.cache_sprites[pasta_bot][chave_pista][bot["frame_idx"]]
-
-                indice = int(dist) - 1
-                if 0 <= indice < len(segmentos):
-                    seg = segmentos[indice]
-                    
-                    # ==========================================
-                    # LARGURA DINÂMICA (Pega o tamanho real de 180, 140 ou 114)
-                    # ==========================================
-                    img_w = img_atual.get_width()
-                    img_h = img_atual.get_height()
-                    
-                    # 1. Calculamos a ALTURA primeiro! 
-                    # FATOR_ESCALA! O 0.188 é a escala matemática exata para a altura base.
-                    bot_h = int(seg["largura"] * 0.159)
-                    
-                    # 2. A largura se adapta automaticamente para manter a proporção do seu PNG!
-                    bot_w = int(bot_h * (img_w / img_h))
-                    
-                    # Anti-Gigantismo (Trava de limite para não cobrir o céu)
-                    limite_tela_h = 333 
-                    if bot_h > limite_tela_h:
-                        bot_h = limite_tela_h
-                        bot_w = int(bot_h * (img_w / img_h))
-                    
-                    if bot_w > 0 and bot_h > 0:
-                        img_res = self.redimensionar_bot_otimizado(img_atual, pasta_bot, chave_pista, bot["frame_idx"], bot_w, bot_h)
-                        
-                        bx = seg["centro"] + (bot["x"] * seg["largura"]) - (bot_w // 2)
-                        by = seg["y"] - bot_h
-                        self.screen.blit(img_res, (bx, by))
-
-            # --- CÁLCULO DA POSIÇÃO EM TEMPO REAL ---
-            bots_a_frente = 0
-            for bot in self.bots:
-                # Quem tem mais metros percorridos no total está na frente
-                if bot["pos"] > self.car.position:
-                    bots_a_frente += 1
-            posicao_atual = 1 + bots_a_frente
-
-            # Agora, passamos esse valor 'posicao_atual' para dentro do draw_cockpit
-            self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
+                    if texto:
+                        # Centraliza o número na tela
+                        self.screen.blit(texto, (WIDTH//2 - texto.get_width()//2, HEIGHT//3))
 
             # RESULTADO FINAL DA CORRIDA
             if self.estado_jogo == "FINISH":

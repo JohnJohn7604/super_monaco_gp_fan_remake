@@ -26,13 +26,13 @@ class Car:
         # 1. Ajuste de Velocidade Máxima HANDCAP
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        self.max_speed = velocidade_maxima * 0.95 
+        self.max_speed = velocidade_maxima * 0.93 
         
         # 2. Ajuste Dinâmico de Aceleração (A Mágica)
         # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
         # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
         # Fórmula: Base de 60% + 5% por cada nível da equipe.
-        fator_nerf_acel = 0.60 + (nivel_aceleracao * 0.05)
+        fator_nerf_acel = 0.50 + (nivel_aceleracao * 0.01)
         
         # Trava de segurança para nunca passar de 100% dos status originais
         
@@ -568,13 +568,17 @@ class Car:
         centro_relogio_x, centro_relogio_y = margem + 150, margem + 120
         
         # --- A MÁGICA DO RPM ---
-        # RPM é a porcentagem da sua velocidade atual em relação ao limite da marcha engatada.
         limite_atual = self.limite_marchas[self.marcha_atual]
-        porcentagem_rpm = self.speed / limite_atual
         
-        # Marcha lenta (Idle): O ponteiro nunca cai para o zero absoluto se o carro estiver parado
-        if self.speed == 0:
-            porcentagem_rpm = 0.1 
+        # Se a velocidade for 0 (no Countdown), o ponteiro lê o giro falso do motor!
+        if self.speed == 0 and hasattr(self, 'rpm_neutro'):
+            porcentagem_rpm = self.rpm_neutro / self.max_speed
+        else:
+            porcentagem_rpm = self.speed / limite_atual
+            
+        # Marcha lenta (Idle): O ponteiro nunca cai para o zero absoluto
+        if porcentagem_rpm < 0.1:
+            porcentagem_rpm = 0.1
             
         # Trava de segurança: Se o carro embalar numa descida além da marcha, o ponteiro não dá uma volta de 360º!
         porcentagem_rpm = min(1.05, porcentagem_rpm) 
