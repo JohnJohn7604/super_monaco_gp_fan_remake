@@ -81,7 +81,7 @@
   },
   {
     "equipe": "Blanche",
-    "nome": "PLAYER",
+    "nome": "J.Herbin",
     "aceleracao": 0.6,
     "speed": 6,
     "freio": 1.2,
@@ -171,7 +171,7 @@
   },
   {
     "equipe": "Bullets",
-    "nome": "C. Davis",
+    "nome": "PLAYER",
     "aceleracao": 7.5,
     "speed": 6.1,
     "freio": 1.2,
@@ -231,7 +231,7 @@
   },
   {
     "equipe": "Minarae",
-    "nome": "PLAY", 
+    "nome": "L.Dufay", 
     "aceleracao": 6.2,
     "speed": 5.1,
     "freio": 1.2,
