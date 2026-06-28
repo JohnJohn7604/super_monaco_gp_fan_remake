@@ -237,13 +237,13 @@ class Car:
             
             # --- A MÁGICA DA ACELERAÇÃO NO VÁCUO ---
             # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
-            vel_referencia = self.max_speed + 26 if no_vacuo else self.max_speed
+            vel_referencia = self.max_speed + 10 if no_vacuo else self.max_speed
             
             taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / vel_referencia))
             
             # O Vácuo tira a resistência do ar: aceleração aumenta 20% para sugar o carro!
-            if no_vacuo and self.speed > 100:
-                taxa_aceleracao *= 1.8
+            if no_vacuo and self.speed > 300:
+                taxa_aceleracao *= 1.6
                 
             self.speed += taxa_aceleracao
             
@@ -262,7 +262,7 @@ class Car:
         
         # MÁGICA DO VÁCUO: O teto da última marcha sobe os exatos 15 km/h
         if no_vacuo and self.marcha_atual == self.max_marchas:
-            limite_atual += 45
+            limite_atual += 30
 
         if not na_grama and self.speed > limite_atual:
             if no_vacuo:

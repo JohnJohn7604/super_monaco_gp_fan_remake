@@ -93,9 +93,9 @@ class BotAI:
             target_x = tracado_ideal
             bot["pos"] += bot["speed"] * 0.005 
 
-            # SENSOR DE VÁCUO
-            if 1 < dist_relativa < 60 and carro_jogador.speed > 100:
-                if abs(carro_jogador.player_x - bot["x"]) < 0.5: 
+            # SENSOR DE VÁCUOvacuo
+            if 1 < dist_relativa < 25 and carro_jogador.speed > 290:
+                if abs(carro_jogador.player_x - bot["x"]) < 0.3: 
                     jogador_no_vacuo = True
 
             # REGRA DA LARGADA (MANTER AS LINHAS)

@@ -80,24 +80,26 @@ class Game:
 
 
         # ==========================================
-        # ÁUDIO 3D VIA OPENAL (Batida e Motor do Bot)
+        # ÁUDIO 3D VIA OPENAL (Batida e Motor dos Bots)
         # ==========================================
         self.timer_batida = 0 
         
         try:
             self.som_batida = oalOpen("sounds/batida.wav") 
-            self.som_bot_motor = oalOpen("sounds/bot_motor.wav")
             
-            # --- START DO ZERO ---
-            if self.som_bot_motor:
-                self.som_bot_motor.set_looping(True)
-                self.som_bot_motor.set_gain(0.0) # Nasce mudo
-                self.som_bot_motor.play()        # Fica tocando em silêncio no fundo
+            # Cria uma "Piscina" com 5 canais de som para ouvirmos o pelotão!
+            self.canais_motor_bot = []
+            for _ in range(5):
+                som = oalOpen("sounds/bot_motor.wav")
+                som.set_looping(True)
+                som.set_gain(0.0) # Nasce mudo
+                som.play()        # Fica tocando em silêncio
+                self.canais_motor_bot.append(som)
                 
         except Exception as e:
-            print(f"Aviso OpenAL: Erro ao carregar audios dos bots! Detalhes: {e}")
+            print(f"Aviso OpenAL: Erro ao carregar audios! Detalhes: {e}")
             self.som_batida = None
-            self.som_bot_motor = None
+            self.canais_motor_bot = []
 
         self.steering_locked = False
         
@@ -649,32 +651,45 @@ class Game:
                 curve_intensity, jogador_no_vacuo, menor_distancia_bot = self.ai.atualizar_bots(tempo_atual)
 
                 # ==========================================
-                # ÁUDIO DINÂMICO DOS BOTS (SISTEMA LIMPO)
+                # ÁUDIO DINÂMICO MULTI-CARRO (Radar 360º)
                 # ==========================================
-                if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
-                    
-                    # Só ouvimos bots que estão a menos de 150 metros
-                    raio_audicao = 80
-                    
-                    if menor_distancia_bot < raio_audicao:
-                        # Fator vai de 0.0 (colado em você) até 1.0 (lá nos 150m)
-                        fator = menor_distancia_bot / raio_audicao
+                bots_audiveis = []
+                
+                # REDUZIMOS O RAIO DE 120 PARA 50 METROS!
+                raio_audicao = 50 
+                
+                for bot in self.bots:
+                    dist_bruta = (bot["pos"] - self.car.position) % self.track.total_track_length
+                    if dist_bruta > self.track.total_track_length / 2:
+                        dist_bruta -= self.track.total_track_length
                         
-                        # VOLUME: Máximo de 0.6 (perto) caindo até 0.0 (longe)
-                        volume = (1.0 - fator) * 0.6
-                        self.som_bot_motor.set_gain(volume)
-                        
-                        # PITCH (AFINAÇÃO): 1.8 (agudo, perto) caindo até 0.8 (grave, longe)
-                        pitch = 1.0 - (fator * 1.0)
-                        self.som_bot_motor.set_pitch(max(0.68, min(3.0, pitch)))
-                        
-                        # Trava de segurança: Se a OpenAL dormir, a gente acorda ela!
-                        if self.som_bot_motor.get_state() != 4114: # 4114 = PLAYING
-                            self.som_bot_motor.play()
+                    dist_abs = abs(dist_bruta) 
                     
+                    if dist_abs < raio_audicao:
+                        bots_audiveis.append((dist_abs, bot))
+                
+                bots_audiveis.sort(key=lambda x: x[0])
+                
+                for i, canal in enumerate(self.canais_motor_bot):
+                    if i < len(bots_audiveis):
+                        dist, bot = bots_audiveis[i]
+                        fator = dist / raio_audicao
+                        
+                        # Calcula o volume com a sua fórmula
+                        volume_calculado = (0.9 - fator) * 0.5
+                        
+                        # TRAVA ANTI-CRASH: Garante que o volume nunca é menor que 0.0!
+                        volume_seguro = max(0.0, volume_calculado)
+                        canal.set_gain(volume_seguro)
+                        
+                        # Trava de segurança no Pitch também para evitar erros
+                        pitch_seguro = max(0.5, 0.8 + (0.8 - fator) * 0.5)
+                        canal.set_pitch(pitch_seguro)
+                        
+                        if canal.get_state() != 4114: 
+                            canal.play()
                     else:
-                        # Se não tem ninguém no raio de 150m, muta o som!
-                        self.som_bot_motor.set_gain(0.0)
+                        canal.set_gain(0.0)
 
                 # ATUALIZA A SUA FÍSICA
                 self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
