@@ -650,47 +650,6 @@ class Game:
                 # Envia a lógica pesada para a mente brilhante do BotAI!
                 curve_intensity, jogador_no_vacuo, menor_distancia_bot = self.ai.atualizar_bots(tempo_atual)
 
-                # ==========================================
-                # ÁUDIO DINÂMICO MULTI-CARRO (Radar 360º)
-                # ==========================================
-                bots_audiveis = []
-                
-                # REDUZIMOS O RAIO DE 120 PARA 50 METROS!
-                raio_audicao = 50 
-                
-                for bot in self.bots:
-                    dist_bruta = (bot["pos"] - self.car.position) % self.track.total_track_length
-                    if dist_bruta > self.track.total_track_length / 2:
-                        dist_bruta -= self.track.total_track_length
-                        
-                    dist_abs = abs(dist_bruta) 
-                    
-                    if dist_abs < raio_audicao:
-                        bots_audiveis.append((dist_abs, bot))
-                
-                bots_audiveis.sort(key=lambda x: x[0])
-                
-                for i, canal in enumerate(self.canais_motor_bot):
-                    if i < len(bots_audiveis):
-                        dist, bot = bots_audiveis[i]
-                        fator = dist / raio_audicao
-                        
-                        # Calcula o volume com a sua fórmula
-                        volume_calculado = (0.9 - fator) * 0.5
-                        
-                        # TRAVA ANTI-CRASH: Garante que o volume nunca é menor que 0.0!
-                        volume_seguro = max(0.0, volume_calculado)
-                        canal.set_gain(volume_seguro)
-                        
-                        # Trava de segurança no Pitch também para evitar erros
-                        pitch_seguro = max(0.5, 0.8 + (0.8 - fator) * 0.5)
-                        canal.set_pitch(pitch_seguro)
-                        
-                        if canal.get_state() != 4114: 
-                            canal.play()
-                    else:
-                        canal.set_gain(0.0)
-
                 # ATUALIZA A SUA FÍSICA
                 self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
                 self.track.update_parallax(self.car.speed, curve_intensity, keys)
@@ -712,18 +671,64 @@ class Game:
             # ==========================================
             if self.estado_jogo in ["COUNTDOWN", "RACING", "FINISH"]:
                 
+                # ==========================================
+                # ÁUDIO DINÂMICO MULTI-CARRO (Radar 360º + Rev Engine)
+                # ==========================================
+                bots_audiveis = []
+                raio_audicao = 50 
+                
+                for bot in self.bots:
+                    dist_bruta = (bot["pos"] - self.car.position) % self.track.total_track_length
+                    if dist_bruta > self.track.total_track_length / 2:
+                        dist_bruta -= self.track.total_track_length
+                        
+                    dist_abs = abs(dist_bruta) 
+                    
+                    if dist_abs < raio_audicao:
+                        bots_audiveis.append((dist_abs, bot))
+                
+                bots_audiveis.sort(key=lambda x: x[0])
+                
+                for i, canal in enumerate(self.canais_motor_bot):
+                    if i < len(bots_audiveis):
+                        dist, bot_som = bots_audiveis[i]
+                        fator = dist / raio_audicao
+                        
+                        volume_calculado = ((1.0 - fator) ** 2) * 0.4
+                        volume_seguro = max(0.0, volume_calculado)
+                        
+                        # ---> MÁGICA DO REV ENGINE <---
+                        if self.estado_jogo == "COUNTDOWN":
+                            import math
+                            ritmo = 0.005 + ((bot_som["pos"] % 4) * 0.001)
+                            fase_desalinhada = bot_som["pos"] * 3.7 
+                            onda_rpm = math.sin((tempo_atual * ritmo) + fase_desalinhada) 
+                            pitch_alvo = 0.75 + (onda_rpm * 0.15) 
+                        else:
+                            pitch_alvo = 0.6 + (1.0 - fator) * 0.35
+                        
+                        canal.set_gain(volume_seguro)
+                        canal.set_pitch(max(0.4, pitch_alvo)) 
+                        
+                        if canal.get_state() != 4114: 
+                            canal.play()
+                    else:
+                        canal.set_gain(0.0)
+                # ==========================================
+                # FIM DO ÁUDIO
+                # ==========================================
+
                 if self.estado_jogo == "COUNTDOWN":
                     self.car.acelerar_neutro(keys)
                     
                     # --- MÁGICA: O SOM DO MOTOR DO PLAYER NO NEUTRO ---
-                    if self.car.motor_sound:
-                        # O pitch acompanha o seu giro no neutro (rpm_neutro)
+                    if hasattr(self.car, 'motor_sound') and self.car.motor_sound:
                         rpm_falso = self.car.rpm_neutro / self.car.max_speed
                         self.car.motor_sound.set_gain(0.3 + (rpm_falso * 0.5))
                         self.car.motor_sound.set_pitch(0.6 + (rpm_falso * 0.8))
                         if self.car.motor_sound.get_state() != 4114:
                             self.car.motor_sound.play()
-                
+
                 # Desenha a pista, bots, horizonte e cockpit (Tudo de uma vez só!)
                 self.renderizar_corrida(tempo_atual, keys)
 
@@ -785,14 +790,16 @@ class Game:
                     # 1. CALA TODOS OS SONS DA PISTA!
                     self.car.parar_audios() 
                     
-                    if hasattr(self, 'som_bot_motor') and self.som_bot_motor:
-                        self.som_bot_motor.set_gain(0.0)
-                        try: self.som_bot_motor.stop()
-                        except: pass
+                    # DESLIGA A NOSSA NOVA PISCINA DE 5 CANAIS!
+                    if hasattr(self, 'canais_motor_bot'):
+                        for canal in self.canais_motor_bot:
+                            canal.set_gain(0.0)
+                            try: canal.stop()
+                            except: pass
 
-                    # 2. MUDA DE TELA (Apagamos a duplicação daqui!)
+                    # 2. MUDA DE TELA
                     self.estado_jogo = "RESULTADOS_CORRIDA"
-                    continue # Sai do modo corrida e vai para as telas de pontuação!
+                    continue
             
             pygame.display.flip()
             self.clock.tick(FPS)

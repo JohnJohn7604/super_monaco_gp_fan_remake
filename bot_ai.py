@@ -52,6 +52,18 @@ class BotAI:
             else:
                 target_speed = bot["max_speed"]
 
+            # ---> MÁGICA: O RADAR DE FRENAGEM INTELIGENTE <---
+            # O bot percebe que você está bloqueando a frente dele ANTES de acelerar!
+            jogador_na_pista = -1.0 <= carro_jogador.player_x <= 1.0
+            #distancia freio bot
+            if -13 < dist_relativa < 0 and jogador_na_pista:
+                #hitbox horizontal da minha asa traseira
+                if abs(bot["x"] - carro_jogador.player_x) < 0.72:
+                    # FREADA MUITO MAIS SUAVE E REALISTA (de 0.9 para 0.98) O multiplicador 0.98 faz 
+                    # com que o bot apenas "tire o pé do acelerador", igualando-se quase perfeitamente à 
+                    # sua velocidade (ele vai ficar apenas 2% mais lento que você,
+                    target_speed = min(target_speed, max(130, carro_jogador.speed * 0.95))
+
             # O PEDAL DE FREIO
             if bot["speed"] > target_speed:
                 forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
@@ -120,8 +132,9 @@ class BotAI:
                 
                 if 0 < dist_relativa < 60:
                     target_x = tracado_ideal
-                    
-                elif -150 < dist_relativa < 0 and jogador_na_pista:
+
+                #a 23 metros de distancia o bot desvia da sua traseira    
+                elif -23 < dist_relativa < 0 and jogador_na_pista:
                     if abs(dist_relativa) < 150 and bot["speed"] > carro_jogador.speed:
                         
                         if linha_jogador == 2:
@@ -135,10 +148,10 @@ class BotAI:
                         
                         if abs(bot["x"] - carro_jogador.player_x) > 0.35: 
                             bot["speed"] += 0.5 
-                            
-                        if abs(dist_relativa) < 25 and abs(bot["x"] - carro_jogador.player_x) < 0.4:
+
+                        #desvios bruscos bot    
+                        if abs(dist_relativa) < 17 and abs(bot["x"] - carro_jogador.player_x) < 0.4:
                             target_x = 0.85 if bot["x"] >= carro_jogador.player_x else -0.85
-                            bot["speed"] = min(bot["speed"], carro_jogador.speed * 0.95)
 
                 # 6. Radar de Tráfego IA vs IA
                 for outro_bot in bots:
@@ -152,7 +165,8 @@ class BotAI:
                         if abs(distancia_lateral) < 0.35:
                             target_x = bot["x"] + (0.3 if distancia_lateral > 0 else -0.3)
 
-                    if 0 < dist_entre_bots < 45 and abs(bot["x"] - outro_bot["x"]) < 0.45:
+                    #desvio entre os bots 55m
+                    if 0 < dist_entre_bots < 55 and abs(bot["x"] - outro_bot["x"]) < 0.45:
                         target_x = -0.65 if outro_bot["x"] > 0 else 0.65
 
             # 7. Direção Dinâmica

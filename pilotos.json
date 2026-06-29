@@ -171,7 +171,7 @@
   },
   {
     "equipe": "Bullets",
-    "nome": "PLAYER",
+    "nome": "C. Davis",
     "aceleracao": 7.5,
     "speed": 6.1,
     "freio": 1.2,
@@ -231,7 +231,7 @@
   },
   {
     "equipe": "Minarae",
-    "nome": "L.Dufay", 
+    "nome": "PLAYER", 
     "aceleracao": 6.2,
     "speed": 5.1,
     "freio": 1.2,
