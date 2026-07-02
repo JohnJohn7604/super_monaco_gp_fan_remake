@@ -27,13 +27,13 @@ class Car:
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        self.max_speed = velocidade_maxima * 0.95
+        self.max_speed = velocidade_maxima * 0.957
         
         # 2. Ajuste Dinâmico de Aceleração (A Mágica)
         # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
         # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
         # Fórmula: Base de 35% + 1% por cada nível da equipe.
-        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.01)
+        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.006)
         
         # Trava de segurança para nunca passar de 100% dos status originais
         

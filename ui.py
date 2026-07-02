@@ -69,3 +69,50 @@ class MenuUI:
 
         inst = self.fonte_inst.render("Use as SETAS para mover | ENTER para Iniciar Corrida", True, (200, 200, 0))
         self.game.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, 480))
+
+    def desenhar_tela_equipes(self):
+        self.game.screen.fill((15, 15, 30))
+        titulo = self.fonte_titulo.render("SELECT TEAM & DRIVER", True, (255, 255, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 50))
+
+        # Puxa os dados da equipa selecionada
+        nome_equipe = self.game.lista_equipes_nomes[self.game.equipe_sel_idx]
+        dados_equipe = self.game.equipes[nome_equipe]
+        pilotos = dados_equipe["pilotos"]
+
+        # 1. Desenha o Nome da Equipa
+        txt_eq = self.fonte_subtitulo.render(f"< TEAM: {nome_equipe.upper()} >", True, (0, 255, 255))
+        self.game.screen.blit(txt_eq, (WIDTH // 2 - txt_eq.get_width() // 2, 150))
+
+        # 2. Desenha os Pilotos (1º e 2º)
+        for i in range(2):
+            if i < len(pilotos):
+                nome_piloto = pilotos[i]["nome"]
+            else:
+                nome_piloto = "N/A"
+
+            cor = (0, 255, 0) if i == self.game.piloto_sel_idx else (150, 150, 150)
+            prefixo = ">> " if i == self.game.piloto_sel_idx else "   "
+            cargo = "1st Driver" if i == 0 else "2nd Driver"
+
+            txt_p = self.fonte_subtitulo.render(f"{prefixo}{cargo}: {nome_piloto}", True, cor)
+            self.game.screen.blit(txt_p, (WIDTH // 2 - 200, 250 + i * 50))
+
+        instrucao = self.fonte_inst.render("UP/DOWN: Change Driver | LEFT/RIGHT: Change Team | ENTER: Select", True, (255, 50, 50))
+        self.game.screen.blit(instrucao, (WIDTH // 2 - instrucao.get_width() // 2, HEIGHT - 60))
+
+    def desenhar_tela_voltas(self):
+        self.game.screen.fill((15, 15, 30))
+        titulo = self.fonte_titulo.render("RACE LENGTH", True, (255, 255, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 100))
+
+        for i, num_voltas in enumerate(self.game.opcoes_voltas):
+            cor = (0, 255, 0) if i == self.game.volta_sel_idx else (150, 150, 150)
+            prefixo = ">> " if i == self.game.volta_sel_idx else "   "
+            texto = f"{prefixo}{num_voltas} LAPS"
+
+            txt = self.fonte_subtitulo.render(texto, True, cor)
+            self.game.screen.blit(txt, (WIDTH // 2 - 100, 200 + i * 40))
+
+        instrucao = self.fonte_inst.render("UP/DOWN: Change | ENTER: Select", True, (255, 50, 50))
+        self.game.screen.blit(instrucao, (WIDTH // 2 - instrucao.get_width() // 2, HEIGHT - 60))

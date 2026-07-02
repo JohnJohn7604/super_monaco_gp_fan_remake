@@ -2,6 +2,7 @@ import pygame
 import sys
 import math
 import json
+import random
 from settings import *
 from openal import oalOpen, oalQuit
 from track import Track
@@ -234,23 +235,28 @@ class Game:
             self.track = Track()
             
         # =========================================================
-        # LÊ O JSON PARA DESCOBRIR A SUA EQUIPA AUTOMATICAMENTE!
+        # APLICA AS ESCOLHAS DOS MENUS NO SEU PILOTO (NOVO)
         # =========================================================
         self.nome_jogador_formatado = getattr(self, 'nome_digitado', "PILOTO")
-        self.dados_do_meu_piloto = {} # <--- NOVO: Guarda as suas skills!
         
-        for nome_eq, dados in self.equipes.items():
-            for piloto in dados.get("pilotos", []):
+        # 1. Puxa a equipa e o índice de piloto (0 ou 1) que você selecionou no Menu
+        nome_equipe = self.lista_equipes_nomes[self.equipe_sel_idx]
+        self.equipe_atual_jogador = nome_equipe
+        
+        # 2. Desmarca qualquer "is_player" antigo para evitar bugs com os bots
+        for eq_nome, dados_eq in self.equipes.items():
+            for p in dados_eq.get("pilotos", []):
+                p["is_player"] = False
                 
-                nome_json = str(piloto.get("nome", "")).upper()
-                if piloto.get("is_player", False) or nome_json in ["PLAYER", "VOCÊ"]:
-                    
-                    self.equipe_atual_jogador = nome_eq
-                    piloto["nome"] = self.nome_jogador_formatado 
-                    piloto["is_player"] = True 
-                    
-                    self.dados_do_meu_piloto = piloto # <--- SALVA TUDO AQUI!
-                    break
+        # 3. Injeta a sua alma no piloto que você escolheu substituir!
+        pilotos_da_equipe = self.equipes[nome_equipe]["pilotos"]
+        self.dados_do_meu_piloto = pilotos_da_equipe[self.piloto_sel_idx].copy() # Salva as skills dele para você
+        
+        pilotos_da_equipe[self.piloto_sel_idx]["nome"] = self.nome_jogador_formatado
+        pilotos_da_equipe[self.piloto_sel_idx]["is_player"] = True
+        
+        # 4. Aplica o limite de voltas escolhido no menu
+        self.lap_limit = self.opcoes_voltas[self.volta_sel_idx]
 
         # Descobre a pasta da equipe do jogador agora que já sabe onde você está
         nome_equipe = self.equipe_atual_jogador
@@ -351,35 +357,25 @@ class Game:
                 })
 
         # =========================================================
-        # 3.2 EMBARALHAMENTO DO GRID POR CLASSES
-        # ==========================================
-        # Ordena do bot mais forte para o mais fraco
-        bots_temporarios.sort(key=lambda b: b["forca_total"], reverse=True)
-
-        # Cria as zonas ignorando a posição do jogador
-        pos_S = [p for p in range(1, 5) if p != posicao_jogador]   # 1º ao 4º
-        pos_A = [p for p in range(5, 9) if p != posicao_jogador]   # 5º ao 8º
-        pos_B = [p for p in range(9, 17) if p != posicao_jogador]  # 9º ao 16º
-        pos_C = [p for p in range(17, 25) if p != posicao_jogador] # 17º ao 24º
-        pos_D = [p for p in range(25, 33) if p != posicao_jogador] # 25º ao 32º
-
-        # Embaralha quem fica na frente dentro da mesma classe!
+        # 3.2 O NOVO SISTEMA DE QUALIFICAÇÃO DINÂMICA
+        # =========================================================
         import random
-        random.shuffle(pos_S)
-        random.shuffle(pos_A)
-        random.shuffle(pos_B)
-        random.shuffle(pos_C)
-        random.shuffle(pos_D)
+        
+        # 1. Aplica um fator de Sorte/Azar na volta de qualificação de cada bot
+        for bot in bots_temporarios:
+            # O bot pode ganhar ou perder até 35 "pontos de força" neste dia.
+            # (Um carro de Classe B com +35 de sorte ultrapassa um Classe S com -35 de azar!)
+            fator_sorte = random.randint(-25, 25)
+            bot["forca_qualificacao"] = bot["forca_total"] + fator_sorte
 
-        posicoes_disponiveis = pos_S + pos_A + pos_B + pos_C + pos_D
+        # 2. Ordena os bots do mais rápido para o mais lento com base na sua volta "sorteada"
+        bots_temporarios.sort(key=lambda b: b["forca_qualificacao"], reverse=True)
 
-        # Coloca os bots nas suas vagas finais
+        # 3. Cria a lista limpa de vagas (1 a 32), ignorando apenas a SUA posição
+        posicoes_disponiveis = [p for p in range(1, 33) if p != posicao_jogador]
+
+        # 4. Coloca os bots nas suas vagas finais
         for i, bot in enumerate(bots_temporarios):
-            # ==========================================
-            # TRAVA DE SEGURANÇA ANTI-CRASH
-            # ==========================================
-            # Se já preenchemos todas as 31 vagas e ainda sobrou bot, 
-            # interrompe o loop para não quebrar o jogo!
             if i >= len(posicoes_disponiveis):
                 break
             
@@ -391,11 +387,10 @@ class Game:
             
             self.bots.append(bot)
 
-        # 4. Iniciar contagem decrescente
+        # Inicia a contagem decrescente
         self.timer_countdown = pygame.time.get_ticks()
         self.estado_jogo = "COUNTDOWN"
         self.race_finished = False
-        self.lap_limit = 3
 
     def gerar_resultados(self):
         # 1. Junta você e todos os bots numa lista só
@@ -499,12 +494,19 @@ class Game:
 
                 if event.type == pygame.KEYDOWN:
                 
-                    # TELA 1: DIGITAR O NOME
+                    # ------------------------------------------
+                    # TELA 1: DIGITAR NOME
+                    # ------------------------------------------
                     if self.estado_jogo == "INPUT_NAME":
                         if event.key == pygame.K_RETURN:
                             if self.nome_digitado.strip() == "":
                                 self.nome_digitado = "PILOTO"
-                            self.estado_jogo = "SELECT_POS" 
+                                
+                            # Prepara a tela seguinte (Seleção de Equipa)
+                            self.lista_equipes_nomes = list(self.equipes.keys())
+                            self.equipe_sel_idx = 0
+                            self.piloto_sel_idx = 0
+                            self.estado_jogo = "SELECT_TEAM"  # <--- VAI PARA EQUIPAS
                             
                         elif event.key == pygame.K_BACKSPACE:
                             self.nome_digitado = self.nome_digitado[:-1]
@@ -512,40 +514,82 @@ class Game:
                             if len(self.nome_digitado) < 12 and event.unicode.isprintable(): 
                                 self.nome_digitado += event.unicode.upper()
 
-                    # TELA 2: ESCOLHER POSIÇÃO
+                    # ------------------------------------------
+                    # TELA 2: SELEÇÃO DE EQUIPA E PILOTO (NOVA)
+                    # ------------------------------------------
+                    elif self.estado_jogo == "SELECT_TEAM":
+                        if event.key == pygame.K_RIGHT:
+                            self.equipe_sel_idx = (self.equipe_sel_idx + 1) % len(self.lista_equipes_nomes)
+                        elif event.key == pygame.K_LEFT:
+                            self.equipe_sel_idx = (self.equipe_sel_idx - 1) % len(self.lista_equipes_nomes)
+                        elif event.key == pygame.K_DOWN or event.key == pygame.K_UP:
+                            self.piloto_sel_idx = 1 - self.piloto_sel_idx # Alterna entre 0 e 1 (1º e 2º piloto)
+                        elif event.key == pygame.K_RETURN:
+                            self.estado_jogo = "SELECT_POS" # <--- VAI PARA POSIÇÃO
+
+                    # ------------------------------------------
+                    # TELA 3: ESCOLHER POSIÇÃO
+                    # ------------------------------------------
                     elif self.estado_jogo == "SELECT_POS":
                         if not hasattr(self, 'posicao_jogador'):
                             self.posicao_jogador = 32
                             
-                        # CORREÇÃO: event.key ao invés de event.type
                         if event.key == pygame.K_RIGHT:
-                            self.posicao_jogador += 1
-                            if self.posicao_jogador > 32: self.posicao_jogador = 1
-                            
+                            self.posicao_jogador = 1 if self.posicao_jogador > 31 else self.posicao_jogador + 1
                         elif event.key == pygame.K_LEFT:
-                            self.posicao_jogador -= 1
-                            if self.posicao_jogador < 1: self.posicao_jogador = 32
-                            
+                            self.posicao_jogador = 32 if self.posicao_jogador < 2 else self.posicao_jogador - 1
                         elif event.key == pygame.K_DOWN:
-                            self.posicao_jogador += 8 
-                            if self.posicao_jogador > 32: self.posicao_jogador -= 32
-                            
+                            self.posicao_jogador = self.posicao_jogador - 32 if self.posicao_jogador > 24 else self.posicao_jogador + 8
                         elif event.key == pygame.K_UP:
-                            self.posicao_jogador -= 8 
-                            if self.posicao_jogador < 1: self.posicao_jogador += 32
-                        
+                            self.posicao_jogador = self.posicao_jogador + 32 if self.posicao_jogador < 9 else self.posicao_jogador - 8
+                        elif event.key == pygame.K_RETURN:
+                            # Prepara a tela seguinte (Seleção de Voltas)
+                            self.opcoes_voltas = [1, 3, 5, 10, 15, 30]
+                            self.volta_sel_idx = 1 # O padrão é o índice 1 (que são 3 voltas)
+                            self.estado_jogo = "SELECT_LAPS" # <--- VAI PARA VOLTAS
+
+                    # ------------------------------------------
+                    # TELA 4: SELEÇÃO DE VOLTAS (NOVA)
+                    # ------------------------------------------
+                    elif self.estado_jogo == "SELECT_LAPS":
+                        if event.key == pygame.K_DOWN:
+                            self.volta_sel_idx = (self.volta_sel_idx + 1) % len(self.opcoes_voltas)
+                        elif event.key == pygame.K_UP:
+                            self.volta_sel_idx = (self.volta_sel_idx - 1) % len(self.opcoes_voltas)
                         elif event.key == pygame.K_RETURN:
                             self.iniciar_corrida("rio")
-                            self.estado_jogo = "LOADING"  
-                    # TELA 3: RESULTADOS DOS PILOTOS
+                            self.estado_jogo = "LOADING" # <--- VAI PARA AS PISTAS
+
+                    # ------------------------------------------
+                    # TELA 5: TELA DE RESULTADOS (FIM DA CORRIDA)
+                    # ------------------------------------------
                     elif self.estado_jogo == "RESULTADOS_CORRIDA":
                         if event.key == pygame.K_RETURN:
-                            self.estado_jogo = "RESULTADOS_CONSTRUTORES"
+                            # 1. Limpa a lista de bots e o seu carro para evitar lixo na memória
+                            self.bots = []
+                            self.car = None
                             
-                    # TELA 4: RESULTADOS DAS CONSTRUTORAS
+                            # 2. Reseta o nome digitado se quiser que o próximo jogador digite um novo,
+                            # ou deixe comentado se quiser que o jogo "lembre" o último nome!
+                            self.nome_digitado = "" 
+                            
+                            # 3. Devolve o jogador para o início do jogo (Digitar Nome)
+                            self.estado_jogo = "RESULTADOS_CONSTRUTORES"
+                    # ------------------------------------------
+                    # TELA 6: TELA DOS CONSTRUTORES (FIM DA CORRIDA)
+                    # ------------------------------------------
                     elif self.estado_jogo == "RESULTADOS_CONSTRUTORES":
                         if event.key == pygame.K_RETURN:
-                            self.estado_jogo = "SELECT_POS" # Volta para o início para correr de novo!
+                            # 1. Limpa a lista de bots e o seu carro para evitar lixo na memória
+                            self.bots = []
+                            self.car = None
+                            
+                            # 2. Reseta o nome digitado se quiser que o próximo jogador digite um novo,
+                            # ou deixe comentado se quiser que o jogo "lembre" o último nome!
+                            self.nome_digitado = "" 
+                            
+                            # 3. Devolve o jogador para o início do jogo (Digitar Nome)
+                            self.estado_jogo = "INPUT_NAME"
 
             # ==========================================
             # 2. RENDERIZAÇÃO DOS MENUS (AS TRAVAS ANTI-CRASH)
@@ -664,6 +708,18 @@ class Game:
                     bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
                     self.final_position = 1 + bots_a_frente
                     self.car.speed *= 0.5
+
+            if self.estado_jogo == "SELECT_TEAM":
+                self.ui.desenhar_tela_equipes()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue
+
+            if self.estado_jogo == "SELECT_LAPS":
+                self.ui.desenhar_tela_voltas()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue
 
 
             # ==========================================

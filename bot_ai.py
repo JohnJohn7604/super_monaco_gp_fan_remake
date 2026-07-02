@@ -174,6 +174,20 @@ class BotAI:
             bot["steer_real"] = target_x - bot["x"]
             bot["x"] += bot["steer_real"] * velocidade_volante
 
+            # ==========================================
+            # MURO INVISÍVEL: IMPEDE O OFF-ROAD DOS BOTS
+            # ==========================================
+            # A pista vai de -1.0 (esquerda) a 1.0 (direita). 
+            # Colocamos 0.90 para garantir que nem sequer o pneu deles toca na relva!
+            limite_pista = 0.90
+            
+            # Trava o X do bot para nunca ultrapassar os limites
+            bot["x"] = max(-limite_pista, min(limite_pista, bot["x"]))
+            
+            # Trava também a "intenção" (target) do bot, para ele nem tentar ir para a relva
+            if "target_x" in locals():
+                target_x = max(-limite_pista, min(limite_pista, target_x))
+
             # 8. COLISÃO ABSOLUTA COM O JOGADOR
             hitbox_x = 0.22 
             
