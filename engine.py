@@ -304,14 +304,20 @@ class Game:
         posicao_jogador = getattr(self, 'posicao_jogador', 32) 
         espaco_grid = 6     # Distância em metros entre os carros no grid
 
-        # 1. Coloca o JOGADOR na pista
-        # A posição 1 fica lá na frente (+ metros). A 32 fica atrás (100 metros).
+        # Coloca o JOGADOR na pista
         self.car.position = 100 + ((32 - posicao_jogador) * espaco_grid)
         self.car.player_x = 0.33 if posicao_jogador % 2 == 0 else -0.33
+        
+        # ==========================================
+        # ---> NOVO: TELEMETRIA DO JOGADOR <---
+        # ==========================================
+        self.car.pos_inicial_grid = posicao_jogador
+        self.car.velocidade_maxima_corrida = 0
         
         bots_temporarios = []
         
         for nome_eq, dados in self.equipes.items():
+            # ... resto do código continua igual ...
             pasta = dados["pasta"]
             mapa_cor = dados.get("mapa_cor", None) # <--- LÊ AS CORES DESTA EQUIPA NO JSON
             
@@ -380,10 +386,14 @@ class Game:
                 break
             
             posicao_final = posicoes_disponiveis[i]
-            
             bot["pos"] = 100 + ((32 - posicao_final) * espaco_grid)
             bot["x"] = 0.33 if posicao_final % 2 == 0 else -0.33
             bot["linha_padrao"] = bot["x"]
+            
+            # ---> ADICIONE ESTAS 3 LINHAS DE GRAVAÇÃO AQUI: <---
+            bot["pos_inicial_grid"] = posicao_final
+            bot["velocidade_maxima_corrida"] = 0
+            bot["fator_sorte_qualificacao"] = bot.get("forca_qualificacao", 0) - bot.get("forca_total", 0)
             
             self.bots.append(bot)
 
@@ -694,8 +704,18 @@ class Game:
                 # Envia a lógica pesada para a mente brilhante do BotAI!
                 curve_intensity, jogador_no_vacuo, menor_distancia_bot = self.ai.atualizar_bots(tempo_atual)
 
-                # ATUALIZA A SUA FÍSICA
+                # Alimenta a física e IA...
                 self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
+                
+                # ---> GRAVA RECORDES DE VELOCIDADE DO PLAYER <---
+                if self.car.speed > getattr(self.car, 'velocidade_maxima_corrida', 0):
+                    self.car.velocidade_maxima_corrida = self.car.speed
+                    
+                # ---> GRAVA RECORDES DE VELOCIDADE DOS BOTS <---
+                for bot in self.bots:
+                    if bot["speed"] > bot.get("velocidade_maxima_corrida", 0):
+                        bot["velocidade_maxima_corrida"] = bot["speed"]
+
                 self.track.update_parallax(self.car.speed, curve_intensity, keys)
                 self.car.update_timer(self.track.total_track_length, self.lap_limit)
 
@@ -717,6 +737,12 @@ class Game:
 
             if self.estado_jogo == "SELECT_LAPS":
                 self.ui.desenhar_tela_voltas()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                continue
+
+            if self.estado_jogo == "DEBUG_REPORT":
+                self.ui.desenhar_tela_debug_relatorio()
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 continue
@@ -841,21 +867,63 @@ class Game:
                 self.screen.blit(texto_finish, (WIDTH//2 - texto_finish.get_width()//2, HEIGHT//2 - 100))
                 self.screen.blit(texto_rank, (WIDTH//2 - texto_rank.get_width()//2, HEIGHT//2))
                 
-                # ---> NOVO: O DELAY DE 5 SEGUNDOS <---
+                # ---> O DELAY DE 5 SEGUNDOS <---
                 if tempo_atual - self.timer_finish > 5000:
-                    # 1. CALA TODOS OS SONS DA PISTA!
                     self.car.parar_audios() 
-                    
-                    # DESLIGA A NOSSA NOVA PISCINA DE 5 CANAIS!
                     if hasattr(self, 'canais_motor_bot'):
-                        for canal in self.canais_motor_bot:
-                            canal.set_gain(0.0)
-                            try: canal.stop()
-                            except: pass
+                        for canal in self.canais_motor_bot: canal.set_gain(0.0)
 
-                    # 2. MUDA DE TELA
-                    self.estado_jogo = "RESULTADOS_CORRIDA"
+                    # ==========================================
+                    # NOVO: COMPILAÇÃO DO RELATÓRIO DE TELEMETRIA
+                    # ==========================================
+                    self.dados_relatorio_corrida = []
+                    
+                    # 1. Guarda temporariamente os dados dos bots e a distância percorrida por eles
+                    for b in self.bots:
+                        self.dados_relatorio_corrida.append({
+                            "nome": b["nome"], 
+                            "is_player": False,
+                            "pos_inicial": b["pos_inicial_grid"],
+                            "pos_final": 32, # Vai ser calculado e corrigido no passo 2!
+                            "vmax": b.get("velocidade_maxima_corrida", 0),
+                            "sorte": b.get("fator_sorte_qualificacao", 0),
+                            "distancia": b["pos"] # O Segredo: Quem tiver maior distância, ficou à frente!
+                        })
+                        
+                    # 2. Ordena os bots por quem andou mais longe
+                    self.dados_relatorio_corrida.sort(key=lambda x: x["distancia"], reverse=True)
+                    
+                    # 3. Atribui as posições oficiais (de 1º a 32º), mas SALTANDO a sua posição!
+                    posicao_atual_livre = 1
+                    for bot_data in self.dados_relatorio_corrida:
+                        # Se a posição atual for a sua, o bot fica com a posição seguinte
+                        if posicao_atual_livre == self.final_position:
+                            posicao_atual_livre += 1
+                            
+                        bot_data["pos_final"] = posicao_atual_livre
+                        posicao_atual_livre += 1
+                        
+                    # 4. Injeta o JOGADOR com a posição final e oficial dele
+                    self.dados_relatorio_corrida.append({
+                        "nome": self.nome_jogador_formatado, 
+                        "is_player": True,
+                        "pos_inicial": self.car.pos_inicial_grid,
+                        "pos_final": self.final_position, # A sua posição intocável!
+                        "vmax": self.car.velocidade_maxima_corrida,
+                        "sorte": 0 
+                    })
+                    
+                    # 5. Ordena o relatório final (Player + Bots) pela ordem de chegada para ficar bonito na tabela
+                    self.dados_relatorio_corrida.sort(key=lambda x: x["pos_final"])
+
+                    # Altera o estado do jogo para a tela de Telemetria!
+                    self.estado_jogo = "DEBUG_REPORT"
                     continue
+
+            if self.estado_jogo == "DEBUG_REPORT":
+                if event.key == pygame.K_RETURN:
+                    # Quando aperta ENTER, sai do Debug e vai para a tela de Resultados normal!
+                    self.estado_jogo = "RESULTADOS_CORRIDA"
             
             pygame.display.flip()
             self.clock.tick(FPS)

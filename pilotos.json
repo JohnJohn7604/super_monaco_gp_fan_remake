@@ -2,7 +2,7 @@
   {
     "equipe": "Madonna",
     "nome": "A. Asselin",
-    "aceleracao": 6.9,
+    "aceleracao": 7,
     "speed": 3,
     "freio": 7.5,
     "direcao": 7.0,
@@ -12,7 +12,7 @@
   {
     "equipe": "Madonna",
     "nome": "B. Rossi",
-    "aceleracao": 6.21,
+    "aceleracao": 7,
     "speed": 0,
     "freio": 7.0,
     "direcao": 6.5,
@@ -21,8 +21,8 @@
   {
     "equipe": "Firenze",
     "nome": "F. Elsser",
-    "aceleracao": 5.52,
-    "speed": 2,
+    "aceleracao": 7,
+    "speed": 3,
     "freio": 1.2,
     "direcao": 1.2,
     "cor_capacete": [255, 128, 0],
@@ -31,7 +31,7 @@
   {
     "equipe": "Firenze",
     "nome": "L. Bianchi",
-    "aceleracao": 4.83,
+    "aceleracao": 6.8,
     "speed": 2,
     "freio": 1.2,
     "direcao": 1.2,
@@ -41,7 +41,7 @@
   {
     "equipe": "Millions",
     "nome": "G. Alberti",
-    "aceleracao": 4.83,
+    "aceleracao": 6.8,
     "speed": 2,
     "freio": 1.2,
     "direcao": 1.2,
@@ -51,7 +51,7 @@
   {
     "equipe": "Millions",
     "nome": "H. Clark",
-    "aceleracao": 4.83,
+    "aceleracao": 6.8,
     "speed": 3,
     "freio": 0,
     "direcao": 0,
@@ -61,7 +61,7 @@
   {
     "equipe": "Bestowal",
     "nome": "A. Picos",
-    "aceleracao": 4.83,
+    "aceleracao": 6.8,
     "speed": 2,
     "freio": 1.2,
     "direcao": 1.2,
@@ -71,7 +71,7 @@
   {
     "equipe": "Bestowal",
     "nome": "R. Silva",
-    "aceleracao": 4.83,
+    "aceleracao": 6.8,
     "speed": 0,
     "freio": 0,
     "direcao": 0,
@@ -81,7 +81,7 @@
   {
     "equipe": "Blanche",
     "nome": "J.Herbin",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 4,
     "freio": 1.2,
     "direcao": 1.2,
@@ -91,7 +91,7 @@
   {
     "equipe": "Blanche",
     "nome": "T.Dubois",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 8,
     "freio": 1.2,
     "direcao": 1.2,
@@ -101,7 +101,7 @@
   {
     "equipe": "Tyrant",
     "nome": "M. Hamano",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 10,
     "freio": 1.2,
     "direcao": 1.2,
@@ -111,7 +111,7 @@
   {
     "equipe": "Tyrant",
     "nome": "K. Sato",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 6,
     "freio": 1.2,
     "direcao": 1.2,
@@ -121,7 +121,7 @@
   {
     "equipe": "Losel",
     "nome": "E. Pacheco",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -131,7 +131,7 @@
   {
     "equipe": "Losel",
     "nome": "J. Gomez",
-    "aceleracao": 4.14,
+    "aceleracao": 6.8,
     "speed": 6,
     "freio": 1.2,
     "direcao": 1.2,
@@ -142,7 +142,7 @@
   {
     "equipe": "May",
     "nome": "G. Turner",
-    "aceleracao": 4.5,
+    "aceleracao": 6.8,
     "speed": 10,
     "freio": 1.2,
     "direcao": 1.2,
@@ -152,7 +152,7 @@
   {
     "equipe": "May",
     "nome": "F.Jones",
-    "aceleracao": 4.5,
+    "aceleracao": 6.8,
     "speed": 9,
     "freio": 1.2,
     "direcao": 1.2,
@@ -162,7 +162,7 @@
   {
     "equipe": "Bullets",
     "nome": "B. Miller",
-    "aceleracao": 3.75,
+    "aceleracao": 6.8,
     "speed": 6,
     "freio": 1.2,
     "direcao": 1.2,
@@ -172,7 +172,7 @@
   {
     "equipe": "Bullets",
     "nome": "C. Davis",
-    "aceleracao": 3.75,
+    "aceleracao": 6.8,
     "speed": 8,
     "freio": 1.2,
     "direcao": 1.2,
@@ -182,7 +182,7 @@
   {
     "equipe": "Dardan",
     "nome": "P. Marino",
-    "aceleracao": 3.75,
+    "aceleracao": 6.8,
     "speed": 6,
     "freio": 1.2,
     "direcao": 1.2,
@@ -192,7 +192,7 @@
   {
     "equipe": "Dardan",
     "nome": "E. Bellini",
-    "aceleracao": 3.75,
+    "aceleracao": 6.8,
     "speed": 10,
     "freio": 1.2,
     "direcao": 1.2,
@@ -202,7 +202,7 @@
   {
     "equipe": "Linden",
     "nome": "M. Moreau",
-    "aceleracao": 3.75,
+    "aceleracao": 6.8,
     "speed": 6,
     "freio": 1.2,
     "direcao": 1.2,
@@ -212,7 +212,7 @@
   {
     "equipe": "Linden",
     "nome": "A. Laurent",
-    "aceleracao": 3.75,
+    "aceleracao": 6.7,
     "speed": 9,
     "freio": 1.2,
     "direcao": 1.2,
@@ -222,8 +222,8 @@
   {
     "equipe": "Minarae",
     "nome": "G. Ceara",
-    "aceleracao": 7.5,
-    "speed": 11,
+    "aceleracao": 6.8,
+    "speed": 8,
     "freio": 1.2,
     "direcao": 1.2,
     "cor_capacete": [255, 128, 0],
@@ -232,8 +232,8 @@
   {
     "equipe": "Minarae",
     "nome": "R. Mendes",
-    "aceleracao": 4,
-    "speed": 6,
+    "aceleracao": 0,
+    "speed": 0,
     "freio": 1.2,
     "direcao": 1.2,
     "cor_capacete": [255, 128, 0],

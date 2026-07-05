@@ -116,3 +116,67 @@ class MenuUI:
 
         instrucao = self.fonte_inst.render("UP/DOWN: Change | ENTER: Select", True, (255, 50, 50))
         self.game.screen.blit(instrucao, (WIDTH // 2 - instrucao.get_width() // 2, HEIGHT - 60))
+
+    def desenhar_tela_debug_relatorio(self):
+        # Fundo escuro de modo hacker/desenvolvedor
+        self.game.screen.fill((10, 20, 15))
+        
+        # Título
+        titulo = self.fonte_subtitulo.render("RACE TELEMETRY REPORT (DEBUG MODE)", True, (0, 255, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 20))
+        
+        # Cabeçalho da Tabela
+        # Alinhamento por colunas (X fixo)
+        colunas = ["PILOTO", "GRID", "FINAL", "DIF", "MAX KM/H", "SORTE"]
+        x_posicoes = [40, 250, 350, 450, 550, 700]
+        
+        for col, x in zip(colunas, x_posicoes):
+            txt_h = self.fonte_inst.render(col, True, (255, 255, 0))
+            self.game.screen.blit(txt_h, (x, 70))
+            
+        pygame.draw.line(self.game.screen, (0, 255, 0), (30, 95), (WIDTH - 30, 95), 2)
+        
+        # Lista os 15 primeiros pilotos para caber perfeitamente na tela (pode rolar se quiser no futuro)
+        # Vamos desenhar uma linha para cada um
+        y_inicial = 110
+        espacamento_y = 26
+        
+        # Pegamos os dados guardados no fim da corrida
+        relatorio = getattr(self.game, 'dados_relatorio_corrida', [])
+        
+        for idx, dados in enumerate(relatorio[:16]): # Mostra o Top 16
+            y = y_inicial + (idx * espacamento_y)
+            
+            # Define a cor do texto (Verde se for o Player, Branco para os Bots)
+            cor_linha = (0, 255, 255) if dados["is_player"] else (200, 220, 200)
+            
+            # Calcula a diferença de posições (se subiu ou desceu no grid)
+            dif = dados["pos_inicial"] - dados["pos_final"]
+            if dif > 0: txt_dif = f"+{dif}"
+            elif dif < 0: txt_dif = f"{dif}"
+            else: txt_dif = "="
+            
+            # Renderiza cada coluna
+            txt_nome = self.fonte_inst.render(f"{idx+1}. {dados['nome'][:12]}", True, cor_linha)
+            txt_grid = self.fonte_inst.render(f"{dados['pos_inicial']}º", True, cor_linha)
+            txt_final = self.fonte_inst.render(f"{dados['pos_final']}º", True, cor_linha)
+            
+            # Cor da diferença (Verde para subiu, Vermelho para caiu)
+            cor_dif = (0, 255, 0) if dif > 0 else ((255, 50, 50) if dif < 0 else (150, 150, 150))
+            txt_dif_img = self.fonte_inst.render(txt_dif, True, cor_dif)
+            
+            txt_vmax = self.fonte_inst.render(f"{int(dados['vmax'])} km/h", True, cor_linha)
+            # Adicionamos o int() para garantir que é um número inteiro antes de formatar!
+            txt_sorte = self.fonte_inst.render(f"{int(dados['sorte']):+d}", True, (255, 150, 0))
+            
+            # Desenha no ecrã
+            self.game.screen.blit(txt_nome, (x_posicoes[0], y))
+            self.game.screen.blit(txt_grid, (x_posicoes[1], y))
+            self.game.screen.blit(txt_final, (x_posicoes[2], y))
+            self.game.screen.blit(txt_dif_img, (x_posicoes[3], y))
+            self.game.screen.blit(txt_vmax, (x_posicoes[4], y))
+            self.game.screen.blit(txt_sorte, (x_posicoes[5], y))
+
+        # Rodapé
+        instrucao = self.fonte_inst.render("PRESS ENTER TO VIEW CHAMPIONSHIP POINTS", True, (0, 255, 0))
+        self.game.screen.blit(instrucao, (WIDTH // 2 - instrucao.get_width() // 2, HEIGHT - 40))
