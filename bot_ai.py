@@ -56,13 +56,13 @@ class BotAI:
             # O bot percebe que você está bloqueando a frente dele ANTES de acelerar!
             jogador_na_pista = -1.0 <= carro_jogador.player_x <= 1.0
             #distancia freio bot
-            if -13 < dist_relativa < 0 and jogador_na_pista:
+            if -8 < dist_relativa < 0 and jogador_na_pista:
                 #hitbox horizontal da minha asa traseira
                 if abs(bot["x"] - carro_jogador.player_x) < 0.72:
                     # FREADA MUITO MAIS SUAVE E REALISTA (de 0.9 para 0.98) O multiplicador 0.98 faz 
                     # com que o bot apenas "tire o pé do acelerador", igualando-se quase perfeitamente à 
                     # sua velocidade (ele vai ficar apenas 2% mais lento que você,
-                    target_speed = min(target_speed, max(130, carro_jogador.speed * 0.95))
+                    target_speed = min(target_speed, max(130, carro_jogador.speed * 0.96))
 
             # O PEDAL DE FREIO
             if bot["speed"] > target_speed:

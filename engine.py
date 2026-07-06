@@ -371,8 +371,8 @@ class Game:
         # 1. Aplica um fator de Sorte/Azar na volta de qualificação de cada bot
         for bot in bots_temporarios:
             # O bot pode ganhar ou perder até 35 "pontos de força" neste dia.
-            # (Um carro de Classe B com +5 de sorte ultrapassa um Classe S com -5 de azar!)
-            fator_sorte = random.randint(-5, 5)
+            # (Um carro de Classe B com +8 de sorte ultrapassa um Classe S com -8 de azar!)
+            fator_sorte = random.randint(-8, 8)
             bot["forca_qualificacao"] = bot["forca_total"] + fator_sorte
 
         # 2. Ordena os bots do mais rápido para o mais lento com base na sua volta "sorteada"

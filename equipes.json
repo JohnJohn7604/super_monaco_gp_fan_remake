@@ -1,7 +1,7 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 366,
+        "velocidade_base": 370,
         "aceleracao": 3.45,
         "direcao": 3,
         "pasta": "madonna",
@@ -15,7 +15,7 @@
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 366,
+        "velocidade_base": 370,
         "aceleracao": 3.3,
         "direcao": 3,
         "pasta": "firenze",
@@ -33,7 +33,7 @@
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 366,
+        "velocidade_base": 369,
         "aceleracao": 3.2,
         "direcao": 3,
         "pasta": "millions",
@@ -51,7 +51,7 @@
     },
     "Bestowal": {
         "classe": "A",
-        "velocidade_base": 366,
+        "velocidade_base": 369,
         "aceleracao": 3.1,
         "direcao": 3,
         "pasta": "bestowal",
@@ -69,7 +69,7 @@
     },
     "Blanche": {
         "classe": "B",
-        "velocidade_base": 365,
+        "velocidade_base": 368,
         "aceleracao": 3,
         "direcao": 2,
         "pasta": "blanche",
@@ -87,7 +87,7 @@
     },
     "Tyrant": {
         "classe": "B",
-        "velocidade_base": 365,
+        "velocidade_base": 368,
         "aceleracao": 2.9,
         "direcao": 2,
         "pasta": "tyrant",
@@ -105,7 +105,7 @@
     },
     "Losel": {
         "classe": "B",
-        "velocidade_base": 364,
+        "velocidade_base": 367,
         "aceleracao": 2.8,
         "direcao": 2,
         "pasta": "Losel",
@@ -123,7 +123,7 @@
     },
     "May": {
         "classe": "B",
-        "velocidade_base": 364,
+        "velocidade_base": 367,
         "aceleracao": 2.7,
         "direcao": 2,
         "pasta": "may",
@@ -141,7 +141,7 @@
     },
     "Bullets": {
         "classe": "C",
-        "velocidade_base": 363,
+        "velocidade_base": 366,
         "aceleracao": 2.65,
         "direcao": 1,
         "pasta": "bullets",
@@ -159,7 +159,7 @@
     },
     "Dardan": {
         "classe": "C",
-        "velocidade_base": 363,
+        "velocidade_base": 365,
         "aceleracao": 2.7,
         "direcao": 1,
         "pasta": "dardan",
@@ -177,7 +177,7 @@
     },
     "Linden": {
         "classe": "C",
-        "velocidade_base": 363,
+        "velocidade_base": 364,
         "aceleracao": 2.5,
         "direcao": 1,
         "pasta": "linden",
@@ -231,8 +231,8 @@
     },
     "Orchis": {
         "classe": "D",
-        "velocidade_base": 361,
-        "aceleracao": 2.3,
+        "velocidade_base": 362,
+        "aceleracao": 2.2,
         "direcao": 0.8,
         "pasta": "orchis",
         "forca_marchas": [1.3538, 1.083, 0.8574, 0.6769, 0.5595, 0.4422, 0.37],
@@ -250,7 +250,7 @@
     "Comet": {
         "classe": "D",
         "velocidade_base": 362,
-        "aceleracao": 2.2,
+        "aceleracao": 2.1,
         "direcao": 0.8,
         "pasta": "comet",
         "forca_marchas": [1.3267, 1.0613, 0.8403, 0.6634, 0.5483, 0.4334, 0.3626],
@@ -268,7 +268,7 @@
     "Zeroforce": {
         "classe": "D",
         "velocidade_base": 362,
-        "aceleracao": 2.25,
+        "aceleracao": 2.1,
         "direcao": 0.8,
         "pasta": "zeroforce",
         "forca_marchas": [1.3134, 1.0507, 0.8319, 0.6568, 0.5428, 0.4291, 0.359],
