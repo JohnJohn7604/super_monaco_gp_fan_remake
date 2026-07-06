@@ -27,7 +27,7 @@ class Car:
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        self.max_speed = velocidade_maxima * 0.9519
+        self.max_speed = velocidade_maxima 
         
         # 2. Ajuste Dinâmico de Aceleração (A Mágica)
         # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
