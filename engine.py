@@ -486,14 +486,9 @@ class Game:
 
         # 5. DESENHA O COCKPIT POR CIMA DE TUDO
         self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
-        
-    def run(self):
-        fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
-        while True:
-            tempo_atual = pygame.time.get_ticks()
-            keys = pygame.key.get_pressed()
 
-            # ==========================================
+    def eventos_teclado(self):
+        # ==========================================
             # 1. LOOP DE EVENTOS (Teclado para Menus)
             # ==========================================
             for event in pygame.event.get():
@@ -570,6 +565,11 @@ class Game:
                             self.iniciar_corrida("rio")
                             self.estado_jogo = "LOADING" # <--- VAI PARA AS PISTAS
 
+                    elif self.estado_jogo == "DEBUG_REPORT":
+                        if event.key == pygame.K_RETURN:
+                            # Quando aperta ENTER, sai do Debug e vai para a tela de Resultados normal!
+                            self.estado_jogo = "RESULTADOS_CORRIDA"
+
                     # ------------------------------------------
                     # TELA 5: TELA DE RESULTADOS (FIM DA CORRIDA)
                     # ------------------------------------------
@@ -601,20 +601,21 @@ class Game:
                             # 3. Devolve o jogador para o início do jogo (Digitar Nome)
                             self.estado_jogo = "INPUT_NAME"
 
-            # ==========================================
+    def telas_menu(self, fonte_menu):
+        # ==========================================
             # 2. RENDERIZAÇÃO DOS MENUS (AS TRAVAS ANTI-CRASH)
             # ==========================================
             if self.estado_jogo == "INPUT_NAME":
                 self.ui.desenhar_tela_nome()  # <--- Agora puxa do ui.py!
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue 
+                return True 
 
             if self.estado_jogo == "SELECT_POS":
                 self.ui.desenhar_tela_posicao() # <--- Agora puxa do ui.py!
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue
+                return True
 
             # ==========================================
             # GAVETA NOVA: TELA DE LOADING
@@ -632,11 +633,11 @@ class Game:
                 # 3. Terminou de carregar? Inicia o relógio do GO! e vai para a pista
                 self.timer_countdown = pygame.time.get_ticks()
                 self.estado_jogo = "COUNTDOWN"
-                continue
+                return True
                 
                 # 4. Desenha o cockpit
-                posicao_inicial = 1 + sum(1 for bot in self.bots if bot["pos"] > self.car.position)
-                self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_inicial)
+                #posicao_inicial = 1 + sum(1 for bot in self.bots if bot["pos"] > self.car.position)
+                #self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_inicial)
                 
 
             # ==========================================
@@ -665,12 +666,12 @@ class Game:
                         
                     self.screen.blit(img_txt, (x, y))
                     
-                aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
+                aviso = fonte_lista.render("PRESS ENTER TO return True", True, (255, 0, 0))
                 self.screen.blit(aviso, (WIDTH//2 - aviso.get_width()//2, HEIGHT - 50))
                 
                 pygame.display.flip()
                 self.clock.tick(FPS)
-                continue
+                return True
 
             # ==========================================
             # GAVETA 3: TELA DAS CONSTRUTORAS
@@ -692,6 +693,16 @@ class Game:
                 aviso = fonte_lista.render("PRESS ENTER TO RETURN TO MENU", True, (255, 0, 0))
                 self.screen.blit(aviso, (WIDTH//2 - aviso.get_width()//2, HEIGHT - 50))
                 
+        
+    def run(self):
+        fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
+        while True:
+            tempo_atual = pygame.time.get_ticks()
+            keys = pygame.key.get_pressed()
+
+            self.eventos_teclado()
+            
+            if self.telas_menu(fonte_menu):
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 continue
@@ -919,11 +930,6 @@ class Game:
                     # Altera o estado do jogo para a tela de Telemetria!
                     self.estado_jogo = "DEBUG_REPORT"
                     continue
-
-            if self.estado_jogo == "DEBUG_REPORT":
-                if event.key == pygame.K_RETURN:
-                    # Quando aperta ENTER, sai do Debug e vai para a tela de Resultados normal!
-                    self.estado_jogo = "RESULTADOS_CORRIDA"
             
             pygame.display.flip()
             self.clock.tick(FPS)
