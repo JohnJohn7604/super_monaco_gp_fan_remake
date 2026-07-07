@@ -1,0 +1,321 @@
+[
+  {
+    "equipe": "Madonna",
+    "nome": "A. Asselin",
+    "aceleracao": 5,
+    "speed": 15,
+    "freio": 7.5,
+    "direcao": 7.0,
+    "cor_capacete": [255, 255, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Madonna",
+    "nome": "B. Rossi",
+    "aceleracao": 5,
+    "speed": 15,
+    "freio": 7.0,
+    "direcao": 6.5,
+    "cor_capacete": [255, 0, 0]
+  },
+  {
+    "equipe": "Firenze",
+    "nome": "F. Elsser",
+    "aceleracao": 5,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Firenze",
+    "nome": "L. Bianchi",
+    "aceleracao": 4.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Millions",
+    "nome": "G. Alberti",
+    "aceleracao": 4.9,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Millions",
+    "nome": "H. Clark",
+    "aceleracao": 4.8,
+    "speed": 15,
+    "freio": 0,
+    "direcao": 0,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Bestowal",
+    "nome": "A. Picos",
+    "aceleracao": 4.9,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Bestowal",
+    "nome": "R. Silva",
+    "aceleracao": 4.8,
+    "speed": 15,
+    "freio": 0,
+    "direcao": 0,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Blanche",
+    "nome": "J.Herbin",
+    "aceleracao": 3.9,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Blanche",
+    "nome": "T.Dubois",
+    "aceleracao": 3.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Tyrant",
+    "nome": "M. Hamano",
+    "aceleracao": 3.9,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Tyrant",
+    "nome": "K. Sato",
+    "aceleracao": 3.7,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Losel",
+    "nome": "E. Pacheco",
+    "aceleracao": 3.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Losel",
+    "nome": "J. Gomez",
+    "aceleracao": 3.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "May",
+    "nome": "G. Turner",
+    "aceleracao": 3.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "May",
+    "nome": "F.Jones",
+    "aceleracao": 3.6,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Bullets",
+    "nome": "B. Miller",
+    "aceleracao": 2.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Bullets",
+    "nome": "C. Davis",
+    "aceleracao": 3,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Dardan",
+    "nome": "P. Marino",
+    "aceleracao": 4,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Dardan",
+    "nome": "E. Bellini",
+    "aceleracao": 3.8,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Linden",
+    "nome": "M. Moreau",
+    "aceleracao": 3,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Linden",
+    "nome": "A. Laurent",
+    "aceleracao": 3,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Minarae",
+    "nome": "G. Ceara",
+    "aceleracao": 4.8,
+    "speed": 17,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Minarae",
+    "nome": "R. Mendes",
+    "aceleracao": 3,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Rigel",
+    "nome": "R. Cotman",
+    "aceleracao": 2.6,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Rigel",
+    "nome": "D. Evans",
+    "aceleracao": 2,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Orchis",
+    "nome": "E. Tornio",
+    "aceleracao": 2,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Orchis",
+    "nome": "S. Virtanen",
+    "aceleracao": 2,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Comet",
+    "nome": "G. Tecgner",
+    "aceleracao": 1,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Comet",
+    "nome": "V. Kovac",
+    "aceleracao": 1,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Zeroforce",
+    "nome": "P. Klinger",
+    "aceleracao": 1.2,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  },
+  {
+    "equipe": "Zeroforce",
+    "nome": "A. Kruger",
+    "aceleracao": 1,
+    "speed": 15,
+    "freio": 1.2,
+    "direcao": 1.2,
+    "cor_capacete": [255, 128, 0],
+    "pais": "frança"
+  }
+]

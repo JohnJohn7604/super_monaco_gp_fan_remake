@@ -19,30 +19,40 @@ class Car:
         self.best_lap_time = 0
 
         # ==========================================
-        # FÍSICA DINÂMICA DO MOTOR 
+        # FÍSICA DINÂMICA DO MOTOR (COM HANDICAP DO PLAYER)
         # ==========================================
         self.speed = 0
+        
+        # 1. Ajuste de Velocidade Máxima HANDCAP
+        # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
+        # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
+        # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
         self.max_speed = velocidade_maxima 
-        self.nivel_aceleracao = nivel_aceleracao 
+        
+        # 2. Ajuste Dinâmico de Aceleração (A Mágica)
+        # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
+        # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
+        # Fórmula: Base de 35% + 1% por cada nível da equipe.
+        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.006)
+        
+        # Trava de segurança para nunca passar de 100% dos status originais
+        
+        
+        self.nivel_aceleracao = nivel_aceleracao * fator_nerf_acel
         # === NOVOS ATRIBUTOS ===
         # Nível 1: Freio fraco (0.5) | Nível 7: Freio de cerâmica (1.4)
         self.brake_power = 0.35 + (nivel_freio * 0.15) 
         
-        # ==========================================
-        # NOVO SISTEMA DE DIREÇÃO (INÉRCIA / ATRASO)
-        # ==========================================
-        # A velocidade final da curva é igual para todos (para ngm ficar travado)
-        self.max_steering = 0.04 
         
         # A inércia atual (começa em 0)
         self.current_steering = 0.1 
 
         # ==========================================
-        # PROPRIEDADES DE DIREÇÃO (ADICIONAR AQUI)
+        # PROPRIEDADES DE DIREÇÃO (CORRIGIDO)
         # ==========================================
-        self.steering = 0.0         # <--- NOVA: Garante que o volante comece reto!
-        self.max_steering = 0.17     # Ângulo máximo de curva padrão
-        self.steering_speed = (nivel_direcao / 100) * 1.3   # Velocidade padrão de resposta
+        self.steering = 0.0          # Garante que o volante comece reto
+        self.max_steering = 0.04     # <--- NOVA: Limite base de ângulo (Evita travar em 0)
+        self.steering_speed = 0.1    # <--- NOVA: Velocidade de resposta base
         
         # Variável para o som do motor no neutro (Largada)
         self.rpm_neutro = 0
@@ -68,7 +78,7 @@ class Car:
             6: self.max_speed * 0.90,
             7: self.max_speed * 1.05  
         }
-        self.torque_marchas = {1: 1.5, 2: 0.5, 3: 0.5, 4: 0.3, 5: 0.25, 6: 0.25, 7: 0.18}
+        self.torque_marchas = {1: 1.5, 2: 1.2, 3: 1.0, 4: 0.85, 5: 0.75, 6: 0.62, 7: 0.62}
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
@@ -152,7 +162,7 @@ class Car:
         tamanho_pneu = (133, 80)    
         tamanho_retrovisor = (int(WIDTH // 1.5), 120)
         
-        pasta_time = f"images/cars/{pasta_equipe}/cockpit"
+        pasta_time = f"images/cockpit"
         pasta_base = "images/cockpit"
         
         def pegar_img(nome_arquivo, tamanho):
@@ -224,11 +234,18 @@ class Car:
             # O motor tenta empurrar o carro para frente
             forca_motor = self.torque_marchas[self.marcha_atual]
             
-            # --- A MÁGICA DA ACELERAÇÃO (Níveis 1 a 7) ---
-            # Fórmula: Nível 1 = 80% de força | Nível 7 = 140% de força
-            multiplicador_potencia = 0.7 + (self.nivel_aceleracao * 0.1)
+            multiplicador_potencia = 0.4 + (self.nivel_aceleracao * 0.22)
             
-            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / self.max_speed))
+            # --- A MÁGICA DA ACELERAÇÃO NO VÁCUO ---
+            # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
+            vel_referencia = self.max_speed + 10 if no_vacuo else self.max_speed
+            
+            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / vel_referencia))
+            
+            # O Vácuo tira a resistência do ar: aceleração aumenta 20% para sugar o carro!
+            if no_vacuo and self.speed > 300:
+                taxa_aceleracao *= 1.6
+                
             self.speed += taxa_aceleracao
             
             # A grama "agarra" os pneus
@@ -239,20 +256,24 @@ class Car:
             atrito_terreno = 1.2 if na_grama else (0.05 + (self.speed / self.max_speed) * 0.2)
             self.speed -= atrito_terreno 
 
-        # --- Limites e Corte de Giro ---
+        # ==========================================
+        # LIMITES, CORTE DE GIRO E PAREDE DE VENTO
+        # ==========================================
         limite_atual = self.limite_marchas[self.marcha_atual]
         
-        # MÁGICA DO VÁCUO: O limite da marcha estica se você estiver no vácuo!
+        # MÁGICA DO VÁCUO: O teto da última marcha sobe os exatos 15 km/h
         if no_vacuo and self.marcha_atual == self.max_marchas:
-            limite_atual += 15
+            limite_atual += 30
 
         if not na_grama and self.speed > limite_atual:
             if no_vacuo:
-                # Trava suave no teto do vácuo
+                # Trava cravada no teto do vácuo (+15)
                 self.speed = limite_atual 
             else:
-                # SAIU DO VÁCUO: O vento bate e a velocidade cai aos poucos (efeito realista!)
-                self.speed -= 0.6 
+                # SAIU DO VÁCUO: A resistência do ar bate como uma parede!
+                # O carro perde velocidade super rápido (-1.2 por frame) até voltar ao limite normal.
+                self.speed -= 0.8
+                
         elif na_grama and self.speed > 120:
             # Tentar voar na grama faz os pneus derraparem em falso (Perde muita velocidade)
             self.speed -= 1.5 
@@ -275,7 +296,7 @@ class Car:
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
             # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
-            forca_centrifuga = (percentual_vel ** 2) * curve_intensity * 2.8
+            forca_centrifuga = (percentual_vel ** 1.04) * curve_intensity * 1.4
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
@@ -294,28 +315,29 @@ class Car:
             target_steering = 0.0
             
             # =========================================================
-            # CONTROLE DE DIREÇÃO DO JOGADOR COM ATRAZO/DELAY DINÂMICO
+            # CONTROLE DE DIREÇÃO DO JOGADOR COM RETORNO DINÂMICO
             # =========================================================
             if keys[pygame.K_LEFT]: 
                 target_steering = -self.max_steering
+                self.steering += (target_steering - self.steering) * self.steering_speed
             elif keys[pygame.K_RIGHT]: 
                 target_steering = self.max_steering
+                self.steering += (target_steering - self.steering) * self.steering_speed
             else:
                 target_steering = 0.0
-                # --- O FIM DO GELO ---
-                # Quando solta o botão, multiplicamos por 3.5 a velocidade de retorno!
-                # Isso faz a física do pneu travar no asfalto no exato momento em que o desenho centraliza.
+                # Quando solta o botão, o retorno é 3.5x mais rápido (Fim do efeito gelo)
                 self.steering += (target_steering - self.steering) * (self.steering_speed * 3.5)
 
-            # --- A MÁGICA DO DELAY POR EQUIPE ---
-            # self.steering_speed agora atua como o filtro de atraso. 
-            # Valores menores (ex: 0.05) fazem o volante demorar múltiplos frames para virar completamente.
-            # Valores maiores (ex: 0.25) tornam a resposta instantânea (como na Madonna).
-            self.steering += (target_steering - self.steering) * self.steering_speed
-
-            # Aplica o movimento lateral baseado na velocidade atual do carro
+            # --- A MÁGICA DA AGILIDADE LATERAL (CORRIGIDA) ---
+            # Desvinculamos a direção pura da aceleração do motor!
             percentual_vel = self.speed / self.max_speed
-            self.player_x += self.steering * percentual_vel * 0.8
+            
+            # Criamos uma curva suave: O carro tem sempre pelo menos 45% de agilidade garantida 
+            # pelas molas da suspensão, mais o bónus da velocidade atual.
+            fator_esterco = 0.45 + (percentual_vel * 0.55) 
+            
+            # Aplica o movimento lateral
+            self.player_x += self.steering * fator_esterco * 1.35
             
         elif steering_locked:
             self.current_steering = 0
@@ -381,15 +403,79 @@ class Car:
             # Só atualiza a afinação se o som estiver alto o suficiente para ouvir
             if volume_final > 0.01: 
                 self.skid_sound.set_pitch(pitch_alvo)
-    
-    def ajustar_atributos_equipe(self, direcao_equipe):
-        # --- CALIBRAÇÃO DO DELAY DO VOLANTE ---
-        # Se direcao_equipe for 6.5 (Madonna), steering_speed será 0.05 + 0.13 = 0.18 (Muito rápido, quase sem delay)
-        # Se direcao_equipe for 2.5 (Zeroforce), steering_speed será 0.05 + 0.05 = 0.10 (O volante vai parecer uma "banheira", demorando a responder)
-        self.steering_speed = 0.05 + (direcao_equipe * 0.02)
+
+    def tingir_carroceria(self, superficie, mapa_cor):
+        """
+        Algoritmo de Substituição de Paleta Cirúrgico.
+        Encontra os 4 tons exatos de azul do PNG original e substitui-os
+        pela paleta personalizada da equipa definida no JSON.
+        """
+        if not superficie or not mapa_cor:
+            return superficie
+            
+        # Cria uma cópia e garante que o formato de pixel suporta indexação de cores
+        imagem_nova = superficie.copy()
         
-        # Define o ângulo máximo que o chassi consegue atingir na curva
+        # 1. Definição dos 4 azuis fixos do PNG original (em RGB)
+        azul_puro     = (0, 0, 255)       # 0000FF
+        azul_escuro   = (0, 0, 148)       # 000094
+        azul_medio    = (106, 148, 189)   # 6A94BD
+        azul_claro    = (189, 222, 255)   # BDDEFF
+        
+        # 2. Extração das novas cores mapeadas vindas do JSON
+        nova_pura   = tuple(mapa_cor.get("puro", [0, 0, 255]))
+        nova_escura = tuple(mapa_cor.get("escuro", [0, 0, 148]))
+        nova_media  = tuple(mapa_cor.get("medio", [106, 148, 189]))
+        nova_clara  = tuple(mapa_cor.get("claro", [189, 222, 255]))
+        
+        conversoes = {
+            azul_puro: nova_pura,
+            azul_escuro: nova_escura,
+            azul_medio: nova_media,
+            azul_claro: nova_clara
+        }
+        
+        # Abrimos o PixelArray
+        px_array = pygame.PixelArray(imagem_nova)
+        
+        for cor_antiga, cor_nova in conversoes.items():
+            cor_antiga_mapeada = imagem_nova.map_rgb(cor_antiga)
+            cor_nova_mapeada = imagem_nova.map_rgb(cor_nova)
+            
+            # Executa a substituição em lote dos inteiros de 32 bits
+            px_array.replace(cor_antiga_mapeada, cor_nova_mapeada)
+            
+        px_array.close()
+        return imagem_nova
+
+    def ajustar_atributos_equipe(self, dados_equipe):
+        """
+        Atualiza as propriedades do carro com base no JSON da equipe.
+        """
+        direcao_equipe = dados_equipe.get("direcao", 3.0)
+        self.steering_speed = 0.05 + (direcao_equipe * 0.02)
         self.max_steering = 0.025 + (direcao_equipe * 0.003)
+        
+        lista_marchas = dados_equipe.get("forca_marchas", [1.6, 1.3, 1.05, 0.88, 0.75, 0.65, 0.58])
+        
+        self.forca_marchas = {
+            1: lista_marchas[0],
+            2: lista_marchas[1],
+            3: lista_marchas[2],
+            4: lista_marchas[3],
+            5: lista_marchas[4],
+            6: lista_marchas[5],
+            7: lista_marchas[6]
+        }
+
+        # --- CORREGIDO: LEITURA COMPATÍVEL COM O SCRIPT ---
+        mapa_cor = dados_equipe.get("mapa_cor", None)
+        
+        if mapa_cor:
+            # Aplica o tingimento usando a cópia modificada
+            self.volante_reto = self.tingir_carroceria(self.volante_reto, mapa_cor)
+            self.volantes_esq = [self.tingir_carroceria(v, mapa_cor) for v in self.volantes_esq]
+            self.volantes_dir = [self.tingir_carroceria(v, mapa_cor) for v in self.volantes_dir]
 
     def acelerar_neutro(self, keys):
         # Simula o giro do motor (RPM) subindo e caindo no neutro
@@ -483,13 +569,17 @@ class Car:
         centro_relogio_x, centro_relogio_y = margem + 150, margem + 120
         
         # --- A MÁGICA DO RPM ---
-        # RPM é a porcentagem da sua velocidade atual em relação ao limite da marcha engatada.
         limite_atual = self.limite_marchas[self.marcha_atual]
-        porcentagem_rpm = self.speed / limite_atual
         
-        # Marcha lenta (Idle): O ponteiro nunca cai para o zero absoluto se o carro estiver parado
-        if self.speed == 0:
-            porcentagem_rpm = 0.1 
+        # Se a velocidade for 0 (no Countdown), o ponteiro lê o giro falso do motor!
+        if self.speed == 0 and hasattr(self, 'rpm_neutro'):
+            porcentagem_rpm = self.rpm_neutro / self.max_speed
+        else:
+            porcentagem_rpm = self.speed / limite_atual
+            
+        # Marcha lenta (Idle): O ponteiro nunca cai para o zero absoluto
+        if porcentagem_rpm < 0.1:
+            porcentagem_rpm = 0.1
             
         # Trava de segurança: Se o carro embalar numa descida além da marcha, o ponteiro não dá uma volta de 360º!
         porcentagem_rpm = min(1.05, porcentagem_rpm) 
@@ -601,26 +691,29 @@ class Car:
             pygame.draw.polygon(mini_screen, color_road, [(centro_near - width_near, y_near), (centro_near + width_near, y_near), (centro_far + width_far, y_far), (centro_far - width_far, y_far)])
             pygame.draw.polygon(mini_screen, color_zebra, [(centro_near - width_near - (width_near*0.2), y_near), (centro_near - width_near, y_near), (centro_far - width_far, y_far), (centro_far - width_far - (width_far*0.2), y_far)])
             pygame.draw.polygon(mini_screen, color_zebra, [(centro_near + width_near, y_near), (centro_near + width_near + (width_near*0.2), y_near), (centro_far + width_far + (width_far*0.2), y_far), (centro_far + width_far, y_far)])
-
-            # --- MÁGICA 3: RENDERIZAÇÃO DOS BOTS SEM "PICAR" ---
+            
+            # --- MÁGICA 3: RENDERIZAÇÃO DOS BOTS NO RETROVISOR ---
             for dist, bot in bots_no_espelho:
                 if int(dist) == n:
-                    # Aumentamos a zona morta para 0.4. 
-                    # O bot só vira de lado se estiver realmente bem longe do seu centro.
-                    diferenca_x = bot["x"] - self.player_x
-                    if diferenca_x < -0.7: direcao = "esq"
-                    elif diferenca_x > 0.7: direcao = "dir"
-                    else: direcao = "reto"
+                    # ---> LÊ A FÍSICA REAL DO VOLANTE DO BOT <---
+                    # O ".get" pega o valor do steer_real que criámos no main.py
+                    forca_volante = bot.get("steer_real", 0)
+                    
+                    # Se ele estiver fazendo força real para mudar de faixa, vira o sprite!
+                    if forca_volante < -0.15: 
+                        direcao = "esq"  # Ele está virando fisicamente para a esquerda
+                    elif forca_volante > 0.15: 
+                        direcao = "dir"  # Ele está virando fisicamente para a direita
+                    else: 
+                        direcao = "reto" # Ele está com o volante reto na pista
                     
                     chave = f"front_{direcao}"
                     img = None
                     
-                    # CORREÇÃO: Primeiro procura a pasta (equipe), depois a direção, depois o frame!
                     if bot_sprites and bot["pasta"] in bot_sprites:
-                        img = bot_sprites[bot["pasta"]][chave][bot["frame_idx"]]
+                        img = bot_sprites[bot["pasta"]][chave][bot.get("frame_idx", 0)]
                     
                     if img:
-                        # Matemática de altura fixa (sem amassar o teto!)
                         img_w, img_h = img.get_width(), img.get_height()
                         bot_h = int(width_near * 0.22) 
                         bot_w = int(bot_h * (img_w / img_h))
@@ -628,10 +721,7 @@ class Car:
                         bx = centro_near + (bot["x"] * width_near) - (bot_w // 2)
                         by = y_near - bot_h
                         
-                        # EFEITO DE ESPELHO REALISTA
                         img_espelhada = pygame.transform.flip(img, True, False)
-                        
-                        # NOVO: Guardamos a distância exata 'dist' (decimal) no final da tupla!
                         lista_desenho_espelho.append((img_espelhada, bx, by, bot_w, bot_h, dist))
 
         # ==========================================
@@ -749,6 +839,45 @@ class Car:
             pygame.draw.circle(screen, (0, 255, 0), (int(px), int(py)), 5)
         else:
             pygame.draw.circle(screen, WHITE, (int(px), int(py)), 5)
+
+        # =========================================================
+        # 9. DEBUG VISUAL: VELOCIDADE DOS 3 BOTS À FRENTE
+        # =========================================================
+        if bots:
+            bots_a_frente = []
+            for bot in bots:
+                # Calcula a distância usando a posição do seu carro
+                dist_relativa = (bot["pos"] - self.position) % track.total_track_length
+                
+                # Só regista se estiver na sua frente (até meia pista de distância)
+                if 0 < dist_relativa < (track.total_track_length / 2):
+                    bots_a_frente.append((dist_relativa, bot))
+
+            # Ordena a lista pela distância (do mais perto para o mais longe)
+            bots_a_frente.sort(key=lambda x: x[0])
+            top_3_frente = bots_a_frente[:3]
+
+            fonte_debug = pygame.font.SysFont('Arial', 20, bold=True)
+            cor_vermelha = (255, 50, 50)
+            
+            # Posiciona logo abaixo do minimapa (x=1000, e desce o y para 400)
+            pos_x_debug = 1000 
+            pos_y_debug = 400 
+
+            # Desenha o Título
+            titulo_debug = fonte_debug.render("BOTS À FRENTE:", True, cor_vermelha)
+            screen.blit(titulo_debug, (pos_x_debug, pos_y_debug - 25))
+
+            # Desenha as informações dos 3 bots
+            for i, (dist, bot) in enumerate(top_3_frente):
+                vel_bot = int(bot["speed"])
+                dist_bot = int(dist)
+                nome_bot = bot.get("pasta", "Bot").capitalize()
+                
+                texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
+                surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
+                screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (i * 25)))
+
 
     ## LOGICA DA CRONOMETRAGEM
     def update_timer(self, total_track_length, lap_limit):

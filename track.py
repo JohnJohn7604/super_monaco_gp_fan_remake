@@ -12,28 +12,47 @@ class Track:
         
         # Mapa do Rio
         self.track_map = [
-                {"length": 350, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
+                {"length": 1550, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
                 {"length": 80, "curve": 0.04, "hill": 0.0015},     # Curva de Sainte-Devote (Subindo)
                 {"length": 250, "curve": 0.0, "hill": 0.002},      # Subida da Beau Rivage
                 {"length": 60, "curve": -0.03, "hill": 0.0},      # Curva Massenet
                 {"length": 60, "curve": 0.03, "hill": -0.001},     # Praça do Cassino (Descendo)
-                {"length": 200, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
+                {"length": 156, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
                 {"length": 80, "curve": -0.03, "hill": 0.0},        # Curva Mirabeau
-                {"length": 250, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": 0.01, "hill":  0.002},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
-                {"length": 100, "curve": 0.0, "hill": 0.0},
+                {"length": 80, "curve": 0.0, "hill": 0.0},
                 {"length": 50, "curve": -0.02, "hill": 0.0},      # Curva Portier (Entrada do Túnel)
                 {"length": 500, "curve": 0.01, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel
-                {"length": 220, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
+                {"length": 120, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
                 {"length": 60, "curve": -0.04, "hill": 0.0},      # Curva do Tabaco
+                {"length": 150, "curve": 0.0, "hill": 0.0}, 
                 {"length": 80, "curve": 0.03, "hill": 0.0},       # Chicane Louis Chiron
                 {"length": 200, "curve": -0.02, "hill": 0.0},     # Seção das Piscinas
                 {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
                 {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
                 {"length": 250, "curve": 0.0, "hill": 0.0}        # Reta Final
             ]
+        # (O seu track_map original continua aqui em cima)
         self.total_track_length = sum(seg["length"] for seg in self.track_map)
+        
+        # ==========================================
+        # PRÉ-CARREGAMENTO MATEMÁTICO DA PISTA (O(1) Lookup)
+        # ==========================================
+        self.track_data = []
+        for seg in self.track_map:
+            # Para cada metro deste segmento, guarda a curva e a colina exatas!
+            for _ in range(int(seg["length"])):
+                self.track_data.append({
+                    "curve": seg["curve"],
+                    "hill": seg.get("hill", 0.0)
+                })
+        # Atualiza o tamanho exato da pista baseado no array
+        self.total_track_length = len(self.track_data)
+        
+        # (O código de carregar o bg_rio.png continua aqui para baixo...)
 
         # Fundo (Parallax)
         try:
@@ -47,13 +66,8 @@ class Track:
             pygame.draw.polygon(self.bg_img, (46, 120, 80), [(1000, HEIGHT//2), (1600, 150), (2560, HEIGHT//2)])
 
     def get_curve(self, position):
-        pos_atual = position % self.total_track_length
-        dist_acumulada = 0
-        for seg in self.track_map:
-            dist_acumulada += seg["length"]
-            if pos_atual < dist_acumulada:
-                return seg["curve"]
-        return 0
+        indice = int(position) % self.total_track_length
+        return self.track_data[indice]["curve"]
 
     def update_parallax(self, speed, curve_intensity, keys):
         if speed > 0:
@@ -108,16 +122,10 @@ class Track:
             p_near = self.cam_height / z_near
             p_far = self.cam_height / z_far
             
-            pos_futura = (position + n) % self.total_track_length
-            curva_n = 0
-            colina_n = 0 
-            dist_check = 0
-            for seg in self.track_map:
-                dist_check += seg["length"]
-                if pos_futura < dist_check:
-                    curva_n = seg["curve"]
-                    colina_n = seg.get("hill", 0.0) 
-                    break
+            # Leitura O(1) instantânea do nosso pré-carregamento!
+            indice_futuro = int((position + n) % self.total_track_length)
+            curva_n = self.track_data[indice_futuro]["curve"]
+            colina_n = self.track_data[indice_futuro]["hill"]
             
             dx += curva_n
             curva_x += dx
@@ -150,11 +158,11 @@ class Track:
             color_road = GRAY_DARK if (n + int(position)) % 6 > 3 else GRAY_LIGHT
             color_grass = GREEN_DARK if (n + int(position)) % 6 > 3 else GREEN_LIGHT
             color_zebra = RED if (n + int(position)) % 6 > 3 else WHITE
-            
-            # Linha de Largada
-            if pos_futura < 5: 
+
+            # Usa o índice O(1) que criámos! Se estiver nos primeiros 8 metros da pista:
+            if indice_futuro < 8: 
                 color_road = WHITE
-                color_zebra = GRAY_DARK 
+                color_zebra = GRAY_DARK
             
             # Desenha a pista
             altura_grama = max(1, (y_near - y_far) + 1)
@@ -169,6 +177,6 @@ class Track:
             zebra_w_far = width_far * 0.25
             pygame.draw.polygon(screen, color_zebra, [(center_near - width_near - zebra_w_near, y_near), (center_near - width_near, y_near), (center_far - width_far, y_far), (center_far - width_far - zebra_w_far, y_far)])
             pygame.draw.polygon(screen, color_zebra, [(center_near + width_near, y_near), (center_near + width_near + zebra_w_near, y_near), (center_far + width_far + zebra_w_far, y_far), (center_far + width_far, y_far)])
-
+            
         # ---> DEVOLVE A LISTA PARA O MAIN.PY!
         return segmentos_pista

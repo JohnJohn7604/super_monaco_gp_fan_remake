@@ -1,0 +1,2 @@
+pygame-ce==2.5.7
+PyOpenAL==0.7.11a1
