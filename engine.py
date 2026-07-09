@@ -366,8 +366,6 @@ class Game:
         # =========================================================
         # 3.2 O NOVO SISTEMA DE QUALIFICAÇÃO DINÂMICA
         # =========================================================
-        import random
-        
         # 1. Aplica um fator de Sorte/Azar na volta de qualificação de cada bot
         for bot in bots_temporarios:
             # O bot pode ganhar ou perder até 35 "pontos de força" neste dia.
@@ -392,6 +390,8 @@ class Game:
             bot["linha_padrao"] = bot["x"]
             
             # ---> ADICIONE ESTAS 3 LINHAS DE GRAVAÇÃO AQUI: <---
+            bot["bloqueios_disponiveis"] = 1 if bot.get("aceleracao", 1) > 4 else 0
+            bot["pode_recarregar_bloqueio"] = False
             bot["pos_inicial_grid"] = posicao_final
             bot["velocidade_maxima_corrida"] = 0
             bot["fator_sorte_qualificacao"] = bot.get("forca_qualificacao", 0) - bot.get("forca_total", 0)
@@ -436,6 +436,55 @@ class Game:
             key=lambda x: x[1], 
             reverse=True
         )
+
+    # =========================================================================
+    # RADAR DE POSIÇÕES E ALERTA DE FALHA MECÂNICA (HUD)
+    # =========================================================================
+    def draw_debug(self, screen, bots, total_track_length):
+        fonte_debug = pygame.font.SysFont('Arial', 20, bold=True)
+        pos_x_debug = 20
+        pos_y_debug = 20
+        cor_vermelha = (255, 50, 50)
+        cor_amarela = (255, 220, 0) # Cor de destaque para o carro quebrado!
+
+        # 1. Filtra apenas os bots que estão à nossa FRENTE na pista
+        bots_a_frente = []
+        for bot in bots:
+            dist = (bot["pos"] - self.position) % total_track_length
+            if dist > total_track_length / 2:
+                dist -= total_track_length
+                
+            if dist > 0:  # O oponente está na frente!
+                bots_a_frente.append((bot, dist))
+
+        # 2. Ordena os carros pelo mais próximo de nós
+        bots_a_frente.sort(key=lambda x: x[1])
+
+        # 3. Desenha o Top 3 carros mais próximos à nossa frente
+        linhas_desenhadas = 0
+        for i, (bot, dist) in enumerate(bots_a_frente[:3]):
+            vel_bot = int(bot.get("speed", 0))
+            dist_bot = int(dist)
+            nome_bot = bot.get("pasta", "Bot").capitalize()
+            
+            texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
+            surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
+            screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25)))
+            linhas_desenhadas += 1
+
+        # 4. ALERTA DE FALHA MECÂNICA: Procura se algum oponente à frente está com pane
+        for bot, dist in bots_a_frente:
+            if bot.get("falha_mecanica", False):
+                vel_bot = int(bot.get("speed", 0))
+                dist_bot = int(dist)
+                nome_bot = bot.get("pasta", "Bot").capitalize()
+                
+                # Desenha o aviso em amarelo logo abaixo da listagem normal
+                texto_alerta = f"! {nome_bot} FALHA! {vel_bot}km/h [{dist_bot}m]"
+                surf_alerta = fonte_debug.render(texto_alerta, True, cor_amarela)
+                
+                screen.blit(surf_alerta, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25) + 10))
+                break # Mostra apenas o primeiro com problemas para não poluir o ecrã
 
     def renderizar_corrida(self, tempo_atual, keys):
         # 1. RENDERIZA O CHÃO E GUARDA OS SEGMENTOS
@@ -487,6 +536,16 @@ class Game:
 
         # 5. DESENHA O COCKPIT POR CIMA DE TUDO
         self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
+
+        # [Linhas finais existentes do teu método renderizar_corrida]
+        if hasattr(self, 'cockpit_img') and self.cockpit_img:
+            self.screen.blit(self.cockpit_img, (0, 0))
+
+        # =========================================================================
+        # INJEÇÃO DO RADAR: Desenha o Top 3 e Alerta de Falha por cima do Cockpit!
+        # =========================================================================
+        if hasattr(self, 'car') and self.car:
+            self.car.draw_debug(self.screen, self.bots, self.track.total_track_length)
 
     def eventos_teclado(self):
         # ==========================================

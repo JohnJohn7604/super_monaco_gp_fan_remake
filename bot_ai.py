@@ -1,3 +1,5 @@
+import random
+
 class BotAI:
     def __init__(self, game):
         # Recebemos a referência do main.py para aceder à pista e ao carro do jogador
@@ -29,16 +31,63 @@ class BotAI:
             if dist_relativa > track.total_track_length / 2:
                 dist_relativa -= track.total_track_length
 
-            # 1.5. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
+            # =================================================================
+            # 1.2 NOVO: IA DE DEFESA DE POSIÇÃO (BLOQUEIO AGRESSIVO)
+            # =================================================================
+            # Verifica se é um piloto de elite (aceleração > 4)
+            if bot.get("aceleracao", 1) > 4:
+                
+                # A) RECARGA: Se o bot conseguiu afastar-se mais de 300 metros de nós, recarrega a tentativa!
+                if dist_relativa > 40 and bot.get("pode_recarregar_bloqueio", False):
+                    bot["bloqueios_disponiveis"] = 1
+                    bot["pode_recarregar_bloqueio"] = False # Trava para não recarregar infinitamente
+                
+                # B) O BLOQUEIO SEGURO: Só tenta fechar se você estiver entre 20m e 65m!
+                # Se você chegar a menos de 20 metros, o bot considera que você já está tão perto
+                # que tentar fechar a porta causaria um acidente grave, então ele mantém a linha!
+                if 20 < dist_relativa < 65 and carro_jogador.speed > bot["speed"] and bot.get("bloqueios_disponiveis", 0) > 0:
+                    
+                    alvo_bloqueio = carro_jogador.player_x
+                    velocidade_fechada = 0.018  # Volante super suave (era 0.04), dando tempo para você reagir!
+                    
+                    if bot["x"] < alvo_bloqueio:
+                        bot["x"] = min(0.8, bot["x"] + velocidade_fechada)
+                    elif bot["x"] > alvo_bloqueio:
+                        bot["x"] = max(-0.8, bot["x"] - velocidade_fechada)
+                        
+                    # Se o bot já se alinhou com o seu bico (fechou a porta com sucesso!), gasta a tentativa
+                    if abs(bot["x"] - carro_jogador.player_x) < 0.12:
+                        bot["bloqueios_disponiveis"] = 0
+                        bot["pode_recarregar_bloqueio"] = True
+
+            # 1.3. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
             if not bot.get("falha_mecanica", False):
                 if 200 < dist_relativa < (track.total_track_length / 2):
-                    import random
                     if random.randint(1, 1500) == 1:
                         bot["falha_mecanica"] = True
                         bot["fim_falha"] = tempo_atual + random.randint(5000, 9000)
             else:
+                # O conserto via rádio: quando o relógio passar do tempo, o carro é consertado!
                 if tempo_atual > bot.get("fim_falha", 0):
                     bot["falha_mecanica"] = False
+
+            # 2. IA de Curvas Corajosas
+            curva_do_bot = track.get_curve(bot["pos"])
+            
+            if abs(curva_do_bot) > 0.02 and not sprint_largada:
+                intensidade_curva = abs(curva_do_bot) * 5.0  
+                bonus_direcao = bot.get("direcao", 3) * 0.015 
+                multiplicador_curva = 1.0 - intensidade_curva + bonus_direcao
+                target_speed = min(bot["max_speed"], bot["max_speed"] * multiplicador_curva)
+                target_speed = max(150, target_speed) 
+            else:
+                target_speed = bot["max_speed"]
+
+            # ---> A CORREÇÃO DA FALHA MECÂNICA <---
+            # Se o carro quebrou, a velocidade alvo dele cai para 160 km/h!
+            # O sistema de freios existente vai desacelerar suavemente até 160 e travar lá, sem dar ré!
+            if bot.get("falha_mecanica", False):
+                target_speed = min(target_speed, 160.0)
 
             # 2. IA de Curvas Corajosas
             curva_do_bot = track.get_curve(bot["pos"])
@@ -56,13 +105,13 @@ class BotAI:
             # O bot percebe que você está bloqueando a frente dele ANTES de acelerar!
             jogador_na_pista = -1.0 <= carro_jogador.player_x <= 1.0
             #distancia freio bot
-            if -8 < dist_relativa < 0 and jogador_na_pista:
+            if -9 < dist_relativa < 0 and jogador_na_pista:
                 #hitbox horizontal da minha asa traseira
-                if abs(bot["x"] - carro_jogador.player_x) < 0.72:
+                if abs(bot["x"] - carro_jogador.player_x) < 0.74:
                     # FREADA MUITO MAIS SUAVE E REALISTA (de 0.9 para 0.98) O multiplicador 0.98 faz 
                     # com que o bot apenas "tire o pé do acelerador", igualando-se quase perfeitamente à 
                     # sua velocidade (ele vai ficar apenas 2% mais lento que você,
-                    target_speed = min(target_speed, max(130, carro_jogador.speed * 0.96))
+                    target_speed = min(target_speed, max(130, carro_jogador.speed * 0.95))
 
             # O PEDAL DE FREIO
             if bot["speed"] > target_speed:
@@ -93,7 +142,6 @@ class BotAI:
 
             # 4. O SISTEMA DE 3 LINHAS E TANGÊNCIA (RACING LINE)
             if "linha_reta" not in bot:
-                import random
                 bot["linha_reta"] = random.choice([-0.65, -0.21, 0.0, 0.21, 0.65])
             
             curva_futura = track.get_curve(bot["pos"] + 30)

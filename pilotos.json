@@ -101,7 +101,7 @@
   {
     "equipe": "Tyrant",
     "nome": "M. Hamano",
-    "aceleracao": 3.9,
+    "aceleracao": 4.1,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -112,7 +112,7 @@
     "equipe": "Tyrant",
     "nome": "K. Sato",
     "aceleracao": 3.7,
-    "speed": 15,
+    "speed": 14,
     "freio": 1.2,
     "direcao": 1.2,
     "cor_capacete": [255, 128, 0],
@@ -161,7 +161,7 @@
   {
     "equipe": "Bullets",
     "nome": "B. Miller",
-    "aceleracao": 2.8,
+    "aceleracao": 1.8,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -171,7 +171,7 @@
   {
     "equipe": "Bullets",
     "nome": "C. Davis",
-    "aceleracao": 3,
+    "aceleracao": 2,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -181,7 +181,7 @@
   {
     "equipe": "Dardan",
     "nome": "P. Marino",
-    "aceleracao": 4,
+    "aceleracao": 3,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -191,7 +191,7 @@
   {
     "equipe": "Dardan",
     "nome": "E. Bellini",
-    "aceleracao": 3.8,
+    "aceleracao": 2.8,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -201,7 +201,7 @@
   {
     "equipe": "Linden",
     "nome": "M. Moreau",
-    "aceleracao": 3,
+    "aceleracao": 2,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -211,7 +211,7 @@
   {
     "equipe": "Linden",
     "nome": "A. Laurent",
-    "aceleracao": 3,
+    "aceleracao": 2,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,
@@ -231,7 +231,7 @@
   {
     "equipe": "Minarae",
     "nome": "R. Mendes",
-    "aceleracao": 3,
+    "aceleracao": 2,
     "speed": 15,
     "freio": 1.2,
     "direcao": 1.2,

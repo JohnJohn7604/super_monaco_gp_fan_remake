@@ -12,28 +12,39 @@ class Track:
         
         # Mapa do Rio
         self.track_map = [
-                {"length": 1550, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
+                {"length": 550, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
                 {"length": 80, "curve": 0.04, "hill": 0.0015},     # Curva de Sainte-Devote (Subindo)
                 {"length": 250, "curve": 0.0, "hill": 0.002},      # Subida da Beau Rivage
                 {"length": 60, "curve": -0.03, "hill": 0.0},      # Curva Massenet
-                {"length": 60, "curve": 0.03, "hill": -0.001},     # Praça do Cassino (Descendo)
-                {"length": 156, "curve": 0.0, "hill": -0.0015},    # Descida para a Mirabeau
+                {"length": 60, "curve": 0.03, "hill": -0.0015},     # Praça do Cassino (Descendo)
+                {"length": 156, "curve": 0.0, "hill": -0.002},    # Descida para a Mirabeau
                 {"length": 80, "curve": -0.03, "hill": 0.0},        # Curva Mirabeau
-                {"length": 150, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": 0.001}, 
                 {"length": 80, "curve": 0.01, "hill":  0.002},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
                 {"length": 80, "curve": 0.0, "hill": 0.0},
-                {"length": 50, "curve": -0.02, "hill": 0.0},      # Curva Portier (Entrada do Túnel)
-                {"length": 500, "curve": 0.01, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
-                {"length": 150, "curve": 0.0, "hill": 0.0}, 
+                {"length": 50, "curve": -0.02, "hill": -0.002},
+                {"length": 50, "curve": 0.0, "hill": -0.001},      # Curva Portier (Entrada do Túnel)
+                {"length": 250, "curve": 0.00, "hill": 0.0},
+                {"length": 150, "curve": 0.02, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
+                {"length": 250, "curve": 0.03, "hill": 0.0016},
+                {"length": 100, "curve": 0.0, "hill": 0.0014}, 
                 {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel
                 {"length": 120, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
                 {"length": 60, "curve": -0.04, "hill": 0.0},      # Curva do Tabaco
-                {"length": 150, "curve": 0.0, "hill": 0.0}, 
+                {"length": 150, "curve": 0.0, "hill": -0.0014}, 
+                {"length": 150, "curve": 0.002, "hill": -0.0016},
+                {"length": 150, "curve": 0.0029, "hill": 0.00},
                 {"length": 80, "curve": 0.03, "hill": 0.0},       # Chicane Louis Chiron
                 {"length": 200, "curve": -0.02, "hill": 0.0},     # Seção das Piscinas
                 {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
                 {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
-                {"length": 250, "curve": 0.0, "hill": 0.0}        # Reta Final
+                {"length": 150, "curve": 0.0, "hill": 0.0},        # Reta Final
+                {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
+                {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
+                {"length": 250, "curve": -0.03, "hill": 0.0}, 
+                {"length": 250, "curve": -0.003, "hill": 0.0},
+                {"length": 250, "curve": 0.003, "hill": 0.0},
+                {"length": 350, "curve": 0.000, "hill": 0.0}
             ]
         # (O seu track_map original continua aqui em cima)
         self.total_track_length = sum(seg["length"] for seg in self.track_map)

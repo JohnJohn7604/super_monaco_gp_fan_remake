@@ -840,43 +840,54 @@ class Car:
         else:
             pygame.draw.circle(screen, WHITE, (int(px), int(py)), 5)
 
-        # =========================================================
-        # 9. DEBUG VISUAL: VELOCIDADE DOS 3 BOTS À FRENTE
-        # =========================================================
-        if bots:
-            bots_a_frente = []
-            for bot in bots:
-                # Calcula a distância usando a posição do seu carro
-                dist_relativa = (bot["pos"] - self.position) % track.total_track_length
+        # =========================================================================
+    # NOVO: RADAR DE POSIÇÕES E ALERTA DE FALHA MECÂNICA
+    # =========================================================================
+    def draw_debug(self, screen, bots, total_track_length):
+        fonte_debug = pygame.font.SysFont('Arial', 20, bold=True)
+        pos_x_debug = 20
+        pos_y_debug = 20
+        cor_vermelha = (255, 50, 50)
+        cor_amarela = (255, 220, 0) # Cor de alerta de falha mecânica!
+
+        # 1. Filtra apenas os bots que estão à nossa FRENTE
+        bots_a_frente = []
+        for bot in bots:
+            dist = (bot["pos"] - self.position) % total_track_length
+            if dist > total_track_length / 2:
+                dist -= total_track_length
                 
-                # Só regista se estiver na sua frente (até meia pista de distância)
-                if 0 < dist_relativa < (track.total_track_length / 2):
-                    bots_a_frente.append((dist_relativa, bot))
+            if dist > 0:  # Está na frente!
+                bots_a_frente.append((bot, dist))
 
-            # Ordena a lista pela distância (do mais perto para o mais longe)
-            bots_a_frente.sort(key=lambda x: x[0])
-            top_3_frente = bots_a_frente[:3]
+        # 2. Ordena pelos mais próximos de nós (menor distância)
+        bots_a_frente.sort(key=lambda x: x[1])
 
-            fonte_debug = pygame.font.SysFont('Arial', 20, bold=True)
-            cor_vermelha = (255, 50, 50)
+        # 3. Desenha o Top 3 mais próximos à nossa frente
+        linhas_desenhadas = 0
+        for i, (bot, dist) in enumerate(bots_a_frente[:3]):
+            vel_bot = int(bot.get("speed", 0))
+            dist_bot = int(dist)
+            nome_bot = bot.get("pasta", "Bot").capitalize()
             
-            # Posiciona logo abaixo do minimapa (x=1000, e desce o y para 400)
-            pos_x_debug = 1000 
-            pos_y_debug = 400 
+            texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
+            surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
+            screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25)))
+            linhas_desenhadas += 1
 
-            # Desenha o Título
-            titulo_debug = fonte_debug.render("BOTS À FRENTE:", True, cor_vermelha)
-            screen.blit(titulo_debug, (pos_x_debug, pos_y_debug - 25))
-
-            # Desenha as informações dos 3 bots
-            for i, (dist, bot) in enumerate(top_3_frente):
-                vel_bot = int(bot["speed"])
+        # 4. ALERTA DE FALHA MECÂNICA: Busca se há alguém quebrado à frente
+        for bot, dist in bots_a_frente:
+            if bot.get("falha_mecanica", False):
+                vel_bot = int(bot.get("speed", 0))
                 dist_bot = int(dist)
                 nome_bot = bot.get("pasta", "Bot").capitalize()
                 
-                texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
-                surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
-                screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (i * 25)))
+                # Desenha o alerta textualmente logo abaixo dos 3 primeiros
+                texto_alerta = f"⚠️ {nome_bot} FALHA! {vel_bot}km/h [{dist_bot}m]"
+                surf_alerta = fonte_debug.render(texto_alerta, True, cor_amarela)
+                
+                screen.blit(surf_alerta, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25) + 10))
+                break # Mostra apenas o primeiro com problemas para não poluir o ecrã
 
 
     ## LOGICA DA CRONOMETRAGEM
