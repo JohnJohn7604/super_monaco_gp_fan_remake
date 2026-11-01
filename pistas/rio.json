@@ -1,0 +1,176 @@
+{
+  "nome": "Grande Prêmio do Rio",
+  "bg_image": "images/bg_rio.png",
+  "cores": {
+    "zebra_1": [
+      220,
+      20,
+      20
+    ],
+    "zebra_2": [
+      255,
+      255,
+      255
+    ],
+    "grama_1": [
+      0,
+      100,
+      0
+    ],
+    "grama_2": [
+      0,
+      150,
+      0
+    ],
+    "asfalto_1": [
+      100,
+      100,
+      100
+    ],
+    "asfalto_2": [
+      105,
+      105,
+      105
+    ]
+  },
+  "segmentos": [
+    {
+      "length": 380,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Reta de Largada e Boxes"
+    },
+    {
+      "length": 260,
+      "curve": 0.02,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 220,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 320,
+      "curve": -0.02,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 220,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 90,
+      "curve": -0.02,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 210,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 140,
+      "curve": 0.03,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 20,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 110,
+      "curve": -0.05,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 200,
+      "curve": -0.0099,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 990,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 520,
+      "curve": -0.0109,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 50,
+      "curve": 0.05,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 120,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.0186,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 150,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.044,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 290,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 50,
+      "curve": -0.047,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 280,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 120,
+      "curve": 0.0458,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 390,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    }
+  ]
+}

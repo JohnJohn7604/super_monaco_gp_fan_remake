@@ -1,76 +1,117 @@
 # track.py
 import pygame
+import json
+import os
 from settings import *
 
 class Track:
-    def __init__(self):
+    def __init__(self, track_file="pistas/rio.json"):
         # Configurações de Câmera da Pista
         self.cam_height = 1000
         self.draw_distance = 200
         self.bg_x = 0
-        self.bg_y = 0 # <-- NOVO: Permite o céu subir e descer!
-        
-        # Mapa do Rio
-        self.track_map = [
-                {"length": 550, "curve": 0.0, "hill": 0.0},       # Reta de Largada/Boxes
-                {"length": 80, "curve": 0.04, "hill": 0.0015},     # Curva de Sainte-Devote (Subindo)
-                {"length": 250, "curve": 0.0, "hill": 0.002},      # Subida da Beau Rivage
-                {"length": 60, "curve": -0.03, "hill": 0.0},      # Curva Massenet
-                {"length": 60, "curve": 0.03, "hill": -0.0015},     # Praça do Cassino (Descendo)
-                {"length": 156, "curve": 0.0, "hill": -0.002},    # Descida para a Mirabeau
-                {"length": 80, "curve": -0.03, "hill": 0.0},        # Curva Mirabeau
+        self.bg_y = 0
+
+        # Cores Padrão
+        self.color_zebra_1 = RED
+        self.color_zebra_2 = WHITE
+        self.color_grass_1 = GREEN_DARK
+        self.color_grass_2 = GREEN_LIGHT
+        self.color_road_1 = GRAY_DARK
+        self.color_road_2 = GRAY_LIGHT
+        self.bg_image_path = "images/bg_rio.png"
+        self.nome_pista = "Rio de Janeiro"
+
+        # Tenta carregar do arquivo JSON (se existir)
+        caminho_json = track_file
+        if track_file and not track_file.endswith(".json"):
+            caminho_json = f"pistas/{track_file}.json"
+
+        carregou_json = False
+        if caminho_json and os.path.exists(caminho_json):
+            try:
+                with open(caminho_json, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                self.nome_pista = dados.get("nome", "Pista")
+                self.bg_image_path = dados.get("bg_image", "images/bg_rio.png")
+                cores = dados.get("cores", {})
+                self.color_zebra_1 = tuple(cores.get("zebra_1", RED))
+                self.color_zebra_2 = tuple(cores.get("zebra_2", WHITE))
+                self.color_grass_1 = tuple(cores.get("grama_1", GREEN_DARK))
+                self.color_grass_2 = tuple(cores.get("grama_2", GREEN_LIGHT))
+                self.color_road_1 = tuple(cores.get("asfalto_1", GRAY_DARK))
+                self.color_road_2 = tuple(cores.get("asfalto_2", GRAY_LIGHT))
+
+                self.track_map = []
+                for s in dados.get("segmentos", []):
+                    self.track_map.append({
+                        "length": s.get("length", 100),
+                        "curve": float(s.get("curve", 0.0)),
+                        "hill": float(s.get("hill", 0.0))
+                    })
+                if self.track_map:
+                    carregou_json = True
+            except Exception as e:
+                print(f"Aviso Track: Erro ao carregar pista de {caminho_json} ({e}). Usando padrão.")
+
+        if not carregou_json:
+            # Mapa Padrão de Backup (Rio)
+            self.track_map = [
+                {"length": 550, "curve": 0.0, "hill": 0.0},
+                {"length": 80, "curve": 0.04, "hill": 0.0015},
+                {"length": 250, "curve": 0.0, "hill": 0.002},
+                {"length": 60, "curve": -0.03, "hill": 0.0},
+                {"length": 60, "curve": 0.03, "hill": -0.0015},
+                {"length": 156, "curve": 0.0, "hill": -0.002},
+                {"length": 80, "curve": -0.03, "hill": 0.0},
                 {"length": 150, "curve": 0.0, "hill": 0.001}, 
-                {"length": 80, "curve": 0.01, "hill":  0.002},    # O Famoso "Grampo" / Hairpin (Ultra fechado)
+                {"length": 80, "curve": 0.01, "hill": 0.002},
                 {"length": 80, "curve": 0.0, "hill": 0.0},
                 {"length": 50, "curve": -0.02, "hill": -0.002},
-                {"length": 50, "curve": 0.0, "hill": -0.001},      # Curva Portier (Entrada do Túnel)
+                {"length": 50, "curve": 0.0, "hill": -0.001},
                 {"length": 250, "curve": 0.00, "hill": 0.0},
-                {"length": 150, "curve": 0.02, "hill": 0.0},      # O Túnel (Reta longa em leve curva)
+                {"length": 150, "curve": 0.02, "hill": 0.0},
                 {"length": 250, "curve": 0.03, "hill": 0.0016},
                 {"length": 100, "curve": 0.0, "hill": 0.0014}, 
-                {"length": 80, "curve": -0.05, "hill": 0.0},      # Nova Chicane após o Túnel
-                {"length": 120, "curve": 0.0, "hill": 0.0},       # Reta até a Tabac
-                {"length": 60, "curve": -0.04, "hill": 0.0},      # Curva do Tabaco
+                {"length": 80, "curve": -0.05, "hill": 0.0},
+                {"length": 120, "curve": 0.0, "hill": 0.0},
+                {"length": 60, "curve": -0.04, "hill": 0.0},
                 {"length": 150, "curve": 0.0, "hill": -0.0014}, 
                 {"length": 150, "curve": 0.002, "hill": -0.0016},
                 {"length": 150, "curve": 0.0029, "hill": 0.00},
-                {"length": 80, "curve": 0.03, "hill": 0.0},       # Chicane Louis Chiron
-                {"length": 200, "curve": -0.02, "hill": 0.0},     # Seção das Piscinas
-                {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
-                {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
-                {"length": 150, "curve": 0.0, "hill": 0.0},        # Reta Final
-                {"length": 50, "curve": 0.06, "hill": 0.0},       # Curva Rascasse
-                {"length": 40, "curve": 0.04, "hill": 0.0},       # Anthony Noghes (Entrada da Reta)
+                {"length": 80, "curve": 0.03, "hill": 0.0},
+                {"length": 200, "curve": -0.02, "hill": 0.0},
+                {"length": 50, "curve": 0.06, "hill": 0.0},
+                {"length": 40, "curve": 0.04, "hill": 0.0},
+                {"length": 150, "curve": 0.0, "hill": 0.0},
+                {"length": 50, "curve": 0.06, "hill": 0.0},
+                {"length": 40, "curve": 0.04, "hill": 0.0},
                 {"length": 250, "curve": -0.03, "hill": 0.0}, 
                 {"length": 250, "curve": -0.003, "hill": 0.0},
                 {"length": 250, "curve": 0.003, "hill": 0.0},
                 {"length": 350, "curve": 0.000, "hill": 0.0}
             ]
-        # (O seu track_map original continua aqui em cima)
-        self.total_track_length = sum(seg["length"] for seg in self.track_map)
+
+        self.total_track_length = sum(int(seg["length"]) for seg in self.track_map)
         
         # ==========================================
         # PRÉ-CARREGAMENTO MATEMÁTICO DA PISTA (O(1) Lookup)
         # ==========================================
         self.track_data = []
         for seg in self.track_map:
-            # Para cada metro deste segmento, guarda a curva e a colina exatas!
             for _ in range(int(seg["length"])):
                 self.track_data.append({
                     "curve": seg["curve"],
                     "hill": seg.get("hill", 0.0)
                 })
-        # Atualiza o tamanho exato da pista baseado no array
         self.total_track_length = len(self.track_data)
-        
-        # (O código de carregar o bg_rio.png continua aqui para baixo...)
 
         # Fundo (Parallax)
         try:
-            self.bg_img = pygame.image.load("images/bg_rio.png").convert()
+            self.bg_img = pygame.image.load(self.bg_image_path).convert()
             self.bg_img = pygame.transform.scale(self.bg_img, (WIDTH * 3, HEIGHT // 2))
-        except:
-            print("AVISO: Imagem de fundo não encontrada. Usando montanhas falsas.")
+        except Exception as e:
+            print(f"AVISO: Imagem de fundo '{self.bg_image_path}' não encontrada ({e}). Usando montanhas falsas.")
             self.bg_img = pygame.Surface((WIDTH * 2, HEIGHT // 2))
             self.bg_img.fill((135, 206, 235))
             pygame.draw.polygon(self.bg_img, (34, 139, 34), [(0, HEIGHT//2), (600, 100), (1280, HEIGHT//2)]) 
@@ -111,7 +152,7 @@ class Track:
         target_bg_y = -current_hill * 1500
         self.bg_y += (target_bg_y - self.bg_y) * 0.05 
         
-        screen.fill(GREEN_DARK)
+        screen.fill(self.color_grass_1)
         screen.blit(self.bg_img, (self.bg_x, self.bg_y))
         screen.blit(self.bg_img, (self.bg_x + WIDTH, self.bg_y))
 
@@ -122,7 +163,7 @@ class Track:
         colina_y = 0 
         pos_frac = position % 1 
         
-        # ---> A MÁGICA: A lista que vai rastrear o chão em 3D!
+        # ---> Rastreia o chão em 3D
         segmentos_pista = [] 
         
         for n in range(1, self.draw_distance):
@@ -133,7 +174,6 @@ class Track:
             p_near = self.cam_height / z_near
             p_far = self.cam_height / z_far
             
-            # Leitura O(1) instantânea do nosso pré-carregamento!
             indice_futuro = int((position + n) % self.total_track_length)
             curva_n = self.track_data[indice_futuro]["curve"]
             colina_n = self.track_data[indice_futuro]["hill"]
@@ -158,7 +198,6 @@ class Track:
             width_near = p_near * 6
             width_far = p_far * 6
 
-            # ---> SALVA O PONTO EXATO DO CHÃO NESTE METRO
             segmentos_pista.append({
                 "centro": center_near,
                 "largura": width_near,
@@ -166,11 +205,12 @@ class Track:
                 "escala": p_near
             })
 
-            color_road = GRAY_DARK if (n + int(position)) % 6 > 3 else GRAY_LIGHT
-            color_grass = GREEN_DARK if (n + int(position)) % 6 > 3 else GREEN_LIGHT
-            color_zebra = RED if (n + int(position)) % 6 > 3 else WHITE
+            # Cores dinâmicas configuráveis
+            color_road = self.color_road_1 if (n + int(position)) % 6 > 3 else self.color_road_2
+            color_grass = self.color_grass_1 if (n + int(position)) % 6 > 3 else self.color_grass_2
+            color_zebra = self.color_zebra_1 if (n + int(position)) % 6 > 3 else self.color_zebra_2
 
-            # Usa o índice O(1) que criámos! Se estiver nos primeiros 8 metros da pista:
+            # Grid de largada nos primeiros 8 metros
             if indice_futuro < 8: 
                 color_road = WHITE
                 color_zebra = GRAY_DARK
@@ -189,5 +229,4 @@ class Track:
             pygame.draw.polygon(screen, color_zebra, [(center_near - width_near - zebra_w_near, y_near), (center_near - width_near, y_near), (center_far - width_far, y_far), (center_far - width_far - zebra_w_far, y_far)])
             pygame.draw.polygon(screen, color_zebra, [(center_near + width_near, y_near), (center_near + width_near + zebra_w_near, y_near), (center_far + width_far + zebra_w_far, y_far), (center_far + width_far, y_far)])
             
-        # ---> DEVOLVE A LISTA PARA O MAIN.PY!
         return segmentos_pista
