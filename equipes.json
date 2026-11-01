@@ -49,19 +49,6 @@
                     0
                 ],
                 "pais": "frança"
-            },
-            {
-                "nome": "B. Rossi",
-                "aceleracao": 1.5,
-                "speed": 14,
-                "freio": 7.0,
-                "direcao": 6.5,
-                "cor_capacete": [
-                    255,
-                    0,
-                    0
-                ],
-                "pais": "itália"
             }
         ]
     },
@@ -115,19 +102,6 @@
                     0
                 ],
                 "pais": "alemanha"
-            },
-            {
-                "nome": "L. Bianchi",
-                "aceleracao": 1.5,
-                "speed": 14,
-                "freio": 6.8,
-                "direcao": 6.5,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "itália"
             }
         ]
     },
@@ -181,19 +155,6 @@
                     0
                 ],
                 "pais": "itália"
-            },
-            {
-                "nome": "H. Clark",
-                "aceleracao": 1.2,
-                "speed": 13,
-                "freio": 5.8,
-                "direcao": 5.5,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "reino unido"
             }
         ]
     },
@@ -244,19 +205,6 @@
                 "cor_capacete": [
                     255,
                     255,
-                    0
-                ],
-                "pais": "brasil"
-            },
-            {
-                "nome": "R. Silva",
-                "aceleracao": 1.1,
-                "speed": 13,
-                "freio": 5.6,
-                "direcao": 5.2,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "brasil"
@@ -313,19 +261,6 @@
                     0
                 ],
                 "pais": "frança"
-            },
-            {
-                "nome": "T. Dubois",
-                "aceleracao": 0.8,
-                "speed": 11,
-                "freio": 4.5,
-                "direcao": 4.2,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "bélgica"
             }
         ]
     },
@@ -376,19 +311,6 @@
                 "cor_capacete": [
                     255,
                     255,
-                    0
-                ],
-                "pais": "japão"
-            },
-            {
-                "nome": "K. Sato",
-                "aceleracao": 0.8,
-                "speed": 11,
-                "freio": 4.3,
-                "direcao": 4.1,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "japão"
@@ -445,19 +367,6 @@
                     0
                 ],
                 "pais": "espanha"
-            },
-            {
-                "nome": "J. Gomez",
-                "aceleracao": 0.7,
-                "speed": 11,
-                "freio": 4.1,
-                "direcao": 3.9,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "espanha"
             }
         ]
     },
@@ -511,19 +420,6 @@
                     0
                 ],
                 "pais": "reino unido"
-            },
-            {
-                "nome": "F. Jones",
-                "aceleracao": 0.7,
-                "speed": 10,
-                "freio": 3.9,
-                "direcao": 3.7,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "estados unidos"
             }
         ]
     },
@@ -577,19 +473,6 @@
                     0
                 ],
                 "pais": "estados unidos"
-            },
-            {
-                "nome": "B. Miller",
-                "aceleracao": 0.5,
-                "speed": 9,
-                "freio": 3.2,
-                "direcao": 3.0,
-                "cor_capacete": [
-                    255,
-                    255,
-                    0
-                ],
-                "pais": "itália"
             }
         ]
     },
@@ -640,19 +523,6 @@
                 "cor_capacete": [
                     255,
                     255,
-                    0
-                ],
-                "pais": "itália"
-            },
-            {
-                "nome": "P. Marino",
-                "aceleracao": 0.5,
-                "speed": 9,
-                "freio": 3.0,
-                "direcao": 2.9,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "itália"
@@ -709,19 +579,6 @@
                     0
                 ],
                 "pais": "frança"
-            },
-            {
-                "nome": "M. Moreau",
-                "aceleracao": 0.4,
-                "speed": 8,
-                "freio": 2.8,
-                "direcao": 2.6,
-                "cor_capacete": [
-                    255,
-                    255,
-                    0
-                ],
-                "pais": "frança"
             }
         ]
     },
@@ -772,19 +629,6 @@
                 "cor_capacete": [
                     255,
                     255,
-                    0
-                ],
-                "pais": "brasil"
-            },
-            {
-                "nome": "R. Mendes",
-                "aceleracao": 0.4,
-                "speed": 8,
-                "freio": 2.6,
-                "direcao": 2.4,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "brasil"
@@ -841,19 +685,6 @@
                     0
                 ],
                 "pais": "frança"
-            },
-            {
-                "nome": "D. Evans",
-                "aceleracao": 0.2,
-                "speed": 7,
-                "freio": 2.0,
-                "direcao": 1.8,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "reino unido"
             }
         ]
     },
@@ -904,19 +735,6 @@
                 "cor_capacete": [
                     255,
                     255,
-                    0
-                ],
-                "pais": "finlândia"
-            },
-            {
-                "nome": "S. Virtanen",
-                "aceleracao": 0.2,
-                "speed": 7,
-                "freio": 1.8,
-                "direcao": 1.6,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "finlândia"
@@ -973,19 +791,6 @@
                     0
                 ],
                 "pais": "itália"
-            },
-            {
-                "nome": "V. Kovac",
-                "aceleracao": 0.1,
-                "speed": 6,
-                "freio": 1.5,
-                "direcao": 1.2,
-                "cor_capacete": [
-                    0,
-                    0,
-                    0
-                ],
-                "pais": "áustria"
             }
         ]
     },
@@ -1036,19 +841,6 @@
                 "cor_capacete": [
                     255,
                     128,
-                    0
-                ],
-                "pais": "alemanha"
-            },
-            {
-                "nome": "A. Kruger",
-                "aceleracao": 0.1,
-                "speed": 6,
-                "freio": 1.3,
-                "direcao": 1.1,
-                "cor_capacete": [
-                    0,
-                    0,
                     0
                 ],
                 "pais": "alemanha"

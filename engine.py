@@ -239,7 +239,7 @@ class Game:
         # =========================================================
         self.nome_jogador_formatado = getattr(self, 'nome_digitado', "PILOTO")
         
-        # 1. Puxa a equipa e o índice de piloto (0 ou 1) que você selecionou no Menu
+        # 1. Puxa a equipa selecionada no Menu
         nome_equipe = self.lista_equipes_nomes[self.equipe_sel_idx]
         self.equipe_atual_jogador = nome_equipe
         
@@ -248,12 +248,12 @@ class Game:
             for p in dados_eq.get("pilotos", []):
                 p["is_player"] = False
                 
-        # 3. Injeta a sua alma no piloto que você escolheu substituir!
+        # 3. Injeta a sua alma no piloto titular que você escolheu substituir!
         pilotos_da_equipe = self.equipes[nome_equipe]["pilotos"]
-        self.dados_do_meu_piloto = pilotos_da_equipe[self.piloto_sel_idx].copy() # Salva as skills dele para você
+        self.dados_do_meu_piloto = pilotos_da_equipe[0].copy() # Salva as skills dele para você
         
-        pilotos_da_equipe[self.piloto_sel_idx]["nome"] = self.nome_jogador_formatado
-        pilotos_da_equipe[self.piloto_sel_idx]["is_player"] = True
+        pilotos_da_equipe[0]["nome"] = self.nome_jogador_formatado
+        pilotos_da_equipe[0]["is_player"] = True
         
         # 4. Aplica o limite de voltas escolhido no menu
         self.lap_limit = self.opcoes_voltas[self.volta_sel_idx]
@@ -266,20 +266,19 @@ class Game:
             pasta_do_jogador = "minarae" # Segurança caso a equipe não exista
 
         # =========================================================
-        # CARREGAR PERFORMANCE DA EQUIPE (MODO: CARRO PURO)
+        # CARREGAR PERFORMANCE DA EQUIPE E DO PILOTO SUBSTITUÍDO
         # =========================================================
         status = self.equipes[self.equipe_atual_jogador]
         
-        # AGORA IGNORAMOS A SKILL DO BOT! 
-        # A velocidade máxima será EXATAMENTE a velocidade base do chassi da equipe.
-        velocidade_final_jogador = status["velocidade_base"]
+        # O jogador recebe a velocidade base do chassi + o bônus do piloto titular substituído!
+        velocidade_final_jogador = status["velocidade_base"] + self.dados_do_meu_piloto.get("speed", 0)
 
         # Passa a velocidade final turbinada para o carro!
         self.car = Car(
             velocidade_maxima = velocidade_final_jogador,
-            nivel_aceleracao  = status.get("aceleracao", 1), # Usa apenas a aceleração do carro
-            nivel_freio       = status.get("freio", 3),                            # Freio padrão de fábrica do jogador
-            nivel_direcao     = status.get("direcao", 3),                          # Direção padrão de fábrica do jogador
+            nivel_aceleracao  = status.get("aceleracao", 1),
+            nivel_freio       = self.dados_do_meu_piloto.get("freio", 3),
+            nivel_direcao     = status.get("direcao", 3),
             pasta_equipe      = pasta_do_jogador
         )
         
@@ -302,11 +301,11 @@ class Game:
         # =========================================================
         # Pega a posição exata que você escolheu na tela dos quadradinhos!
         # (Se por algum motivo o jogo pular o menu, ele coloca-o em 32º por segurança)
-        posicao_jogador = getattr(self, 'posicao_jogador', 32) 
-        espaco_grid = 6     # Distância em metros entre os carros no grid
+        posicao_jogador = getattr(self, 'posicao_jogador', 16) 
+        espaco_grid = 8     # Distância em metros entre os carros no grid
 
         # Coloca o JOGADOR na pista
-        self.car.position = 100 + ((32 - posicao_jogador) * espaco_grid)
+        self.car.position = 100 + ((16 - posicao_jogador) * espaco_grid)
         self.car.player_x = 0.33 if posicao_jogador % 2 == 0 else -0.33
         
         # ==========================================
@@ -376,8 +375,8 @@ class Game:
         # 2. Ordena os bots do mais rápido para o mais lento com base na sua volta "sorteada"
         bots_temporarios.sort(key=lambda b: b["forca_qualificacao"], reverse=True)
 
-        # 3. Cria a lista limpa de vagas (1 a 32), ignorando apenas a SUA posição
-        posicoes_disponiveis = [p for p in range(1, 33) if p != posicao_jogador]
+        # 3. Cria a lista limpa de vagas (1 a 16), ignorando apenas a SUA posição
+        posicoes_disponiveis = [p for p in range(1, 17) if p != posicao_jogador]
 
         # 4. Coloca os bots nas suas vagas finais
         for i, bot in enumerate(bots_temporarios):
@@ -385,7 +384,7 @@ class Game:
                 break
             
             posicao_final = posicoes_disponiveis[i]
-            bot["pos"] = 100 + ((32 - posicao_final) * espaco_grid)
+            bot["pos"] = 100 + ((16 - posicao_final) * espaco_grid)
             bot["x"] = 0.33 if posicao_final % 2 == 0 else -0.33
             bot["linha_padrao"] = bot["x"]
             
@@ -580,33 +579,33 @@ class Game:
                                 self.nome_digitado += event.unicode.upper()
 
                     # ------------------------------------------
-                    # TELA 2: SELEÇÃO DE EQUIPA E PILOTO (NOVA)
+                    # TELA 2: SELEÇÃO DE EQUIPA E PILOTO A SUBSTITUIR
                     # ------------------------------------------
                     elif self.estado_jogo == "SELECT_TEAM":
-                        if event.key == pygame.K_RIGHT:
+                        if event.key in [pygame.K_RIGHT, pygame.K_DOWN]:
                             self.equipe_sel_idx = (self.equipe_sel_idx + 1) % len(self.lista_equipes_nomes)
-                        elif event.key == pygame.K_LEFT:
+                        elif event.key in [pygame.K_LEFT, pygame.K_UP]:
                             self.equipe_sel_idx = (self.equipe_sel_idx - 1) % len(self.lista_equipes_nomes)
-                        elif event.key == pygame.K_DOWN or event.key == pygame.K_UP:
-                            self.piloto_sel_idx = 1 - self.piloto_sel_idx # Alterna entre 0 e 1 (1º e 2º piloto)
                         elif event.key == pygame.K_RETURN:
+                            self.piloto_sel_idx = 0
+                            self.posicao_jogador = 16
                             self.estado_jogo = "SELECT_POS" # <--- VAI PARA POSIÇÃO
 
                     # ------------------------------------------
-                    # TELA 3: ESCOLHER POSIÇÃO
+                    # TELA 3: ESCOLHER POSIÇÃO (GRID COM 16 VAGAS)
                     # ------------------------------------------
                     elif self.estado_jogo == "SELECT_POS":
                         if not hasattr(self, 'posicao_jogador'):
-                            self.posicao_jogador = 32
+                            self.posicao_jogador = 16
                             
                         if event.key == pygame.K_RIGHT:
-                            self.posicao_jogador = 1 if self.posicao_jogador > 31 else self.posicao_jogador + 1
+                            self.posicao_jogador = 1 if self.posicao_jogador >= 16 else self.posicao_jogador + 1
                         elif event.key == pygame.K_LEFT:
-                            self.posicao_jogador = 32 if self.posicao_jogador < 2 else self.posicao_jogador - 1
+                            self.posicao_jogador = 16 if self.posicao_jogador <= 1 else self.posicao_jogador - 1
                         elif event.key == pygame.K_DOWN:
-                            self.posicao_jogador = self.posicao_jogador - 32 if self.posicao_jogador > 24 else self.posicao_jogador + 8
+                            self.posicao_jogador = self.posicao_jogador - 8 if self.posicao_jogador > 8 else self.posicao_jogador + 8
                         elif event.key == pygame.K_UP:
-                            self.posicao_jogador = self.posicao_jogador + 32 if self.posicao_jogador < 9 else self.posicao_jogador - 8
+                            self.posicao_jogador = self.posicao_jogador + 8 if self.posicao_jogador <= 8 else self.posicao_jogador - 8
                         elif event.key == pygame.K_RETURN:
                             # Prepara a tela seguinte (Seleção de Voltas)
                             self.opcoes_voltas = [1, 3, 5, 10, 15, 30]
@@ -710,19 +709,20 @@ class Game:
                 
                 fonte_lista = pygame.font.SysFont('Arial', 24, bold=True)
                 
-                # Divide os 32 carros em 2 colunas
+                # Divide os 16 carros em 2 colunas de 8
+                meu_nome = getattr(self, "nome_jogador_formatado", "VOCÊ").upper()
                 for i, piloto in enumerate(self.classificacao_final):
                     sigla = piloto["equipe"][:3].upper() # Ex: "Madonna" vira "MAD"
-                    texto = f"{i+1}. {piloto['nome']} ({sigla})"
+                    texto = f"{i+1:2d}. {piloto['nome']} ({sigla})"
                     
-                    cor = (0, 255, 0) if piloto["nome"] == "VOCÊ" else (255, 255, 255)
+                    cor = (0, 255, 0) if piloto["nome"].upper() == meu_nome else (255, 255, 255)
                     img_txt = fonte_lista.render(texto, True, cor)
                     
-                    # Lógica da Esquerda/Direita
-                    if i < 16: 
-                        x, y = WIDTH // 4 - 100, 100 + (i * 30)
+                    # Lógica da Esquerda/Direita (8 em cada coluna)
+                    if i < 8: 
+                        x, y = WIDTH // 4 - 100, 120 + (i * 45)
                     else: 
-                        x, y = 3 * (WIDTH // 4) - 100, 100 + ((i - 16) * 30)
+                        x, y = 3 * (WIDTH // 4) - 100, 120 + ((i - 8) * 45)
                         
                     self.screen.blit(img_txt, (x, y))
                     
@@ -885,7 +885,7 @@ class Game:
                     "nome": b["nome"], 
                     "is_player": False,
                     "pos_inicial": b["pos_inicial_grid"],
-                    "pos_final": 32, # Vai ser calculado e corrigido no passo 2!
+                    "pos_final": 16, # Vai ser calculado e corrigido no passo 2!
                     "vmax": b.get("velocidade_maxima_corrida", 0),
                     "sorte": b.get("fator_sorte_qualificacao", 0),
                     "distancia": b["pos"] # O Segredo: Quem tiver maior distância, ficou à frente!
