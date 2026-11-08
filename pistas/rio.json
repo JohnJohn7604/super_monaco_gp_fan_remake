@@ -1,6 +1,8 @@
 {
   "nome": "Grande Prêmio do Rio",
   "bg_image": "images/bg_rio.png",
+  "bg_width": 1940,
+  "bg_height": 135,
   "cores": {
     "zebra_1": [
       220,

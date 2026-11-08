@@ -31,8 +31,10 @@ class Game:
 
         self.fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
-        
+
         self.estado_jogo = "INPUT_NAME"
+        #elf.estado_jogo = "TITTLE SCREEN"
+        #self.opcao_titulo_sel = 0  # 0 = Start, 1 = Settings
         self.nome_digitado = ""         # Guarda as letras que o jogador vai digitar
         self.track = None
         self.car = None
@@ -557,6 +559,11 @@ class Game:
                     sys.exit()
 
                 if event.type == pygame.KEYDOWN:
+
+                    # --- NOVO: TELA CHEIA (ALT + ENTER) ---
+                    if event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT):
+                        pygame.display.toggle_fullscreen()
+                        continue  # Pula o resto para não acionar o Enter dos menus
                 
                     # ------------------------------------------
                     # TELA 1: DIGITAR NOME

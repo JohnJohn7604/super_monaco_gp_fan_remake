@@ -34,6 +34,8 @@ class Track:
                     dados = json.load(f)
                 self.nome_pista = dados.get("nome", "Pista")
                 self.bg_image_path = dados.get("bg_image", "images/bg_rio.png")
+                self.bg_custom_w = dados.get("bg_width", None)
+                self.bg_custom_h = dados.get("bg_height", None)
                 cores = dados.get("cores", {})
                 self.color_zebra_1 = tuple(cores.get("zebra_1", RED))
                 self.color_zebra_2 = tuple(cores.get("zebra_2", WHITE))
@@ -107,36 +109,45 @@ class Track:
         self.total_track_length = len(self.track_data)
 
         # Fundo (Parallax)
+        if hasattr(self, 'bg_custom_w') and self.bg_custom_w is not None and hasattr(self, 'bg_custom_h') and self.bg_custom_h is not None:
+            if self.bg_custom_h <= 200:
+                final_bg_w = int(self.bg_custom_w * ((WIDTH * 3) / 2560))
+                final_bg_h = int(self.bg_custom_h * ((HEIGHT // 2) / 135))
+            else:
+                final_bg_w = int(self.bg_custom_w)
+                final_bg_h = int(self.bg_custom_h)
+        else:
+            final_bg_w = WIDTH * 3
+            final_bg_h = HEIGHT // 2
+
         try:
             self.bg_img = pygame.image.load(self.bg_image_path).convert()
-            self.bg_img = pygame.transform.scale(self.bg_img, (WIDTH * 3, HEIGHT // 2))
+            self.bg_img = pygame.transform.scale(self.bg_img, (final_bg_w, final_bg_h))
         except Exception as e:
             print(f"AVISO: Imagem de fundo '{self.bg_image_path}' não encontrada ({e}). Usando montanhas falsas.")
-            self.bg_img = pygame.Surface((WIDTH * 2, HEIGHT // 2))
+            self.bg_img = pygame.Surface((final_bg_w, final_bg_h))
             self.bg_img.fill((135, 206, 235))
-            pygame.draw.polygon(self.bg_img, (34, 139, 34), [(0, HEIGHT//2), (600, 100), (1280, HEIGHT//2)]) 
-            pygame.draw.polygon(self.bg_img, (46, 120, 80), [(1000, HEIGHT//2), (1600, 150), (2560, HEIGHT//2)])
+            pygame.draw.polygon(self.bg_img, (34, 139, 34), [(0, final_bg_h), (final_bg_w // 4, final_bg_h // 4), (final_bg_w, final_bg_h)]) 
+            pygame.draw.polygon(self.bg_img, (46, 120, 80), [(final_bg_w // 3, final_bg_h), (final_bg_w // 2, final_bg_h // 3), (final_bg_w, final_bg_h)])
 
     def get_curve(self, position):
         indice = int(position) % self.total_track_length
         return self.track_data[indice]["curve"]
 
-    def update_parallax(self, speed, curve_intensity, keys):
-        if speed > 0:
-            # O horizonte gira se o jogador virar o volante
-            if keys[pygame.K_LEFT]: 
-                self.bg_x += speed * 0.005 
-            elif keys[pygame.K_RIGHT]: 
-                self.bg_x -= speed * 0.005 
-            
-            # O horizonte gira naturalmente pela curva da pista
+    def update_parallax(self, speed, curve_intensity, keys=None):
+        if speed > 0 and curve_intensity != 0:
+            # O horizonte gira no sentido oposto SOMENTE quando houver curva na pista:
+            # Curva à direita (>0) -> bg corre para a esquerda (-)
+            # Curva à esquerda (<0) -> bg corre para a direita (+)
+            # Em linha reta (curve_intensity == 0), o bg fica estático mesmo se o jogador virar
             self.bg_x -= curve_intensity * speed * 0.15
 
-        # Looping infinito do fundo
-        if self.bg_x <= -WIDTH:
-            self.bg_x += WIDTH
+        # Looping infinito do fundo baseado na largura real da imagem
+        img_w = self.bg_img.get_width()
+        if self.bg_x <= -img_w:
+            self.bg_x += img_w
         elif self.bg_x > 0:
-            self.bg_x -= WIDTH
+            self.bg_x -= img_w
 
     def draw(self, screen, position, player_x):
         # 1. PARALLAX VERTICAL 
@@ -153,8 +164,14 @@ class Track:
         self.bg_y += (target_bg_y - self.bg_y) * 0.05 
         
         screen.fill(self.color_grass_1)
-        screen.blit(self.bg_img, (self.bg_x, self.bg_y))
-        screen.blit(self.bg_img, (self.bg_x + WIDTH, self.bg_y))
+        bg_w = self.bg_img.get_width()
+        bg_draw_x = self.bg_x % bg_w
+        if bg_draw_x > 0:
+            bg_draw_x -= bg_w
+        curr_x = bg_draw_x
+        while curr_x < WIDTH:
+            screen.blit(self.bg_img, (curr_x, self.bg_y))
+            curr_x += bg_w
 
         # 2. VARIÁVEIS DA PISTA
         dx = 0
