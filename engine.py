@@ -104,6 +104,19 @@ class Game:
             self.som_batida = None
             self.canais_motor_bot = []
 
+        # =========================================================================
+        # [ALTERAÇÃO - ÁUDIO]: CARREGAMENTO DO SOM DE FINAL LAP (sounds/final_lap.wav)
+        # =========================================================================
+        try:
+            self.som_final_lap = pygame.mixer.Sound("sounds/final_lap.wav")
+            self.som_final_lap.set_volume(0.9)
+        except Exception as e:
+            print(f"Aviso Mixer: Erro ao carregar final_lap.wav -> {e}")
+            self.som_final_lap = None
+
+        self.final_lap_triggered = False
+        self.timer_final_lap = 0
+
         self.steering_locked = False
         
         # Define o tamanho original do seu PNG
@@ -403,6 +416,8 @@ class Game:
         self.timer_countdown = pygame.time.get_ticks()
         self.estado_jogo = "COUNTDOWN"
         self.race_finished = False
+        self.final_lap_triggered = False
+        self.timer_final_lap = 0
 
     def gerar_resultados(self):
         # 1. Junta você e todos os bots numa lista só
@@ -767,6 +782,32 @@ class Game:
             # Alimenta a física e IA...
             self.car.update_physics(keys, tempo_atual, curve_intensity, self.steering_locked, no_vacuo=jogador_no_vacuo)
             
+            # =========================================================================
+            # [ALTERAÇÃO - PÓS-CORRIDA]: CARRO DO JOGADOR ANDA A 100 KM/H NA CHEGADA
+            # Desacelera suavemente até travar e manter 100 km/h na volta de desaceleração
+            # =========================================================================
+            if self.race_finished:
+                if self.car.speed > 100.0:
+                    self.car.speed = max(100.0, self.car.speed - 2.5)
+                elif self.car.speed < 100.0:
+                    self.car.speed = min(100.0, self.car.speed + 1.2)
+                # Mantém o carro centralizado na pista suavemente
+                self.car.player_x += (0.0 - self.car.player_x) * 0.04
+
+            # =========================================================================
+            # [ALTERAÇÃO - FINAL LAP]: DISPARO DO AVISO VISUAL E ÁUDIO NA ÚLTIMA VOLTA
+            # Aciona quando o jogador inicia a volta final (laps_completed >= lap_limit - 1)
+            # =========================================================================
+            if not self.final_lap_triggered and self.estado_jogo == "RACING":
+                if self.car.laps_completed >= self.lap_limit - 1:
+                    self.final_lap_triggered = True
+                    self.timer_final_lap = tempo_atual
+                    if hasattr(self, 'som_final_lap') and self.som_final_lap:
+                        try:
+                            self.som_final_lap.play()
+                        except Exception as e:
+                            print(f"Erro ao tocar final_lap.wav: {e}")
+            
             # ---> GRAVA RECORDES DE VELOCIDADE DO PLAYER <---
             if self.car.speed > getattr(self.car, 'velocidade_maxima_corrida', 0):
                 self.car.velocidade_maxima_corrida = self.car.speed
@@ -853,12 +894,63 @@ class Game:
                 else:
                     # Largada perfeita (Grip): Ganha velocidade controlada
                     self.car.speed = (self.car.rpm_neutro * 0.1) 
+
+                # =========================================================================
+                # [ALTERAÇÃO - FINAL LAP]: LARGADA DE CORRIDA DE 1 VOLTA É FINAL LAP
+                # =========================================================================
+                if self.lap_limit == 1 and not self.final_lap_triggered:
+                    self.final_lap_triggered = True
+                    self.timer_final_lap = tempo_atual
+                    if hasattr(self, 'som_final_lap') and self.som_final_lap:
+                        try:
+                            self.som_final_lap.play()
+                        except Exception as e:
+                            print(f"Erro ao tocar final_lap.wav: {e}")
                 
             texto = None
             
         if texto:
             # Centraliza o número na tela
             self.screen.blit(texto, (WIDTH//2 - texto.get_width()//2, HEIGHT//3))
+
+    def desenhar_aviso_final_lap(self, tempo_atual):
+        """
+        [ALTERAÇÃO - FINAL LAP / HUD]: Exibe na tela o banner arcade clássico 'FINAL LAP!'
+        com moldura animada piscante, sombra 3D e subtítulo durante o áudio (~2.8s).
+        """
+        tempo_decorrido = tempo_atual - self.timer_final_lap
+        if tempo_decorrido >= 2800:
+            return
+
+        banner_h = 96
+        banner_y = (HEIGHT // 3) - (banner_h // 2)
+
+        # Fundo do banner preto semi-transparente
+        banner_surf = pygame.Surface((WIDTH, banner_h), pygame.SRCALPHA)
+        banner_surf.fill((0, 0, 0, 195))
+        self.screen.blit(banner_surf, (0, banner_y))
+
+        # Efeito de piscar arcade clássico
+        pisca = (tempo_atual // 150) % 2 == 0
+        cor_borda = (255, 215, 0) if pisca else (255, 50, 50)
+        pygame.draw.line(self.screen, cor_borda, (0, banner_y), (WIDTH, banner_y), 4)
+        pygame.draw.line(self.screen, cor_borda, (0, banner_y + banner_h), (WIDTH, banner_y + banner_h), 4)
+
+        # Textos em estilo arcade retrô
+        fonte_banner = pygame.font.SysFont('Arial', 54, bold=True)
+        fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
+
+        cor_texto = (255, 230, 0) if pisca else (255, 255, 255)
+        txt_banner = fonte_banner.render(">>> FINAL LAP! <<<", True, cor_texto)
+        txt_sombra = fonte_banner.render(">>> FINAL LAP! <<<", True, (0, 0, 0))
+
+        cx = WIDTH // 2
+        cy = banner_y + 30
+        self.screen.blit(txt_sombra, (cx - txt_banner.get_width() // 2 + 3, cy - txt_banner.get_height() // 2 + 3))
+        self.screen.blit(txt_banner, (cx - txt_banner.get_width() // 2, cy - txt_banner.get_height() // 2))
+
+        txt_sub = fonte_sub.render("LAST CHANCE - PUSH TO THE LIMIT!", True, (240, 240, 255))
+        self.screen.blit(txt_sub, (cx - txt_sub.get_width() // 2, banner_y + 66))
 
     def final_corrida(self, tempo_atual):
         # Fundo escurecido
@@ -956,7 +1048,10 @@ class Game:
                     self.gerar_resultados()
                     bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
                     self.final_position = 1 + bots_a_frente
-                    self.car.speed *= 0.5
+                    # =========================================================================
+                    # [ALTERAÇÃO - CHEGADA]: DESACELERAÇÃO SUAVE PARA 100 KM/H
+                    # =========================================================================
+                    self.car.speed = max(100.0, self.car.speed * 0.85)
 
             if self.estado_jogo == "SELECT_TEAM":
                 self.ui.desenhar_tela_equipes()
@@ -1001,6 +1096,12 @@ class Game:
                 # --- MÁGICA DO COUNTDOWN NA TELA ---
                 if self.estado_jogo == "COUNTDOWN":
                     self.countdown_tela(tempo_atual)
+
+                # =========================================================================
+                # [ALTERAÇÃO - FINAL LAP]: EXIBIÇÃO DA FAIXA VISUAL NA TELA
+                # =========================================================================
+                if self.final_lap_triggered and (tempo_atual - self.timer_final_lap < 2800):
+                    self.desenhar_aviso_final_lap(tempo_atual)
 
             # RESULTADO FINAL DA CORRIDA
             if self.estado_jogo == "FINISH":

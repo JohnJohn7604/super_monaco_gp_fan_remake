@@ -295,8 +295,12 @@ class Car:
 
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
-            # Multiplica pelo quadrado da velocidade percentual (Física de Arcade)
-            forca_centrifuga = (percentual_vel ** 1.04) * curve_intensity * 1.4
+            # =========================================================================
+            # [ALTERAÇÃO - FÍSICA]: FORÇA CENTRÍFUGA GLOBAL PIORADA EM +3%
+            # Multiplicador original: 1.4. Ajustado (+3%): 1.4 * 1.03 = 1.442
+            # Aumenta o empurrão lateral nas curvas, exigindo maior perícia do piloto.
+            # =========================================================================
+            forca_centrifuga = (percentual_vel ** 1.04) * curve_intensity * 1.442
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
@@ -785,60 +789,55 @@ class Car:
         # Fundo preto semi-transparente para o HUD (opcional, mas fica profissional)
         pygame.draw.rect(screen, (0, 0, 0, 150), (x_hud - 10, y_hud - 5, 220, 130))
         
-        screen.blit(self.font.render(f"LAP: {self.laps_completed + 1}", True, cor_hud), (x_hud, y_hud))
+        lap_num = self.laps_completed + 1
+        is_final_lap = hasattr(self, 'lap_limit') and self.lap_limit is not None and (lap_num == self.lap_limit)
+        texto_lap = "FINAL LAP" if is_final_lap else f"LAP: {lap_num}"
+        cor_lap = (255, 215, 0) if is_final_lap else cor_hud
+        screen.blit(self.font.render(texto_lap, True, cor_lap), (x_hud, y_hud))
         screen.blit(self.font.render(f"TIME: {formatar_tempo(self.current_lap_time)}", True, cor_hud), (x_hud, y_hud + 30))
         screen.blit(self.font.render(f"LAST: {formatar_tempo(self.last_lap_time)}", True, cor_hud), (x_hud, y_hud + 60))
         screen.blit(self.font.render(f"BEST:", True, cor_destaque), (x_hud, y_hud + 90))
         screen.blit(self.font.render(formatar_tempo(self.best_lap_time), True, cor_destaque), (x_hud + 80, y_hud + 90))
 
-        # ==========================================
-        # 8. MINIMAPA (RADAR OVAL)
-        # ==========================================
-        mapa_w, mapa_h = 200, 120
-        mapa_x, mapa_y = 1000, 250 # Canto superior esquerdo
-        
-        # Fundo do minimapa (Preto semi-transparente)
-        # Como o Pygame antigo não aceita transparência direto no rect, criamos uma Surface
-        s_mapa = pygame.Surface((mapa_w, mapa_h), pygame.SRCALPHA)
-        s_mapa.fill((0, 0, 0, 150))
-        screen.blit(s_mapa, (mapa_x, mapa_y))
-        
-        # Centro e Raios da elipse
-        centro_mx = mapa_x + (mapa_w // 2)
-        centro_my = mapa_y + (mapa_h // 2)
-        raio_x = (mapa_w // 2) - 15
-        raio_y = (mapa_h // 2) - 15
-        
-        # Desenha a linha da pista (Asfalto do mapa)
-        pygame.draw.ellipse(screen, GRAY_LIGHT, (centro_mx - raio_x, centro_my - raio_y, raio_x * 2, raio_y * 2), 3)
-        
-        # Função interna para pegar a coordenada X e Y no radar
-        def get_radar_pos(posicao_z):
-            # Descobre qual a % da volta o carro completou
-            porcentagem = (posicao_z % track.total_track_length) / track.total_track_length
-            
-            # Converte a % em um ângulo (Começando no topo = -90 graus)
-            angulo = (porcentagem * 2 * math.pi) - (math.pi / 2)
-            
-            # Geometria para mapear o ângulo na borda da elipse
-            px = centro_mx + math.cos(angulo) * raio_x
-            py = centro_my + math.sin(angulo) * raio_y
-            return px, py
-        
-        # 1. Desenha os BOTS (Bolinhas Vermelhas)
+        # =========================================================================
+        # [ALTERAÇÃO - HUD / MINIMAPA]: TRAÇADO REAL DA PISTA COM TODOS OS CARROS
+        # Minimapa ampliado para 280x195 e posicionado mais abaixo (y=225)
+        # Substitui a antiga 'pista oval genérica' pelo traçado fiel do circuito atual
+        # =========================================================================
+        mapa_w = getattr(track, 'mapa_w', 280)
+        mapa_h = getattr(track, 'mapa_h', 195)
+        mapa_x = WIDTH - mapa_w - 25   # Posicionado no canto direito (x=975)
+        mapa_y = 225                   # Trazido mais para baixo, com folga do cronômetro
+
+        # 1. Garante que o minimapa está pronto e pré-renderizado na pista atual
+        if not hasattr(track, 'minimap_surface') or track.minimap_surface is None:
+            track.preparar_minimapa(mapa_w, mapa_h)
+
+        # 2. Desenha a superfície da pista (Traçado real desenhado da pista atual)
+        screen.blit(track.minimap_surface, (mapa_x, mapa_y))
+
+        # 3. Desenha TODOS os BOTS (Bolinhas vermelhas com contorno de alto contraste)
         if bots:
             for bot in bots:
-                bx, by = get_radar_pos(bot["pos"])
-                pygame.draw.circle(screen, (255, 50, 50), (int(bx), int(by)), 3)
-                
-        # 2. Desenha o SEU CARRO (Bolinha Verde Maior e Piscante)
-        px, py = get_radar_pos(self.position)
-        
-        # Efeito piscante: pisca verde e branco a cada 200 milissegundos
-        if (tempo_atual // 200) % 2 == 0:
-            pygame.draw.circle(screen, (0, 255, 0), (int(px), int(py)), 5)
+                bx, by = track.get_minimap_pos(bot["pos"])
+                pos_bot_x = int(mapa_x + bx)
+                pos_bot_y = int(mapa_y + by)
+                # Borda escura para dar destaque e separar carros emparelhados
+                pygame.draw.circle(screen, (15, 15, 20), (pos_bot_x, pos_bot_y), 4)
+                pygame.draw.circle(screen, (255, 60, 60), (pos_bot_x, pos_bot_y), 3)
+
+        # 4. Desenha o SEU CARRO (Bolinha Verde Maior e Piscante com destaque)
+        px, py = track.get_minimap_pos(self.position)
+        pos_player_x = int(mapa_x + px)
+        pos_player_y = int(mapa_y + py)
+
+        # Borda preta de contraste
+        pygame.draw.circle(screen, (0, 0, 0), (pos_player_x, pos_player_y), 6)
+        # Efeito piscante: pisca verde vivo e branco a cada 180ms
+        if (tempo_atual // 180) % 2 == 0:
+            pygame.draw.circle(screen, (0, 255, 60), (pos_player_x, pos_player_y), 4)
         else:
-            pygame.draw.circle(screen, WHITE, (int(px), int(py)), 5)
+            pygame.draw.circle(screen, WHITE, (pos_player_x, pos_player_y), 4)
 
         # =========================================================================
     # NOVO: RADAR DE POSIÇÕES E ALERTA DE FALHA MECÂNICA
@@ -892,6 +891,7 @@ class Car:
 
     ## LOGICA DA CRONOMETRAGEM
     def update_timer(self, total_track_length, lap_limit):
+        self.lap_limit = lap_limit
         # Só atualiza o tempo se a corrida não tiver terminado
         if self.laps_completed < lap_limit:
             agora = pygame.time.get_ticks()

@@ -634,9 +634,20 @@ class TrackEditor:
         pygame.draw.circle(self.screen, COLOR_SUCCESS, pt_largada, 7)
         pygame.draw.circle(self.screen, COLOR_DANGER, pt_fim, 7)
 
+        # =========================================================================
+        # [ALTERAÇÃO - EDITOR / 2D]: MARCADOR DA POSIÇÃO DA CÂMERA NO TRAÇADO 2D
+        # =========================================================================
+        total_metros = sum(s["length"] for s in self.segmentos)
+        if total_metros > 0 and len(pontos_tela) > 1:
+            cam_frac = (self.cam_pos % total_metros) / float(total_metros)
+            idx_pt_cam = min(len(pontos_tela) - 1, int(cam_frac * (len(pontos_tela) - 1)))
+            pt_cam = pontos_tela[idx_pt_cam]
+            pygame.draw.circle(self.screen, (0, 0, 0), pt_cam, 8)
+            pygame.draw.circle(self.screen, COLOR_ACCENT, pt_cam, 6)
+            pygame.draw.circle(self.screen, (255, 255, 255), pt_cam, 3)
+
         # Distância entre largada e chegada para avaliar fechamento
         dist_fechamento = math.sqrt((pontos[-1][0] - pontos[0][0])**2 + (pontos[-1][1] - pontos[0][1])**2)
-        total_metros = sum(s["length"] for s in self.segmentos)
 
         # Selo de Status da Pista
         if dist_fechamento < 60:

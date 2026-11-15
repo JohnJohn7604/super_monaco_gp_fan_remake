@@ -2,6 +2,7 @@
 import pygame
 import json
 import os
+import math
 from settings import *
 
 class Track:
@@ -129,6 +130,154 @@ class Track:
             self.bg_img.fill((135, 206, 235))
             pygame.draw.polygon(self.bg_img, (34, 139, 34), [(0, final_bg_h), (final_bg_w // 4, final_bg_h // 4), (final_bg_w, final_bg_h)]) 
             pygame.draw.polygon(self.bg_img, (46, 120, 80), [(final_bg_w // 3, final_bg_h), (final_bg_w // 2, final_bg_h // 3), (final_bg_w, final_bg_h)])
+
+        # =========================================================================
+        # [ALTERAÇÃO - HUD / MINIMAPA]: GERAÇÃO DA GEOMETRIA 2D E MINIMAPA REAL
+        # Gera o traçado vetorial 2D da pista e pré-renderiza a superfície do HUD (280x195).
+        # Substitui o antigo radar oval pelo desenho autêntico do traçado do circuito.
+        # =========================================================================
+        self.gerar_geometria_2d()
+        self.preparar_minimapa(mapa_w=280, mapa_h=195, padding=18)
+
+    def gerar_geometria_2d(self):
+        """
+        [ALTERAÇÃO - MINIMAPA]: Gera a trajetória 2D real (x, y) de cada metro da pista
+        com base nas curvas dos segmentos, aplicando fechamento suave de circuito.
+        """
+        raw_pts = []
+        x, y = 0.0, 0.0
+        ang = -math.pi / 2
+        curve_factor = 0.5
+        for seg in self.track_map:
+            c = float(seg.get("curve", 0.0))
+            l = int(seg.get("length", 100))
+            for _ in range(l):
+                ang += c * 1.0 * curve_factor
+                x += math.cos(ang)
+                y += math.sin(ang)
+                raw_pts.append((x, y))
+
+        self.total_track_length = len(raw_pts)
+        if self.total_track_length == 0:
+            self.pontos_2d_metros = [(0.0, 0.0)]
+            self.circuito_fechado = False
+            return
+
+        # Avalia a distância entre o início e o fim da volta para verificar se é um circuito fechado
+        dx = raw_pts[0][0] - raw_pts[-1][0]
+        dy = raw_pts[0][1] - raw_pts[-1][1]
+        dist_fechamento = math.hypot(dx, dy)
+        self.circuito_fechado = (dist_fechamento < 150)
+
+        self.pontos_2d_metros = []
+        for i, (px, py) in enumerate(raw_pts):
+            if self.circuito_fechado:
+                # Distribui suavemente a diferença para conectar largada e chegada com precisão milimétrica
+                frac = i / float(self.total_track_length)
+                self.pontos_2d_metros.append((px + dx * frac, py + dy * frac))
+            else:
+                self.pontos_2d_metros.append((px, py))
+
+    def preparar_minimapa(self, mapa_w=280, mapa_h=195, padding=18):
+        """
+        [ALTERAÇÃO - MINIMAPA]: Mapeia os pontos da pista para coordenadas da tela no
+        minimapa e pré-renderiza a superfície com o traçado real, borda e linha de chegada.
+        Dimensões ampliadas para 280x195.
+        """
+        self.mapa_w = mapa_w
+        self.mapa_h = mapa_h
+
+        if not hasattr(self, 'pontos_2d_metros') or not self.pontos_2d_metros:
+            self.gerar_geometria_2d()
+
+        xs = [p[0] for p in self.pontos_2d_metros]
+        ys = [p[1] for p in self.pontos_2d_metros]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        w = max(1.0, max_x - min_x)
+        h = max(1.0, max_y - min_y)
+
+        avail_w = max(10, mapa_w - padding * 2)
+        avail_h = max(10, mapa_h - padding * 2)
+        scale = min(avail_w / w, avail_h / h)
+
+        off_x = (mapa_w / 2) - ((min_x + max_x) / 2) * scale
+        off_y = (mapa_h / 2) - ((min_y + max_y) / 2) * scale
+
+        self.pontos_minimapa = [(off_x + px * scale, off_y + py * scale) for px, py in self.pontos_2d_metros]
+
+        # Superfície com suporte a canal Alfa (Transparência)
+        self.minimap_surface = pygame.Surface((mapa_w, mapa_h), pygame.SRCALPHA)
+        # Fundo escuro semi-transparente estilo HUD arcade retro
+        self.minimap_surface.fill((10, 14, 24, 180))
+        # Borda com cantos arredondados
+        pygame.draw.rect(self.minimap_surface, (45, 60, 85), (0, 0, mapa_w, mapa_h), width=1, border_radius=8)
+
+        # Amostragem para linhas suaves e limpas
+        passo = max(1, len(self.pontos_minimapa) // 250)
+        pts_linha = [self.pontos_minimapa[k] for k in range(0, len(self.pontos_minimapa), passo)]
+        if not self.circuito_fechado or (pts_linha and pts_linha[-1] != self.pontos_minimapa[-1]):
+            pts_linha.append(self.pontos_minimapa[-1])
+
+        if len(pts_linha) > 1:
+            # Traço externo escuro (Sombra/contorno do asfalto)
+            pygame.draw.lines(self.minimap_surface, (30, 42, 60), self.circuito_fechado, pts_linha, width=6)
+            # Traço interno claro (Linha do traçado no mapa)
+            pygame.draw.lines(self.minimap_surface, (160, 180, 210), self.circuito_fechado, pts_linha, width=2)
+
+        # Marcador da Linha de Largada / Chegada (Amarelo)
+        if self.pontos_minimapa:
+            p0 = self.pontos_minimapa[0]
+            idx_next = min(len(self.pontos_minimapa) - 1, 10)
+            p1 = self.pontos_minimapa[idx_next]
+            vx = p1[0] - p0[0]
+            vy = p1[1] - p0[1]
+            mag = math.hypot(vx, vy)
+            if mag > 0.001:
+                nx, ny = -vy / mag, vx / mag
+                larg_x1 = int(p0[0] + nx * 5)
+                larg_y1 = int(p0[1] + ny * 5)
+                larg_x2 = int(p0[0] - nx * 5)
+                larg_y2 = int(p0[1] - ny * 5)
+                pygame.draw.line(self.minimap_surface, (255, 220, 0), (larg_x1, larg_y1), (larg_x2, larg_y2), 3)
+
+        # Rótulo de texto discreto com o nome da pista
+        try:
+            fonte_rotulo = pygame.font.SysFont('Segoe UI', 11, bold=True)
+            txt_pista = fonte_rotulo.render(self.nome_pista.upper(), True, (130, 155, 185))
+            self.minimap_surface.blit(txt_pista, (10, 6))
+        except:
+            pass
+
+    def get_minimap_pos(self, pos):
+        """
+        [ALTERAÇÃO - MINIMAPA]: Retorna as coordenadas (x, y) relativas ao minimapa para
+        qualquer distância 'pos' na pista com interpolação suave (lerp).
+        """
+        if not hasattr(self, 'pontos_minimapa') or not self.pontos_minimapa:
+            return 0.0, 0.0
+        total = len(self.pontos_minimapa)
+        if total == 0:
+            return 0.0, 0.0
+        pos_mod = pos % total
+        idx1 = int(pos_mod)
+        idx2 = (idx1 + 1) % total
+        frac = pos_mod - idx1
+        x1, y1 = self.pontos_minimapa[idx1]
+        x2, y2 = self.pontos_minimapa[idx2]
+        return x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac
+        if not hasattr(self, 'pontos_minimapa') or not self.pontos_minimapa:
+            return 0.0, 0.0
+        total = len(self.pontos_minimapa)
+        if total == 0:
+            return 0.0, 0.0
+        pos_mod = pos % total
+        idx1 = int(pos_mod)
+        idx2 = (idx1 + 1) % total
+        frac = pos_mod - idx1
+        x1, y1 = self.pontos_minimapa[idx1]
+        x2, y2 = self.pontos_minimapa[idx2]
+        return x1 + (x2 - x1) * frac, y1 + (y2 - y1) * frac
 
     def get_curve(self, position):
         indice = int(position) % self.total_track_length

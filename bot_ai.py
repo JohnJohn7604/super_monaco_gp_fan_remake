@@ -83,23 +83,22 @@ class BotAI:
             else:
                 target_speed = bot["max_speed"]
 
+            # =========================================================================
+            # [ALTERAÇÃO - IA / FINAL LAP]: BÔNUS DE VELOCIDADE APÓS A PENÚLTIMA VOLTA
+            # Quando a penúltima volta é completada e a volta final se inicia:
+            # Todos os carros que estiverem ATRÁS do jogador ganham +3% de velocidade máxima.
+            # Se um bot ultrapassar o jogador, o bônus dele cessa automaticamente.
+            # =========================================================================
+            pos_penultima = carro_jogador.laps_completed >= (getattr(self.game, 'lap_limit', 1) - 1)
+            carro_atras = bot["pos"] < carro_jogador.position
+            if pos_penultima and carro_atras and not getattr(self.game, 'race_finished', False):
+                target_speed *= 1.03
+
             # ---> A CORREÇÃO DA FALHA MECÂNICA <---
             # Se o carro quebrou, a velocidade alvo dele cai para 160 km/h!
             # O sistema de freios existente vai desacelerar suavemente até 160 e travar lá, sem dar ré!
             if bot.get("falha_mecanica", False):
                 target_speed = min(target_speed, 160.0)
-
-            # 2. IA de Curvas Corajosas
-            curva_do_bot = track.get_curve(bot["pos"])
-            
-            if abs(curva_do_bot) > 0.02 and not sprint_largada:
-                intensidade_curva = abs(curva_do_bot) * 5.0  
-                bonus_direcao = bot.get("direcao", 3) * 0.015 
-                multiplicador_curva = 1.0 - intensidade_curva + bonus_direcao
-                target_speed = min(bot["max_speed"], bot["max_speed"] * multiplicador_curva)
-                target_speed = max(150, target_speed) 
-            else:
-                target_speed = bot["max_speed"]
 
             # ---> MÁGICA: O RADAR DE FRENAGEM INTELIGENTE <---
             # O bot percebe que você está bloqueando a frente dele ANTES de acelerar!
@@ -139,6 +138,22 @@ class BotAI:
                 bot["speed"] -= 3.5  
             elif bot["speed"] > target_speed: 
                 bot["speed"] -= 0.8 
+
+            # =========================================================================
+            # [ALTERAÇÃO - PÓS-CORRIDA]: CARROS A 100 KM/H APÓS CONCLUÍREM A CHEGADA
+            # Após o jogador concluir a corrida, qualquer bot que conclua a chegada
+            # desacelera suavemente e mantém velocidade de cruzeiro de exatamente 100 km/h.
+            # =========================================================================
+            dist_meta = track.total_track_length * getattr(self.game, 'lap_limit', 1)
+            if bot["pos"] >= dist_meta:
+                bot["concluiu_chegada"] = True
+
+            if getattr(self.game, 'race_finished', False) and bot.get("concluiu_chegada", False):
+                target_speed = 100.0
+                if bot["speed"] > 100.0:
+                    bot["speed"] = max(100.0, bot["speed"] - 2.8)
+                elif bot["speed"] < 100.0:
+                    bot["speed"] = min(100.0, bot["speed"] + 1.2)
 
             # 4. O SISTEMA DE 3 LINHAS E TANGÊNCIA (RACING LINE)
             if "linha_reta" not in bot:
