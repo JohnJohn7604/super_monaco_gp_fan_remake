@@ -21,7 +21,7 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
         # Ignora tudo o que for rato e foca o processador SÓ no teclado!
         pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
-        pygame.display.set_caption("Super Monaco GP - Rio Edition")
+        pygame.display.set_caption("Super Monaco GP - Fan Remake")
         self.clock = pygame.time.Clock()
         self.imagem_cache = {}
 
@@ -36,6 +36,14 @@ class Game:
         #elf.estado_jogo = "TITTLE SCREEN"
         #self.opcao_titulo_sel = 0  # 0 = Start, 1 = Settings
         self.nome_digitado = ""         # Guarda as letras que o jogador vai digitar
+
+        # Catálogo de pistas disponíveis (Nome exibido na tela, nome do arquivo JSON)
+        self.lista_pistas = [
+            {"nome": "BRAZIL", "arquivo": "rio"},
+            {"nome": "SAN MARINO", "arquivo": "san_marino"},
+            {"nome": "BELGIUM", "arquivo": "belgium"}
+        ]
+        self.pista_sel_idx = 0
         self.track = None
         self.car = None
 
@@ -244,10 +252,9 @@ class Game:
                         self.imagem_cache[chave] = pygame.transform.scale(img_original, (w, h))
     
 
-    def iniciar_corrida(self, track_name):
-        # 1. Escolha da pista
-        if track_name == "rio":
-            self.track = Track()
+    def iniciar_corrida(self, track_name="rio"):
+        # Instancia a Track passando o nome do arquivo (ex: "rio" ou "san_marino")
+        self.track = Track(track_name)
             
         # =========================================================
         # APLICA AS ESCOLHAS DOS MENUS NO SEU PILOTO (NOVO)
@@ -588,17 +595,30 @@ class Game:
                             if self.nome_digitado.strip() == "":
                                 self.nome_digitado = "PILOTO"
                                 
-                            # Prepara a tela seguinte (Seleção de Equipa)
-                            self.lista_equipes_nomes = list(self.equipes.keys())
-                            self.equipe_sel_idx = 0
-                            self.piloto_sel_idx = 0
-                            self.estado_jogo = "SELECT_TEAM"  # <--- VAI PARA EQUIPAS
+                            # Vai para a Seleção de Pista!
+                            self.pista_sel_idx = 0
+                            self.estado_jogo = "SELECT_TRACK"
                             
                         elif event.key == pygame.K_BACKSPACE:
                             self.nome_digitado = self.nome_digitado[:-1]
                         else:
                             if len(self.nome_digitado) < 12 and event.unicode.isprintable(): 
                                 self.nome_digitado += event.unicode.upper()
+
+                    # ------------------------------------------
+                    # TELA 1.5: SELEÇÃO DE PISTA (NOVA)
+                    # ------------------------------------------
+                    elif self.estado_jogo == "SELECT_TRACK":
+                        if event.key in [pygame.K_DOWN, pygame.K_RIGHT]:
+                            self.pista_sel_idx = (self.pista_sel_idx + 1) % len(self.lista_pistas)
+                        elif event.key in [pygame.K_UP, pygame.K_LEFT]:
+                            self.pista_sel_idx = (self.pista_sel_idx - 1) % len(self.lista_pistas)
+                        elif event.key == pygame.K_RETURN:
+                            # Prepara e avança para a Seleção de Equipe
+                            self.lista_equipes_nomes = list(self.equipes.keys())
+                            self.equipe_sel_idx = 0
+                            self.piloto_sel_idx = 0
+                            self.estado_jogo = "SELECT_TEAM"
 
                     # ------------------------------------------
                     # TELA 2: SELEÇÃO DE EQUIPA E PILOTO A SUBSTITUIR
@@ -635,7 +655,7 @@ class Game:
                             self.estado_jogo = "SELECT_LAPS" # <--- VAI PARA VOLTAS
 
                     # ------------------------------------------
-                    # TELA 4: SELEÇÃO DE VOLTAS (NOVA)
+                    # TELA 4: SELEÇÃO DE VOLTAS
                     # ------------------------------------------
                     elif self.estado_jogo == "SELECT_LAPS":
                         if event.key == pygame.K_DOWN:
@@ -643,8 +663,9 @@ class Game:
                         elif event.key == pygame.K_UP:
                             self.volta_sel_idx = (self.volta_sel_idx - 1) % len(self.opcoes_voltas)
                         elif event.key == pygame.K_RETURN:
-                            self.iniciar_corrida("rio")
-                            self.estado_jogo = "LOADING" # <--- VAI PARA AS PISTAS
+                            pista_escolhida = self.lista_pistas[self.pista_sel_idx]["arquivo"]
+                            self.iniciar_corrida(pista_escolhida)
+                            self.estado_jogo = "LOADING"
 
                     elif self.estado_jogo == "DEBUG_REPORT":
                         if event.key == pygame.K_RETURN:
@@ -691,6 +712,12 @@ class Game:
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 return True 
+
+            if self.estado_jogo == "SELECT_TRACK":
+                self.ui.desenhar_tela_pistas()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                return True
 
             if self.estado_jogo == "SELECT_POS":
                 self.ui.desenhar_tela_posicao() # <--- Agora puxa do ui.py!
@@ -786,13 +813,13 @@ class Game:
             # [ALTERAÇÃO - PÓS-CORRIDA]: CARRO DO JOGADOR ANDA A 100 KM/H NA CHEGADA
             # Desacelera suavemente até travar e manter 100 km/h na volta de desaceleração
             # =========================================================================
-            if self.race_finished:
-                if self.car.speed > 100.0:
-                    self.car.speed = max(100.0, self.car.speed - 2.5)
-                elif self.car.speed < 100.0:
-                    self.car.speed = min(100.0, self.car.speed + 1.2)
+            #if self.race_finished:
+            #    if self.car.speed > 100.0:
+            #        self.car.speed = max(100.0, self.car.speed - 2.5)
+            #    elif self.car.speed < 100.0:
+            #        self.car.speed = min(100.0, self.car.speed + 1.2)
                 # Mantém o carro centralizado na pista suavemente
-                self.car.player_x += (0.0 - self.car.player_x) * 0.04
+            #    self.car.player_x += (0.0 - self.car.player_x) * 0.04
 
             # =========================================================================
             # [ALTERAÇÃO - FINAL LAP]: DISPARO DO AVISO VISUAL E ÁUDIO NA ÚLTIMA VOLTA

@@ -21,7 +21,7 @@ class Track:
         self.color_road_1 = GRAY_DARK
         self.color_road_2 = GRAY_LIGHT
         self.bg_image_path = "images/bg_rio.png"
-        self.nome_pista = "Rio de Janeiro"
+        self.nome_pista = "Brazil"
 
         # Tenta carregar do arquivo JSON (se existir)
         caminho_json = track_file

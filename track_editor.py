@@ -35,7 +35,7 @@ PRESETS_ZEBRA = [
 # COMPONENTES VISUAIS (BOTÕES E CONTROLES)
 # =============================================================================
 class UIButton:
-    def __init__(self, rect, text, callback, color=COLOR_PANEL_HEADER, hover_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY, font_size=16):
+    def __init__(self, rect, text, callback, color=COLOR_PANEL_HEADER, hover_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY, font_size=14):
         self.rect = pygame.Rect(rect)
         self.text = text
         self.callback = callback
@@ -44,6 +44,7 @@ class UIButton:
         self.text_color = text_color
         self.font_size = font_size
         self.is_hovered = False
+        self._font_cache = None
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -55,11 +56,17 @@ class UIButton:
                 return True
         return False
 
-    def draw(self, screen, font):
+    def draw(self, screen, default_font):
         bg = self.hover_color if self.is_hovered else self.color
         pygame.draw.rect(screen, bg, self.rect, border_radius=5)
         pygame.draw.rect(screen, COLOR_BORDER, self.rect, width=1, border_radius=5)
-        txt = font.render(self.text, True, self.text_color)
+        if self.font_size != 14:
+            if self._font_cache is None:
+                self._font_cache = pygame.font.SysFont('Segoe UI', self.font_size)
+            font_to_use = self._font_cache
+        else:
+            font_to_use = default_font
+        txt = font_to_use.render(self.text, True, self.text_color)
         screen.blit(txt, (self.rect.centerx - txt.get_width() // 2, self.rect.centery - txt.get_height() // 2))
 
 
@@ -91,6 +98,19 @@ class TrackEditor:
         # Presets de Zebra
         self.zebra_idx = 0
 
+        # Camada de Referência 2D (Overlay PNG com 60% de transparência)
+        self.lista_refs = self.detectar_pngs_referencia()
+        self.ref_idx = 0          # 0 = Nenhuma imagem selecionada
+        self.ref_width = 400
+        self.ref_height = 300
+        self.ref_offset_x = 0     # Deslocamento horizontal (X)
+        self.ref_offset_y = 0     # Deslocamento vertical (Y)
+        self.ref_angle = 0        # Ângulo de rotação em graus (-: anti-horário, +: horário)
+        self.arrastando_ref = False
+        self.drag_inicio_mouse = (0, 0)
+        self.drag_inicio_offset = (0, 0)
+        self.ref_surf_cache = {}
+
         # Estado da Pista Atual
         self.nome_pista = "Grande Prêmio do Rio"
         self.arquivo_atual = "pistas/rio.json"
@@ -109,12 +129,12 @@ class TrackEditor:
         self.status_timer = pygame.time.get_ticks() + 4000
         self.status_color = COLOR_ACCENT
 
-        # Scroll e Área da lista lateral
+        # Scroll e Área da lista lateral (ajustada para caber tamanho, posição e rotação do gabarito 2D)
         self.scroll_offset = 0
-        self.rect_lista = pygame.Rect(640, 468, WIDTH - 640 - 20, 242)
+        self.rect_lista = pygame.Rect(640, 468, WIDTH - 640 - 20, 120)
 
         # Modal de Arquivo (Salvar / Carregar)
-        self.modal_aberto = None # 'CARREGAR', 'SALVAR_COMO', 'NOVO'
+        self.modal_aberto = None  # 'CARREGAR', 'SALVAR_COMO', 'NOVO'
         self.nome_input_salvar = "nova_pista"
 
         # Carrega a pista inicial
@@ -136,6 +156,35 @@ class TrackEditor:
         if not fundos:
             fundos = ["images/bg_rio.png"]
         return fundos
+
+    def detectar_pngs_referencia(self):
+        """ Escaneia arquivos .png para usar como gabarito na vista aérea """
+        arquivos = ["NENHUMA"]
+        for pasta in ["referencias", "images"]:
+            if os.path.exists(pasta):
+                for f in sorted(os.listdir(pasta)):
+                    if f.lower().endswith(".png"):
+                        arquivos.append(f"{pasta}/{f}")
+        return arquivos
+
+    def carregar_ref_surf(self, caminho):
+        cache_key = (caminho, self.ref_width, self.ref_height, self.ref_angle)
+        if cache_key not in self.ref_surf_cache:
+            try:
+                img = pygame.image.load(caminho).convert_alpha()
+                scaled = pygame.transform.smoothscale(img, (self.ref_width, self.ref_height))
+                # Pygame gira em sentido anti-horário para ângulos positivos, então invertemos (-self.ref_angle)
+                # para que valores positivos girem no sentido horário e negativos no sentido anti-horário.
+                if self.ref_angle != 0:
+                    scaled = pygame.transform.rotozoom(scaled, -self.ref_angle, 1.0)
+                surf = pygame.Surface(scaled.get_size(), pygame.SRCALPHA)
+                surf.blit(scaled, (0, 0))
+                surf.set_alpha(153)  # ~60% de transparência/opacidade (153/255)
+                self.ref_surf_cache[cache_key] = surf
+            except Exception as e:
+                self.set_status(f"Erro ao carregar PNG de referência: {e}", COLOR_DANGER)
+                return None
+        return self.ref_surf_cache[cache_key]
 
     def carregar_bg_surf(self, caminho):
         cache_key = (caminho, self.bg_width, self.bg_height)
@@ -319,9 +368,9 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 360, y_curv, 65, 26), "Média D", lambda: self.definir_curva(0.03), color=(40, 60, 90)))
         self.buttons.append(UIButton((p_x + 430, y_curv, 65, 26), "Forte D", lambda: self.definir_curva(0.05), color=(60, 40, 80)))
 
-        # Ajuste fino curva (-0.005 / +0.005)
-        self.buttons.append(UIButton((p_x + 505, y_curv, 45, 26), "-0.00059", lambda: self.modificar_curva(-0.00059)))
-        self.buttons.append(UIButton((p_x + 555, y_curv, 45, 26), "+0.00059", lambda: self.modificar_curva(0.00059)))
+        # Ajuste fino curva
+        self.buttons.append(UIButton((p_x + 505, y_curv, 45, 26), "-0.00059", lambda: self.modificar_curva(-0.00059), font_size=11))
+        self.buttons.append(UIButton((p_x + 555, y_curv, 45, 26), "+0.00059", lambda: self.modificar_curva(0.00059), font_size=11))
 
         # --- AJUSTES DO SEGMENTO SELECIONADO: RELEVO (ACLIVE / DECLIVE) ---
         y_hill = 353
@@ -332,8 +381,8 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 380, y_hill, 95, 26), "Subida Forte", lambda: self.definir_hill(0.002), color=(40, 50, 110)))
 
         # Ajuste fino hill (-0.0005 / +0.0005)
-        self.buttons.append(UIButton((p_x + 485, y_hill, 50, 26), "-0.0005", lambda: self.modificar_hill(-0.0005)))
-        self.buttons.append(UIButton((p_x + 540, y_hill, 50, 26), "+0.0005", lambda: self.modificar_hill(0.0005)))
+        self.buttons.append(UIButton((p_x + 485, y_hill, 50, 26), "-0.0005", lambda: self.modificar_hill(-0.0005), font_size=12))
+        self.buttons.append(UIButton((p_x + 540, y_hill, 50, 26), "+0.0005", lambda: self.modificar_hill(0.0005), font_size=12))
 
         # --- AÇÕES DE CONSTRUÇÃO DE PISTA ---
         y_act = 401
@@ -344,14 +393,57 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 480, y_act, 105, 28), "DUPLICAR", self.action_duplicar_seg, color=(60, 65, 75)))
 
         y_act2 = 434
-        self.buttons.append(UIButton((p_x + 10, y_act2, 105, 26), "SUBIR (Ordem)", lambda: self.action_reordenar(-1), color=(40, 50, 65)))
-        self.buttons.append(UIButton((p_x + 125, y_act2, 105, 26), "DESCER (Ordem)", lambda: self.action_reordenar(1), color=(40, 50, 65)))
-        self.buttons.append(UIButton((p_x + 240, y_act2, 105, 26), "EXCLUIR TRECHO", self.action_excluir_seg, color=(120, 30, 30), hover_color=(160, 40, 40)))
+        self.buttons.append(UIButton((p_x + 10, y_act2, 105, 26), "SUBIR (Ordem)", lambda: self.action_reordenar(-1), color=(40, 50, 65), font_size=13))
+        self.buttons.append(UIButton((p_x + 125, y_act2, 105, 26), "DESCER (Ordem)", lambda: self.action_reordenar(1), color=(40, 50, 65), font_size=13))
+        self.buttons.append(UIButton((p_x + 240, y_act2, 115, 26), "EXCLUIR TRECHO", self.action_excluir_seg, color=(120, 30, 30), hover_color=(160, 40, 40), font_size=13))
+
+        # --- CAMADA DE REFERÊNCIA 2D (PNG TRANSPARENTE 60%) ---
+        y_ref1 = 594
+        self.buttons.append(UIButton((p_x + 120, y_ref1, 28, 24), "<", self.action_prev_ref))
+        self.buttons.append(UIButton((p_x + 320, y_ref1, 28, 24), ">", self.action_next_ref))
+        self.buttons.append(UIButton((p_x + 356, y_ref1, 95, 24), "RECARREGAR", self.action_recarregar_refs, color=(40, 55, 75), font_size=12))
+        self.buttons.append(UIButton((p_x + 458, y_ref1, 88, 24), "RESET TUDO", self.action_reset_ref_size, color=(50, 60, 80), font_size=12))
+
+        # Ajustes de Width e Height da Referência
+        y_ref2 = 623
+        # Width (-50, -10, +10, +50)
+        self.buttons.append(UIButton((p_x + 35,  y_ref2, 36, 24), "-50", lambda: self.modificar_ref_size(-50, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 74,  y_ref2, 32, 24), "-10", lambda: self.modificar_ref_size(-10, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 168, y_ref2, 32, 24), "+10", lambda: self.modificar_ref_size(10, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 203, y_ref2, 36, 24), "+50", lambda: self.modificar_ref_size(50, 0), font_size=12))
+
+        # Height (-50, -10, +10, +50)
+        self.buttons.append(UIButton((p_x + 295, y_ref2, 36, 24), "-50", lambda: self.modificar_ref_size(0, -50), font_size=12))
+        self.buttons.append(UIButton((p_x + 334, y_ref2, 32, 24), "-10", lambda: self.modificar_ref_size(0, -10), font_size=12))
+        self.buttons.append(UIButton((p_x + 428, y_ref2, 32, 24), "+10", lambda: self.modificar_ref_size(0, 10), font_size=12))
+        self.buttons.append(UIButton((p_x + 463, y_ref2, 36, 24), "+50", lambda: self.modificar_ref_size(0, 50), font_size=12))
+
+        # Ajustes de Posição X e Y da Referência
+        y_ref3 = 652
+        # Posição X (-25, -5, +5, +25)
+        self.buttons.append(UIButton((p_x + 35,  y_ref3, 36, 24), "-25", lambda: self.modificar_ref_pos(-25, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 74,  y_ref3, 32, 24), "-5",  lambda: self.modificar_ref_pos(-5, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 168, y_ref3, 32, 24), "+5",  lambda: self.modificar_ref_pos(5, 0), font_size=12))
+        self.buttons.append(UIButton((p_x + 203, y_ref3, 36, 24), "+25", lambda: self.modificar_ref_pos(25, 0), font_size=12))
+
+        # Posição Y (-25, -5, +5, +25)
+        self.buttons.append(UIButton((p_x + 295, y_ref3, 36, 24), "-25", lambda: self.modificar_ref_pos(0, -25), font_size=12))
+        self.buttons.append(UIButton((p_x + 334, y_ref3, 32, 24), "-5",  lambda: self.modificar_ref_pos(0, -5), font_size=12))
+        self.buttons.append(UIButton((p_x + 428, y_ref3, 32, 24), "+5",  lambda: self.modificar_ref_pos(0, 5), font_size=12))
+        self.buttons.append(UIButton((p_x + 463, y_ref3, 36, 24), "+25", lambda: self.modificar_ref_pos(0, 25), font_size=12))
+
+        # Ajustes de Rotação (Anti-horário e Horário)
+        y_ref4 = 681
+        self.buttons.append(UIButton((p_x + 55,  y_ref4, 44, 24), "-15°", lambda: self.modificar_ref_angle(-15), font_size=12))
+        self.buttons.append(UIButton((p_x + 104, y_ref4, 40, 24), "-1°",  lambda: self.modificar_ref_angle(-1), font_size=12))
+        self.buttons.append(UIButton((p_x + 215, y_ref4, 40, 24), "+1°",  lambda: self.modificar_ref_angle(1), font_size=12))
+        self.buttons.append(UIButton((p_x + 260, y_ref4, 44, 24), "+15°", lambda: self.modificar_ref_angle(15), font_size=12))
+        self.buttons.append(UIButton((p_x + 314, y_ref4, 70, 24), "ZERAR 0°", self.action_reset_ref_angle, color=(50, 60, 80), font_size=11))
 
         # --- CONTROLES DA CÂMERA 3D (EMBAIXO DO PREVIEW) ---
-        self.buttons.append(UIButton((20, 680, 110, 26), "PULAR P/ TRECHO", self.action_focar_camera_trecho, color=(35, 50, 70)))
-        self.buttons.append(UIButton((140, 680, 100, 26), "PLAY / PAUSE", self.action_toggle_play, color=(20, 90, 130)))
-        self.buttons.append(UIButton((250, 680, 70, 26), "RESET", self.action_reset_cam, color=(50, 50, 60)))
+        self.buttons.append(UIButton((20, 680, 110, 26), "PULAR P/ TRECHO", self.action_focar_camera_trecho, color=(35, 50, 70), font_size=12))
+        self.buttons.append(UIButton((140, 680, 100, 26), "PLAY / PAUSE", self.action_toggle_play, color=(20, 90, 130), font_size=12))
+        self.buttons.append(UIButton((250, 680, 70, 26), "RESET", self.action_reset_cam, color=(50, 50, 60), font_size=12))
 
     # =========================================================================
     # AÇÕES DOS BOTÕES
@@ -398,6 +490,54 @@ class TrackEditor:
         self.zebra_idx = (self.zebra_idx + 1) % len(PRESETS_ZEBRA)
         self.set_status(f"Cores de Zebra: {PRESETS_ZEBRA[self.zebra_idx]['nome']}")
 
+    def action_prev_ref(self):
+        self.ref_idx = (self.ref_idx - 1) % len(self.lista_refs)
+        nome = os.path.basename(self.lista_refs[self.ref_idx])
+        self.set_status(f"Gabarito 2D: {nome}")
+
+    def action_next_ref(self):
+        self.ref_idx = (self.ref_idx + 1) % len(self.lista_refs)
+        nome = os.path.basename(self.lista_refs[self.ref_idx])
+        self.set_status(f"Gabarito 2D: {nome}")
+
+    def action_recarregar_refs(self):
+        atual = self.lista_refs[self.ref_idx]
+        self.lista_refs = self.detectar_pngs_referencia()
+        self.ref_surf_cache.clear()
+        self.ref_idx = self.lista_refs.index(atual) if atual in self.lista_refs else 0
+        self.set_status(f"{len(self.lista_refs) - 1} PNGs encontrados para gabarito!")
+
+    def modificar_ref_size(self, dw, dh):
+        self.ref_width = max(50, min(1200, self.ref_width + dw))
+        self.ref_height = max(50, min(1200, self.ref_height + dh))
+        self.set_status(f"Tamanho do Gabarito 2D: {self.ref_width}x{self.ref_height}px")
+
+    def modificar_ref_pos(self, dx, dy):
+        self.ref_offset_x = max(-1000, min(1000, self.ref_offset_x + dx))
+        self.ref_offset_y = max(-1000, min(1000, self.ref_offset_y + dy))
+        self.set_status(f"Posição do Gabarito 2D -> X: {self.ref_offset_x} | Y: {self.ref_offset_y}")
+
+    def modificar_ref_angle(self, d_angle):
+        self.ref_angle = (self.ref_angle + d_angle)
+        if self.ref_angle > 180:
+            self.ref_angle -= 360
+        elif self.ref_angle < -180:
+            self.ref_angle += 360
+        sentido = "Horário" if self.ref_angle > 0 else ("Anti-horário" if self.ref_angle < 0 else "Neutro")
+        self.set_status(f"Rotação do Gabarito 2D: {self.ref_angle:+d}° ({sentido})")
+
+    def action_reset_ref_angle(self):
+        self.ref_angle = 0
+        self.set_status("Rotação do Gabarito 2D zerada (0°)")
+
+    def action_reset_ref_size(self):
+        self.ref_width = 400
+        self.ref_height = 300
+        self.ref_offset_x = 0
+        self.ref_offset_y = 0
+        self.ref_angle = 0
+        self.set_status("Gabarito 2D restaurado (400x300px | X: 0, Y: 0 | 0°)")
+
     def action_primeiro_seg(self):
         self.seg_idx = 0
         self.action_focar_camera_trecho()
@@ -417,7 +557,8 @@ class TrackEditor:
             self.action_focar_camera_trecho()
 
     def modificar_length(self, delta):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         seg = self.segmentos[self.seg_idx]
         seg["length"] = max(20, min(2000, seg["length"] + delta))
         self.set_status(f"Extensão do trecho #{self.seg_idx + 1}: {seg['length']}m")
@@ -462,25 +603,29 @@ class TrackEditor:
         self.bg_offset_x = -accum_rot * 120.0
 
     def definir_curva(self, valor):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         self.segmentos[self.seg_idx]["curve"] = round(float(valor), 4)
         self.sincronizar_bg_offset_com_posicao()
         self.set_status(f"Curvatura do trecho #{self.seg_idx + 1}: {valor:+.4f}")
 
     def modificar_curva(self, delta):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         seg = self.segmentos[self.seg_idx]
         seg["curve"] = round(max(-0.08, min(0.08, seg["curve"] + delta)), 4)
         self.sincronizar_bg_offset_com_posicao()
         self.set_status(f"Curvatura do trecho #{self.seg_idx + 1}: {seg['curve']:+.4f}")
 
     def definir_hill(self, valor):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         self.segmentos[self.seg_idx]["hill"] = round(float(valor), 4)
         self.set_status(f"Elevação do trecho #{self.seg_idx + 1}: {valor:+.4f}")
 
     def modificar_hill(self, delta):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         seg = self.segmentos[self.seg_idx]
         seg["hill"] = round(max(-0.004, min(0.004, seg["hill"] + delta)), 4)
         self.set_status(f"Elevação do trecho #{self.seg_idx + 1}: {seg['hill']:+.4f}")
@@ -513,7 +658,8 @@ class TrackEditor:
         self.set_status(f"Chicane inserida nas posições #{self.seg_idx + 1} e #{self.seg_idx + 2}!")
 
     def action_duplicar_seg(self):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         original = self.segmentos[self.seg_idx]
         copia = original.copy()
         insert_at = self.seg_idx + 1
@@ -532,7 +678,8 @@ class TrackEditor:
         self.set_status(f"Trecho removido. Restam {len(self.segmentos)} trechos.")
 
     def action_reordenar(self, direcao):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         novo_idx = self.seg_idx + direcao
         if 0 <= novo_idx < len(self.segmentos):
             self.segmentos[self.seg_idx], self.segmentos[novo_idx] = self.segmentos[novo_idx], self.segmentos[self.seg_idx]
@@ -541,7 +688,8 @@ class TrackEditor:
             self.set_status(f"Trecho movido para a posição #{self.seg_idx + 1}")
 
     def action_focar_camera_trecho(self):
-        if not self.segmentos: return
+        if not self.segmentos:
+            return
         dist = 0
         for i in range(self.seg_idx):
             dist += self.segmentos[i]["length"]
@@ -567,6 +715,25 @@ class TrackEditor:
         txt_header = self.font_sub.render("PRÉ-VISUALIZAÇÃO AÉREA (2D)", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_header, (rect.x + 12, rect.y + 8))
 
+        # Camada de referência PNG abaixo do traçado (60% de transparência)
+        if 0 < self.ref_idx < len(self.lista_refs):
+            ref_surf = self.carregar_ref_surf(self.lista_refs[self.ref_idx])
+            if ref_surf:
+                clip_area = pygame.Rect(rect.x + 2, rect.y + 30, rect.width - 4, rect.height - 52)
+                self.screen.set_clip(clip_area)
+                img_x = clip_area.centerx - (ref_surf.get_width() // 2) + self.ref_offset_x
+                img_y = clip_area.centery - (ref_surf.get_height() // 2) + self.ref_offset_y
+                self.screen.blit(ref_surf, (img_x, img_y))
+                self.screen.set_clip(None)
+
+                # Exibe os valores atuais de X, Y e Rotação na própria área do preview
+                txt_xy_preview = self.font_mono.render(
+                    f"PNG X:{self.ref_offset_x:+d} Y:{self.ref_offset_y:+d} R:{self.ref_angle:+d}°",
+                    True,
+                    COLOR_ACCENT
+                )
+                self.screen.blit(txt_xy_preview, (rect.right - 225, rect.bottom - 20))
+
         if not self.segmentos:
             return
 
@@ -574,15 +741,15 @@ class TrackEditor:
         pontos = []
         seg_indices_pontos = []
         x, y = 0.0, 0.0
-        angulo = -math.pi / 2 # Aponta para o norte
+        angulo = -math.pi / 2  # Aponta para o norte
         pontos.append((x, y))
         seg_indices_pontos.append(0)
 
-        curve_factor = 0.5 # Fator de conversão da curvatura
+        curve_factor = 0.5  # Fator de conversão da curvatura
         for i, s in enumerate(self.segmentos):
             c = s["curve"]
             l = s["length"]
-            passo = 8 # Avalia a cada 8m
+            passo = 8  # Avalia a cada 8m
             num_passos = max(1, int(l // passo))
             d_passo = l / num_passos
             for _ in range(num_passos):
@@ -634,9 +801,7 @@ class TrackEditor:
         pygame.draw.circle(self.screen, COLOR_SUCCESS, pt_largada, 7)
         pygame.draw.circle(self.screen, COLOR_DANGER, pt_fim, 7)
 
-        # =========================================================================
-        # [ALTERAÇÃO - EDITOR / 2D]: MARCADOR DA POSIÇÃO DA CÂMERA NO TRAÇADO 2D
-        # =========================================================================
+        # Marcador da posição da câmera no traçado 2D
         total_metros = sum(s["length"] for s in self.segmentos)
         if total_metros > 0 and len(pontos_tela) > 1:
             cam_frac = (self.cam_pos % total_metros) / float(total_metros)
@@ -720,7 +885,8 @@ class TrackEditor:
         for n in range(1, draw_distance):
             z_near = n - pos_frac
             z_far = n + 1 - pos_frac
-            if z_near <= 0.001: z_near = 0.001
+            if z_near <= 0.001:
+                z_near = 0.001
 
             p_near = cam_height / z_near
             p_far = cam_height / z_far
@@ -881,6 +1047,32 @@ class TrackEditor:
         # 4. Lista Rolável de Todos os Segmentos
         self.desenhar_lista_segmentos(self.rect_lista)
 
+        # 5. Controles da Camada PNG de Referência (Gabarito 2D)
+        y_ref1 = 594
+        lbl_ref = self.font_sub.render("GABARITO 2D:", True, COLOR_TEXT_MUTED)
+        self.screen.blit(lbl_ref, (p_x + 5, y_ref1 + 2))
+        nome_ref = os.path.basename(self.lista_refs[self.ref_idx])
+        txt_ref = self.font_ui.render(nome_ref[:22], True, COLOR_ACCENT if self.ref_idx > 0 else COLOR_TEXT_MUTED)
+        self.screen.blit(txt_ref, (p_x + 154, y_ref1 + 2))
+
+        y_ref2 = 623
+        self.screen.blit(self.font_sub.render("W:", True, COLOR_TEXT_MUTED), (p_x + 10, y_ref2 + 2))
+        self.screen.blit(self.font_mono.render(f"{self.ref_width:4d}", True, COLOR_SELECTED), (p_x + 114, y_ref2 + 4))
+
+        self.screen.blit(self.font_sub.render("H:", True, COLOR_TEXT_MUTED), (p_x + 270, y_ref2 + 2))
+        self.screen.blit(self.font_mono.render(f"{self.ref_height:4d}", True, COLOR_SELECTED), (p_x + 374, y_ref2 + 4))
+
+        y_ref3 = 652
+        self.screen.blit(self.font_sub.render("X:", True, COLOR_TEXT_MUTED), (p_x + 10, y_ref3 + 2))
+        self.screen.blit(self.font_mono.render(f"{self.ref_offset_x:+4d}", True, COLOR_ACCENT), (p_x + 114, y_ref3 + 4))
+
+        self.screen.blit(self.font_sub.render("Y:", True, COLOR_TEXT_MUTED), (p_x + 270, y_ref3 + 2))
+        self.screen.blit(self.font_mono.render(f"{self.ref_offset_y:+4d}", True, COLOR_ACCENT), (p_x + 374, y_ref3 + 4))
+
+        y_ref4 = 681
+        self.screen.blit(self.font_sub.render("ROT:", True, COLOR_TEXT_MUTED), (p_x + 10, y_ref4 + 2))
+        self.screen.blit(self.font_mono.render(f"{self.ref_angle:+4d}°", True, COLOR_WARNING), (p_x + 152, y_ref4 + 4))
+
     def desenhar_lista_segmentos(self, rect):
         pygame.draw.rect(self.screen, COLOR_PANEL, rect, border_radius=6)
         pygame.draw.rect(self.screen, COLOR_BORDER, rect, width=1, border_radius=6)
@@ -1024,9 +1216,6 @@ class TrackEditor:
                     ds = 66.0 * (dt / 1000.0)
                     pos_idx = int(self.cam_pos) % total_len
                     curva_atual = self.obter_curva_na_posicao(pos_idx)
-                    # O bg se move SOMENTE quando houver curva, no sentido oposto:
-                    # Curva à direita (>0) -> bg corre para a esquerda (-)
-                    # Curva à esquerda (<0) -> bg corre para a direita (+)
                     self.bg_offset_x -= curva_atual * ds * 120.0
                     self.cam_pos = (self.cam_pos + ds) % total_len
 
@@ -1081,6 +1270,21 @@ class TrackEditor:
                         elif btn_close.collidepoint(event.pos):
                             self.modal_aberto = None
                     continue
+
+                # Arrastar Gabarito 2D (PNG) diretamente com o mouse na área aérea
+                rect_preview_aereo = pygame.Rect(20, 45, 600, 333)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.ref_idx > 0 and rect_preview_aereo.collidepoint(event.pos):
+                        self.arrastando_ref = True
+                        self.drag_inicio_mouse = event.pos
+                        self.drag_inicio_offset = (self.ref_offset_x, self.ref_offset_y)
+                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                    self.arrastando_ref = False
+                elif event.type == pygame.MOUSEMOTION and self.arrastando_ref:
+                    dx = event.pos[0] - self.drag_inicio_mouse[0]
+                    dy = event.pos[1] - self.drag_inicio_mouse[1]
+                    self.ref_offset_x = self.drag_inicio_offset[0] + dx
+                    self.ref_offset_y = self.drag_inicio_offset[1] + dy
 
                 # Clique na lista lateral de segmentos para seleção rápida
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -1144,4 +1348,3 @@ class TrackEditor:
 if __name__ == "__main__":
     app = TrackEditor()
     app.run()
-

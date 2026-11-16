@@ -63,7 +63,7 @@ class BotAI:
             # 1.3. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
             if not bot.get("falha_mecanica", False):
                 if 200 < dist_relativa < (track.total_track_length / 2):
-                    if random.randint(1, 1500) == 1:
+                    if random.randint(1, 8500) == 1:
                         bot["falha_mecanica"] = True
                         bot["fim_falha"] = tempo_atual + random.randint(5000, 9000)
             else:
@@ -98,7 +98,7 @@ class BotAI:
             # Se o carro quebrou, a velocidade alvo dele cai para 160 km/h!
             # O sistema de freios existente vai desacelerar suavemente até 160 e travar lá, sem dar ré!
             if bot.get("falha_mecanica", False):
-                target_speed = min(target_speed, 160.0)
+                target_speed = min(target_speed, 260.0)
 
             # ---> MÁGICA: O RADAR DE FRENAGEM INTELIGENTE <---
             # O bot percebe que você está bloqueando a frente dele ANTES de acelerar!

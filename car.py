@@ -33,7 +33,7 @@ class Car:
         # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
         # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
         # Fórmula: Base de 35% + 1% por cada nível da equipe.
-        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.006)
+        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.216)
         
         # Trava de segurança para nunca passar de 100% dos status originais
         
@@ -300,7 +300,7 @@ class Car:
             # Multiplicador original: 1.4. Ajustado (+3%): 1.4 * 1.03 = 1.442
             # Aumenta o empurrão lateral nas curvas, exigindo maior perícia do piloto.
             # =========================================================================
-            forca_centrifuga = (percentual_vel ** 1.04) * curve_intensity * 1.442
+            forca_centrifuga = (percentual_vel ** 1.05) * curve_intensity * 1.444
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente

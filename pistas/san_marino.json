@@ -1,6 +1,8 @@
 {
   "nome": "Circuito de Treinamento",
-  "bg_image": "images/bg_rio.png",
+  "bg_image": "images/bg_san_marino.png",
+  "bg_width": 2040,
+  "bg_height": 141,
   "cores": {
     "zebra_1": [
       220,
@@ -35,52 +37,262 @@
   },
   "segmentos": [
     {
-      "length": 400,
+      "length": 270,
       "curve": 0.0,
       "hill": 0.0,
       "desc": "Reta Principal"
     },
     {
-      "length": 80,
-      "curve": 0.03,
+      "length": 100,
+      "curve": 0.006,
       "hill": 0.0,
-      "desc": "Entrada Curva 1"
+      "desc": "Curva para Direita"
     },
     {
-      "length": 80,
+      "length": 130,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.009,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 350,
+      "curve": -0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 20,
+      "curve": -0.08,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 50,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 20,
+      "curve": -0.0456,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 50,
+      "curve": 0.0378,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 110,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.0168,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 420,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 20,
+      "curve": -0.0246,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 70,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": 0.018,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 150,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 110,
+      "curve": -0.0482,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 320,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": 0.0078,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 190,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.03,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 120,
+      "curve": -0.0018,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 20,
+      "curve": -0.0432,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 210,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": 0.0144,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 50,
+      "curve": 0.0066,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 50,
+      "curve": 0.0596,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 50,
+      "curve": -0.0234,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 430,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 20,
       "curve": 0.05,
       "hill": 0.0,
-      "desc": "Curva 1"
+      "desc": "Curva para Direita"
     },
     {
-      "length": 80,
-      "curve": 0.03,
+      "length": 20,
+      "curve": 0.0,
       "hill": 0.0,
-      "desc": "Saída Curva 1"
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 40,
+      "curve": -0.0396,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 340,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 60,
+      "curve": -0.0138,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 280,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 20,
+      "curve": 0.0258,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 340,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 30,
+      "curve": -0.08,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 100,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": -0.0374,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
     },
     {
       "length": 350,
       "curve": 0.0,
-      "hill": 0.001,
-      "desc": "Reta Oposta (Aclive)"
-    },
-    {
-      "length": 80,
-      "curve": 0.03,
       "hill": 0.0,
-      "desc": "Entrada Curva 2"
+      "desc": "Nova Reta"
     },
     {
-      "length": 80,
-      "curve": 0.05,
-      "hill": -0.001,
-      "desc": "Curva 2 (Declive)"
-    },
-    {
-      "length": 80,
-      "curve": 0.03,
+      "length": 100,
+      "curve": 0.009,
       "hill": 0.0,
-      "desc": "Saída Curva 2"
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 150,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
     }
   ]
 }

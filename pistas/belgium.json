@@ -1,0 +1,106 @@
+{
+  "nome": "Circuito de Treinamento",
+  "bg_image": "images/bg_belgium.png",
+  "bg_width": 2560,
+  "bg_height": 135,
+  "cores": {
+    "zebra_1": [
+      220,
+      20,
+      20
+    ],
+    "zebra_2": [
+      255,
+      255,
+      255
+    ],
+    "grama_1": [
+      0,
+      100,
+      0
+    ],
+    "grama_2": [
+      0,
+      150,
+      0
+    ],
+    "asfalto_1": [
+      100,
+      100,
+      100
+    ],
+    "asfalto_2": [
+      105,
+      105,
+      105
+    ]
+  },
+  "segmentos": [
+    {
+      "length": 120,
+      "curve": -0.0,
+      "hill": 0.0,
+      "desc": "Reta Principal"
+    },
+    {
+      "length": 100,
+      "curve": 0.03,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 100,
+      "curve": 0.03,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 20,
+      "curve": 0.05,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 70,
+      "curve": -0.04,
+      "hill": 0.0,
+      "desc": "Chicane (Esq)"
+    },
+    {
+      "length": 70,
+      "curve": 0.04,
+      "hill": 0.0,
+      "desc": "Chicane (Dir)"
+    },
+    {
+      "length": 150,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": 0.05,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 40,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 100,
+      "curve": 0.0186,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 40,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    }
+  ]
+}

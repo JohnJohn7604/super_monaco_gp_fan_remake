@@ -184,3 +184,37 @@ class MenuUI:
 
         aviso = self.fonte_inst.render("Pressione ENTER para continuar para a Classificação", True, (200, 200, 0))
         self.game.screen.blit(aviso, (WIDTH // 2 - aviso.get_width() // 2, HEIGHT - 50))
+
+    def desenhar_tela_pistas(self):
+        self.game.screen.fill((15, 20, 35))
+        
+        fonte_titulo = pygame.font.SysFont('Arial', 45, bold=True)
+        fonte_opcao = pygame.font.SysFont('Arial', 34, bold=True)
+        fonte_info = pygame.font.SysFont('Arial', 20)
+
+        # Cabeçalho
+        titulo = fonte_titulo.render("SELECT CIRCUIT", True, (255, 215, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 70))
+
+        sub = fonte_info.render(f"DRIVER: {self.game.nome_digitado}", True, (150, 180, 220))
+        self.game.screen.blit(sub, (WIDTH // 2 - sub.get_width() // 2, 130))
+
+        # Lista de circuitos
+        y_inicial = 230
+        for i, pista in enumerate(self.game.lista_pistas):
+            selecionado = (i == self.game.pista_sel_idx)
+            cor_texto = (0, 255, 100) if selecionado else (200, 200, 200)
+            prefixo = "> " if selecionado else "  "
+
+            # Caixa de destaque na opção selecionada
+            if selecionado:
+                rect_bg = pygame.Rect(WIDTH // 2 - 220, y_inicial + (i * 70) - 10, 440, 56)
+                pygame.draw.rect(self.game.screen, (30, 45, 75), rect_bg, border_radius=8)
+                pygame.draw.rect(self.game.screen, (0, 255, 100), rect_bg, width=2, border_radius=8)
+
+            txt = fonte_opcao.render(f"{prefixo}{pista['nome']}", True, cor_texto)
+            self.game.screen.blit(txt, (WIDTH // 2 - txt.get_width() // 2, y_inicial + (i * 70)))
+
+        # Rodapé
+        inst = fonte_info.render("USE ARROWS TO SELECT  |  PRESS ENTER TO CONFIRM", True, (255, 80, 80))
+        self.game.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, HEIGHT - 60))
