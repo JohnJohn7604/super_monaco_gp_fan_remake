@@ -75,11 +75,17 @@ class BotAI:
             curva_do_bot = track.get_curve(bot["pos"])
             
             if abs(curva_do_bot) > 0.02 and not sprint_largada:
-                intensidade_curva = abs(curva_do_bot) * 5.0  
-                bonus_direcao = bot.get("direcao", 3) * 0.015 
-                multiplicador_curva = 1.0 - intensidade_curva + bonus_direcao
-                target_speed = min(bot["max_speed"], bot["max_speed"] * multiplicador_curva)
-                target_speed = max(150, target_speed) 
+
+                if dist_relativa > 0:
+                    # Bot à FRENTE do jogador: reduz normalmente na curva para permitir disputas
+                    multiplicador_curva = 0.85 + (bot["direcao"] * 0.03)
+                else:
+                    # Bot ATRÁS do jogador: reduz só um pouco (mantém 93% a 98% da velocidade)
+                    multiplicador_curva = 0.93 + (bot["direcao"] * 0.008)
+
+                target_speed = bot["max_speed"] * multiplicador_curva
+                target_speed = min(bot["max_speed"], target_speed)
+                target_speed = max(200, target_speed)
             else:
                 target_speed = bot["max_speed"]
 
@@ -117,8 +123,17 @@ class BotAI:
                 forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
                 bot["speed"] -= forca_freio 
 
-            # 3. Aceleração Feroz e Controle de Largada
+            # =========================================================================
+            # 3. ACELERAÇÃO FEROZ + HANDICAP DE BOOST (+4% ACELERAÇÃO)
+            # =========================================================================
             forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
+
+            # Verifica se o bot tem maior velocidade máxima que o player e está até 200m atrás
+            bot_mais_rapido = bot["max_speed"] > carro_jogador.max_speed
+            atras_ate_200m = (-200 <= dist_relativa < 0)
+
+            if bot_mais_rapido and atras_ate_200m:
+                forca_motor *= 1.10
             arrancada_grid = (carro_jogador.laps_completed == 0 and carro_jogador.current_lap_time < 8)
 
             if bot["speed"] < target_speed: 

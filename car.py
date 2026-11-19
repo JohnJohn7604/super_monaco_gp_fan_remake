@@ -27,18 +27,17 @@ class Car:
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        self.max_speed = velocidade_maxima 
+        handicap_velocidade_maxima = 0.93
+
+        self.max_speed = velocidade_maxima * handicap_velocidade_maxima
         
-        # 2. Ajuste Dinâmico de Aceleração (A Mágica)
-        # Se a equipe for muito ruim (nível baixo), o jogador sofre um corte grande.
-        # Se a equipe for boa (nível 6 ou 7), o corte é bem menor.
-        # Fórmula: Base de 35% + 1% por cada nível da equipe.
-        fator_nerf_acel = 0.350 + (nivel_aceleracao * 0.216)
+        # 2. Handicap Fixo de Aceleração (Independente da Equipe)
+        # Define uma porcentagem fixa da aceleração original da equipe para o player.
+        # Ex: 0.75 = o player tem 75% da aceleração da equipe (25% mais lento para arrancar).
+        handicap_aceleracao_player = 0.68
         
-        # Trava de segurança para nunca passar de 100% dos status originais
-        
-        
-        self.nivel_aceleracao = nivel_aceleracao * fator_nerf_acel
+        self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
+
         # === NOVOS ATRIBUTOS ===
         # Nível 1: Freio fraco (0.5) | Nível 7: Freio de cerâmica (1.4)
         self.brake_power = 0.35 + (nivel_freio * 0.15) 
