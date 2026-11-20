@@ -252,3 +252,92 @@ class MenuUI:
 
         rodape = self.game.fonte_pequena.render("Use CIMA / BAIXO para selecionar e ENTER para confirmar", True, (140, 150, 165))
         self.game.screen.blit(rodape, (WIDTH // 2 - rodape.get_width() // 2, HEIGHT - 60))
+
+    def desenhar_hud_preliminary(self, melhor_volta, pos_grid, tempo_target_p1, progresso_saida):
+        # Barra superior translúcida
+        painel = pygame.Surface((WIDTH, 68), pygame.SRCALPHA)
+        painel.fill((10, 15, 30, 200))
+        self.game.screen.blit(painel, (0, 0))
+        pygame.draw.line(self.game.screen, (255, 215, 0), (0, 68), (WIDTH, 68), 2)
+
+        etapa_num = self.game.etapa_atual_idx + 1
+        total_etapas = len(self.game.etapas_temporada)
+        txt_modo = self.fonte_pequena.render(
+            f"PRELIMINARY RACE - STAGE {etapa_num}/{total_etapas} (INFINITE LAPS)",
+            True, (255, 215, 0)
+        )
+        self.game.screen.blit(txt_modo, (20, 10))
+
+        str_melhor = f"{melhor_volta:.2f}s" if melhor_volta is not None else "--.--s"
+        str_p1 = f"{tempo_target_p1:.2f}s" if tempo_target_p1 is not None else "--.--s"
+        txt_tempos = self.fonte_inst.render(
+            f"BEST LAP: {str_melhor}   |   POLE TARGET: {str_p1}   |   GRID POS: {pos_grid}º",
+            True, (0, 255, 130)
+        )
+        self.game.screen.blit(txt_tempos, (20, 34))
+
+        # Instrução de saída no canto direito
+        txt_sair = self.fonte_pequena.render("HOLD [A + S + D] FOR 2s TO RACE", True, (255, 120, 120))
+        self.game.screen.blit(txt_sair, (WIDTH - txt_sair.get_width() - 20, 12))
+
+        # Barra de progresso ao segurar A + S + D
+        if progresso_saida > 0:
+            bar_w = 240
+            bar_h = 16
+            bx = WIDTH - bar_w - 20
+            by = 38
+            pygame.draw.rect(self.game.screen, (40, 40, 55), (bx, by, bar_w, bar_h), border_radius=4)
+            fill_w = int(bar_w * min(1.0, progresso_saida))
+            pygame.draw.rect(self.game.screen, (255, 200, 0), (bx, by, fill_w, bar_h), border_radius=4)
+            pygame.draw.rect(self.game.screen, (255, 255, 255), (bx, by, bar_w, bar_h), 1, border_radius=4)
+
+    def desenhar_tela_resultados_pilotos(self):
+        self.game.screen.fill((20, 20, 50))
+        titulo = self.fonte_titulo.render("DRIVERS CHAMPIONSHIP", True, (255, 255, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 30))
+
+        fonte_lista = pygame.font.SysFont('Arial', 24, bold=True)
+        meu_nome = getattr(self.game, "nome_jogador_formatado", "PILOTO").upper()
+
+        for i, item in enumerate(self.game.classificacao_pilotos):
+            sigla = item["equipe"][:3].upper()
+            texto = f"{i+1:2d}. {item['nome']} ({sigla}) - {item['pontos']} PTS"
+            cor = (0, 255, 0) if item["nome"].upper() == meu_nome else (255, 255, 255)
+            img_txt = fonte_lista.render(texto, True, cor)
+
+            if i < 8:
+                x, y = WIDTH // 4 - 140, 120 + (i * 45)
+            else:
+                x, y = 3 * (WIDTH // 4) - 140, 120 + ((i - 8) * 45)
+
+            self.game.screen.blit(img_txt, (x, y))
+
+        aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
+        self.game.screen.blit(aviso, (WIDTH // 2 - aviso.get_width() // 2, HEIGHT - 50))
+
+    def desenhar_tela_resultados_construtores(self):
+        self.game.screen.fill((20, 20, 50))
+        titulo = self.fonte_titulo.render("CONSTRUCTORS CHAMPIONSHIP", True, (255, 255, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 30))
+
+        fonte_lista = pygame.font.SysFont('Arial', 26, bold=True)
+        total_eq = len(self.game.classificacao_construtoras)
+
+        for i, (equipe, pts) in enumerate(self.game.classificacao_construtoras):
+            texto = f"{i+1:2d}. {equipe}: {pts} PTS"
+            cor = (0, 255, 0) if equipe == self.game.equipe_atual_jogador else (255, 255, 255)
+            img_txt = fonte_lista.render(texto, True, cor)
+
+            if total_eq <= 8:
+                x = WIDTH // 2 - 160
+                y = 130 + (i * 45)
+            else:
+                if i < 8:
+                    x, y = WIDTH // 4 - 130, 130 + (i * 45)
+                else:
+                    x, y = 3 * (WIDTH // 4) - 130, 130 + ((i - 8) * 45)
+
+            self.game.screen.blit(img_txt, (x, y))
+
+        aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
+        self.game.screen.blit(aviso, (WIDTH // 2 - aviso.get_width() // 2, HEIGHT - 50))

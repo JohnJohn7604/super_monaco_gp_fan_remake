@@ -31,6 +31,7 @@ PRESETS_ZEBRA = [
     {"nome": "Ciano / Laranja",   "zebra_1": [0, 200, 240],  "zebra_2": [245, 110, 10]}
 ]
 
+
 # =============================================================================
 # COMPONENTES VISUAIS (BOTÕES E CONTROLES)
 # =============================================================================
@@ -100,12 +101,12 @@ class TrackEditor:
 
         # Camada de Referência 2D (Overlay PNG com 60% de transparência)
         self.lista_refs = self.detectar_pngs_referencia()
-        self.ref_idx = 0          # 0 = Nenhuma imagem selecionada
+        self.ref_idx = 0
         self.ref_width = 400
         self.ref_height = 300
-        self.ref_offset_x = 0     # Deslocamento horizontal (X)
-        self.ref_offset_y = 0     # Deslocamento vertical (Y)
-        self.ref_angle = 0        # Ângulo de rotação em graus (-: anti-horário, +: horário)
+        self.ref_offset_x = 0
+        self.ref_offset_y = 0
+        self.ref_angle = 0
         self.arrastando_ref = False
         self.drag_inicio_mouse = (0, 0)
         self.drag_inicio_offset = (0, 0)
@@ -116,6 +117,37 @@ class TrackEditor:
         self.arquivo_atual = "pistas/rio.json"
         self.segmentos = []
         self.seg_idx = 0
+
+        # =====================================================================
+        # SISTEMA DE OBJETOS LATERAIS (MURETAS E PLACAS DE CURVA)
+        # =====================================================================
+        self.lista_pngs_objetos = self.detectar_pngs_objetos()
+        self.obj_png_idx = 0
+        self.obj_nome_input = "Mureta Azul"
+        self.obj_escala_input = 1.0
+        self.obj_offset_input = 1.30
+        self.editando_nome_obj = False
+
+        self.objetos_catalogo = self.carregar_catalogo_objetos_global()
+        self.obj_cat_sel_idx = 0
+
+        # Aplicações nos trechos da pista atual:
+        # {"seg_idx": int, "objeto": str, "lado": "esq"|"dir"|"ambos", "quantidade": int, "inicio_pct": int}
+        self.objetos_pista = []
+        self.obj_apl_sel_idx = 0
+        self.apl_lado = "esq"       # "esq", "dir", "ambos"
+        self.apl_quantidade = 1     # Quantas vezes replicar no trecho
+        self.apl_inicio_pct = 0     # Posição inicial % dentro do trecho
+        self.apl_espacamento = 0    # 0 = automático pelo trecho | > 0 = distância fixa em metros
+
+        self.scroll_obj_cat = 0
+        self.scroll_obj_apl = 0
+        self.rect_lista_obj_cat = pygame.Rect(650, 210, WIDTH - 680, 105)
+        self.rect_lista_obj_apl = pygame.Rect(650, 520, WIDTH - 680, 145)
+        self.rect_input_nome_obj = pygame.Rect(780, 62, 260, 26)
+
+        self.obj_surf_cache = {}
+        self.obj_scaled_cache = {}
 
         # Câmera da Mini-Visualização 3D
         self.cam_pos = 0.0
@@ -129,21 +161,21 @@ class TrackEditor:
         self.status_timer = pygame.time.get_ticks() + 4000
         self.status_color = COLOR_ACCENT
 
-        # Scroll e Área da lista lateral (ajustada para caber tamanho, posição e rotação do gabarito 2D)
+        # Scroll e Área da lista lateral
         self.scroll_offset = 0
         self.rect_lista = pygame.Rect(640, 468, WIDTH - 640 - 20, 120)
 
         # Modal de Arquivo (Salvar / Carregar)
-        self.modal_aberto = None  # 'CARREGAR', 'SALVAR_COMO', 'NOVO'
+        self.modal_aberto = None
         self.nome_input_salvar = "nova_pista"
 
         # =====================================================================
         # MODO TEMPORADAS (CAMPEONATOS)
         # =====================================================================
-        self.modo_editor = "PISTA"  # "PISTA" ou "TEMPORADA"
+        self.modo_editor = "PISTA"  # "PISTA", "OBJETOS" ou "TEMPORADA"
         self.nome_temporada = "Temporada Oficial"
         self.arquivo_temporada = "temporadas/temporada_1.json"
-        self.etapas_temporada = []  # Lista de dicts: {"arquivo": ..., "nome": ..., "voltas": ...}
+        self.etapas_temporada = []
         self.etapa_sel_idx = 0
         self.pista_disp_idx = 0
         self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
@@ -158,14 +190,16 @@ class TrackEditor:
         else:
             self.criar_pista_padrao()
 
+        if self.objetos_catalogo:
+            self.sincronizar_form_com_objeto_selecionado()
+
         # Constrói os botões da interface
         self.setup_ui()
 
     def detectar_fundos(self):
-        """ Escaneia a pasta images/ procurando fundos panorâmicos compatíveis """
         fundos = []
-        if os.path.exists("images"):
-            for f in sorted(os.listdir("images")):
+        if os.path.exists("images/objects"):
+            for f in sorted(os.listdir("images/objects")):
                 if f.lower().endswith((".png", ".jpg")):
                     fundos.append(f"images/{f}")
         if not fundos:
@@ -173,17 +207,137 @@ class TrackEditor:
         return fundos
 
     def detectar_pngs_referencia(self):
-        """ Escaneia arquivos .png para usar como gabarito na vista aérea """
         arquivos = ["NENHUMA"]
-        for pasta in ["referencias", "images"]:
+        for pasta in ["referencias", "images/objects"]:
             if os.path.exists(pasta):
                 for f in sorted(os.listdir(pasta)):
                     if f.lower().endswith(".png"):
                         arquivos.append(f"{pasta}/{f}")
         return arquivos
 
+    def detectar_pngs_objetos(self):
+        """ Escaneia pastas comuns em busca de PNGs para muretas e placas """
+        arquivos = []
+        pastas = ["images/objetos", "objetos", "images/track", "images/objects", "assets"]
+        for pasta in pastas:
+            if os.path.exists(pasta):
+                for f in sorted(os.listdir(pasta)):
+                    if f.lower().endswith(".png"):
+                        caminho = f"{pasta}/{f}"
+                        if caminho not in arquivos:
+                            arquivos.append(caminho)
+        if not arquivos:
+            arquivos = ["images/mureta.png"]
+        return arquivos
+
+    def carregar_catalogo_objetos_global(self):
+        if os.path.exists("objetos_pista.json"):
+            try:
+                with open("objetos_pista.json", "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                if isinstance(dados, list):
+                    return dados
+            except Exception as e:
+                print(f"Aviso ao ler objetos_pista.json: {e}")
+        return []
+
+    def salvar_catalogo_objetos_global(self):
+        try:
+            with open("objetos_pista.json", "w", encoding="utf-8") as f:
+                json.dump(self.objetos_catalogo, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.set_status(f"Erro ao salvar biblioteca de objetos: {e}", COLOR_DANGER)
+
+    def obter_surf_objeto(self, png_path):
+        if png_path not in self.obj_surf_cache:
+            if png_path and os.path.exists(png_path):
+                try:
+                    self.obj_surf_cache[png_path] = pygame.image.load(png_path).convert_alpha()
+                except Exception:
+                    surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+                    pygame.draw.rect(surf, (220, 50, 50), (4, 4, 56, 40), border_radius=4)
+                    pygame.draw.rect(surf, (255, 255, 255), (4, 4, 56, 40), width=2, border_radius=4)
+                    self.obj_surf_cache[png_path] = surf
+            else:
+                surf = pygame.Surface((64, 64), pygame.SRCALPHA)
+                pygame.draw.rect(surf, (220, 50, 50), (4, 4, 56, 40), border_radius=4)
+                pygame.draw.rect(surf, (255, 255, 255), (4, 4, 56, 40), width=2, border_radius=4)
+                self.obj_surf_cache[png_path] = surf
+        return self.obj_surf_cache[png_path]
+
+    def obter_surf_objeto_escalado(self, png_path, target_h):
+        h_round = max(4, min(420, round(target_h / 4) * 4))
+        chave = (png_path, h_round)
+        if chave not in self.obj_scaled_cache:
+            base = self.obter_surf_objeto(png_path)
+            w_round = max(2, int(h_round * (base.get_width() / max(1, base.get_height()))))
+            self.obj_scaled_cache[chave] = pygame.transform.scale(base, (w_round, h_round))
+        return self.obj_scaled_cache[chave]
+
+    def construir_mapa_objetos_metro(self):
+        """ Converte self.objetos_pista em {metro: [objs]} para preview 3D e 2D em tempo real """
+        mapa = {}
+        if not self.segmentos or not self.objetos_pista:
+            return mapa
+
+        total_len = sum(int(s["length"]) for s in self.segmentos)
+        if total_len <= 0:
+            return mapa
+
+        cat_dict = {item["nome"]: item for item in self.objetos_catalogo}
+        inicios = []
+        acc = 0
+        for s in self.segmentos:
+            inicios.append(acc)
+            acc += int(s["length"])
+
+        for ap in self.objetos_pista:
+            s_idx = int(ap.get("seg_idx", 0))
+            if s_idx < 0 or s_idx >= len(self.segmentos):
+                continue
+            def_obj = cat_dict.get(ap.get("objeto", ""))
+            if not def_obj:
+                continue
+
+            lado = ap.get("lado", "esq")
+            lados = ["esq", "dir"] if lado == "ambos" else [lado]
+            qtd = max(1, int(ap.get("quantidade", 1)))
+            inicio_pct = max(0.0, min(99.0, float(ap.get("inicio_pct", 0.0))))
+            espacamento = float(ap.get("espacamento", 0))
+
+            seg_start = inicios[s_idx]
+            seg_len = int(self.segmentos[s_idx]["length"])
+            start_off = int(seg_len * (inicio_pct / 100.0))
+            usable = max(1, seg_len - start_off)
+
+            if qtd == 1:
+                metros = [(seg_start + start_off) % total_len]
+            elif espacamento > 0:
+                # Usa a distância exata em metros entre cada objeto (ex: 1m = colado)
+                metros = []
+                for k in range(qtd):
+                    offset_k = int(k * espacamento)
+                    if offset_k <= usable:
+                        metros.append((seg_start + start_off + offset_k) % total_len)
+            else:
+                # Modo automático: distribui igualmente pelo trecho inteiro
+                passo = usable / float(qtd)
+                metros = [(seg_start + start_off + int(k * passo)) % total_len for k in range(qtd)]
+
+            for m in metros:
+                if m not in mapa:
+                    mapa[m] = []
+                for ld in lados:
+                    mapa[m].append({
+                        "png": def_obj["png"],
+                        "escala": float(def_obj.get("escala", 1.0)),
+                        "offset": float(def_obj.get("offset", 1.30)),
+                        "lado": ld,
+                        "seg_idx": s_idx
+                    })
+        return mapa
+
     def detectar_pistas_disponiveis(self):
-        """ Escaneia a pasta pistas/ e lê o nome interno de cada JSON """
         pistas = []
         if os.path.exists("pistas"):
             for f in sorted(os.listdir("pistas")):
@@ -205,13 +359,11 @@ class TrackEditor:
             try:
                 img = pygame.image.load(caminho).convert_alpha()
                 scaled = pygame.transform.smoothscale(img, (self.ref_width, self.ref_height))
-                # Pygame gira em sentido anti-horário para ângulos positivos, então invertemos (-self.ref_angle)
-                # para que valores positivos girem no sentido horário e negativos no sentido anti-horário.
                 if self.ref_angle != 0:
                     scaled = pygame.transform.rotozoom(scaled, -self.ref_angle, 1.0)
                 surf = pygame.Surface(scaled.get_size(), pygame.SRCALPHA)
                 surf.blit(scaled, (0, 0))
-                surf.set_alpha(153)  # ~60% de transparência/opacidade (153/255)
+                surf.set_alpha(153)
                 self.ref_surf_cache[cache_key] = surf
             except Exception as e:
                 self.set_status(f"Erro ao carregar PNG de referência: {e}", COLOR_DANGER)
@@ -237,11 +389,12 @@ class TrackEditor:
         self.status_timer = pygame.time.get_ticks() + duration_ms
 
     def criar_pista_padrao(self):
-        """ Cria um circuito oval simples de demonstração """
         self.nome_pista = "Circuito de Treinamento"
         self.arquivo_atual = "pistas/treino.json"
         self.bg_width = WIDTH * 2
         self.bg_height = 135
+        self.objetos_pista = []
+        self.obj_apl_sel_idx = 0
         self.segmentos = [
             {"length": 400, "curve": 0.0, "hill": 0.0, "desc": "Reta Principal"},
             {"length": 80,  "curve": 0.03, "hill": 0.0, "desc": "Entrada Curva 1"},
@@ -264,7 +417,6 @@ class TrackEditor:
             self.nome_pista = dados.get("nome", "Pista Personalizada")
             self.arquivo_atual = caminho
 
-            # Fundo
             bg_path = dados.get("bg_image", "images/bg_rio.png")
             if bg_path in self.lista_bgs:
                 self.bg_idx = self.lista_bgs.index(bg_path)
@@ -272,11 +424,9 @@ class TrackEditor:
                 self.lista_bgs.append(bg_path)
                 self.bg_idx = len(self.lista_bgs) - 1
 
-            # Dimensões do fundo do horizonte
             self.bg_width = int(dados.get("bg_width", WIDTH * 2))
             self.bg_height = int(dados.get("bg_height", 135))
 
-            # Cor da zebra
             cores = dados.get("cores", {})
             z1 = cores.get("zebra_1", [220, 20, 20])
             for i, p in enumerate(PRESETS_ZEBRA):
@@ -284,7 +434,6 @@ class TrackEditor:
                     self.zebra_idx = i
                     break
 
-            # Segmentos
             self.segmentos = []
             for s in dados.get("segmentos", []):
                 self.segmentos.append({
@@ -293,6 +442,25 @@ class TrackEditor:
                     "hill": round(float(s.get("hill", 0.0)), 4),
                     "desc": s.get("desc", "Trecho da pista")
                 })
+
+            # Mescla catálogo embutido na pista com o catálogo global
+            nomes_existentes = {item["nome"] for item in self.objetos_catalogo}
+            for item in dados.get("objetos_catalogo", []):
+                if item.get("nome") and item["nome"] not in nomes_existentes:
+                    self.objetos_catalogo.append(item)
+                    nomes_existentes.add(item["nome"])
+
+            self.objetos_pista = []
+            for ap in dados.get("objetos_pista", []):
+                self.objetos_pista.append({
+                    "seg_idx": int(ap.get("seg_idx", 0)),
+                    "objeto": ap.get("objeto", ""),
+                    "lado": ap.get("lado", "esq"),
+                    "quantidade": max(1, int(ap.get("quantidade", 1))),
+                    "inicio_pct": int(ap.get("inicio_pct", 0)),
+                    "espacamento": int(ap.get("espacamento", 0))
+                })
+            self.obj_apl_sel_idx = 0
 
             if not self.segmentos:
                 self.criar_pista_padrao()
@@ -309,6 +477,11 @@ class TrackEditor:
         try:
             os.makedirs("pistas", exist_ok=True)
             preset_z = PRESETS_ZEBRA[self.zebra_idx]
+
+            # Embute no JSON da pista os objetos utilizados nela
+            nomes_usados = {ap["objeto"] for ap in self.objetos_pista}
+            catalogo_usado = [obj for obj in self.objetos_catalogo if obj["nome"] in nomes_usados]
+
             dados = {
                 "nome": self.nome_pista,
                 "bg_image": self.lista_bgs[self.bg_idx],
@@ -322,12 +495,15 @@ class TrackEditor:
                     "asfalto_1": [100, 100, 100],
                     "asfalto_2": [105, 105, 105]
                 },
-                "segmentos": self.segmentos
+                "segmentos": self.segmentos,
+                "objetos_catalogo": catalogo_usado,
+                "objetos_pista": self.objetos_pista
             }
             with open(caminho, 'w', encoding='utf-8') as f:
                 json.dump(dados, f, indent=2, ensure_ascii=False)
+            self.salvar_catalogo_objetos_global()
             self.arquivo_atual = caminho
-            self.set_status(f"Pista salva com sucesso em '{caminho}'!", COLOR_SUCCESS)
+            self.set_status(f"Pista e objetos salvos com sucesso em '{caminho}'!", COLOR_SUCCESS)
         except Exception as e:
             self.set_status(f"Erro ao salvar pista: {e}", COLOR_DANGER)
 
@@ -384,20 +560,22 @@ class TrackEditor:
     # =========================================================================
     def setup_ui(self):
         self.buttons = []
+        self.buttons_objetos = []
         self.buttons_temporada = []
         self.buttons_globais = []
         p_x = 640
 
         # --- ABAS DE ALTERNÂNCIA DE MODO (TOPO ESQUERDO) ---
-        self.buttons_globais.append(UIButton((20, 12, 160, 26), "EDITOR DE PISTAS", lambda: self.alternar_modo("PISTA"), color=(30, 80, 120), font_size=13))
-        self.buttons_globais.append(UIButton((190, 12, 180, 26), "CRIAR TEMPORADAS", lambda: self.alternar_modo("TEMPORADA"), color=(90, 50, 120), font_size=13))
-        # --- BARRA SUPERIOR DO PAINEL DIREITO ---
+        self.buttons_globais.append(UIButton((20, 12, 155, 26), "EDITOR DE PISTAS", lambda: self.alternar_modo("PISTA"), color=(30, 80, 120), font_size=13))
+        self.buttons_globais.append(UIButton((185, 12, 165, 26), "OBJETOS / MURETAS", lambda: self.alternar_modo("OBJETOS"), color=(30, 110, 85), font_size=13))
+        self.buttons_globais.append(UIButton((360, 12, 165, 26), "CRIAR TEMPORADAS", lambda: self.alternar_modo("TEMPORADA"), color=(90, 50, 120), font_size=13))
+
+        # --- BARRA SUPERIOR DO PAINEL DIREITO (MODO PISTA) ---
         self.buttons.append(UIButton((p_x, 15, 100, 32), "NOVA", self.action_nova_pista, color=(40, 50, 70)))
         self.buttons.append(UIButton((p_x + 110, 15, 110, 32), "CARREGAR", self.action_abrir_carregar, color=(40, 50, 70)))
         self.buttons.append(UIButton((p_x + 230, 15, 100, 32), "SALVAR", self.action_salvar_atual, color=(20, 120, 60), hover_color=(30, 160, 80)))
         self.buttons.append(UIButton((p_x + 340, 15, 140, 32), "SALVAR COMO...", self.action_abrir_salvar_como, color=(30, 80, 140), hover_color=(40, 110, 190)))
 
-        # --- SELETORES GERAIS: CENÁRIO, DIMENSÕES DO HORIZONTE E ZEBRA ---
         # Cenário de fundo
         y_bg = 56
         self.buttons.append(UIButton((p_x + 150, y_bg, 30, 24), "<", self.action_prev_bg))
@@ -427,14 +605,14 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 150, y_zb, 30, 24), "<", self.action_prev_zebra))
         self.buttons.append(UIButton((p_x + 420, y_zb, 30, 24), ">", self.action_next_zebra))
 
-        # --- NAVEGAÇÃO ENTRE SEGMENTOS ---
+        # Navegação entre segmentos
         y_nav = 181
         self.buttons.append(UIButton((p_x + 170, y_nav, 36, 26), "<<", self.action_primeiro_seg))
         self.buttons.append(UIButton((p_x + 215, y_nav, 36, 26), "<", self.action_prev_seg))
         self.buttons.append(UIButton((p_x + 370, y_nav, 36, 26), ">", self.action_next_seg))
         self.buttons.append(UIButton((p_x + 415, y_nav, 36, 26), ">>", self.action_ultimo_seg))
 
-        # --- AJUSTES DO SEGMENTO SELECIONADO: DISTÂNCIA ---
+        # Distância
         y_dist = 238
         self.buttons.append(UIButton((p_x + 10, y_dist, 55, 26), "-100", lambda: self.modificar_length(-100)))
         self.buttons.append(UIButton((p_x + 70, y_dist, 50, 26), "-50", lambda: self.modificar_length(-50)))
@@ -443,7 +621,7 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 450, y_dist, 50, 26), "+50", lambda: self.modificar_length(50)))
         self.buttons.append(UIButton((p_x + 505, y_dist, 55, 26), "+100", lambda: self.modificar_length(100)))
 
-        # --- AJUSTES DO SEGMENTO SELECIONADO: CURVATURA ---
+        # Curvatura
         y_curv = 295
         self.buttons.append(UIButton((p_x + 10, y_curv, 65, 26), "Forte E", lambda: self.definir_curva(-0.05), color=(60, 40, 80)))
         self.buttons.append(UIButton((p_x + 80, y_curv, 65, 26), "Média E", lambda: self.definir_curva(-0.03), color=(40, 60, 90)))
@@ -452,24 +630,20 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 295, y_curv, 60, 26), "Leve D", lambda: self.definir_curva(0.015), color=(30, 70, 90)))
         self.buttons.append(UIButton((p_x + 360, y_curv, 65, 26), "Média D", lambda: self.definir_curva(0.03), color=(40, 60, 90)))
         self.buttons.append(UIButton((p_x + 430, y_curv, 65, 26), "Forte D", lambda: self.definir_curva(0.05), color=(60, 40, 80)))
-
-        # Ajuste fino curva
         self.buttons.append(UIButton((p_x + 505, y_curv, 45, 26), "-0.00059", lambda: self.modificar_curva(-0.00059), font_size=11))
         self.buttons.append(UIButton((p_x + 555, y_curv, 45, 26), "+0.00059", lambda: self.modificar_curva(0.00059), font_size=11))
 
-        # --- AJUSTES DO SEGMENTO SELECIONADO: RELEVO (ACLIVE / DECLIVE) ---
+        # Relevo
         y_hill = 353
         self.buttons.append(UIButton((p_x + 10, y_hill, 95, 26), "Descida Forte", lambda: self.definir_hill(-0.002), color=(90, 40, 40)))
         self.buttons.append(UIButton((p_x + 110, y_hill, 90, 26), "Descida Leve", lambda: self.definir_hill(-0.001), color=(80, 50, 40)))
         self.buttons.append(UIButton((p_x + 205, y_hill, 75, 26), "Plano (0)", lambda: self.definir_hill(0.0), color=(40, 80, 50)))
         self.buttons.append(UIButton((p_x + 285, y_hill, 90, 26), "Subida Leve", lambda: self.definir_hill(0.001), color=(40, 70, 90)))
         self.buttons.append(UIButton((p_x + 380, y_hill, 95, 26), "Subida Forte", lambda: self.definir_hill(0.002), color=(40, 50, 110)))
-
-        # Ajuste fino hill (-0.0005 / +0.0005)
         self.buttons.append(UIButton((p_x + 485, y_hill, 50, 26), "-0.0005", lambda: self.modificar_hill(-0.0005), font_size=12))
         self.buttons.append(UIButton((p_x + 540, y_hill, 50, 26), "+0.0005", lambda: self.modificar_hill(0.0005), font_size=12))
 
-        # --- AÇÕES DE CONSTRUÇÃO DE PISTA ---
+        # Ações de construção de pista
         y_act = 401
         self.buttons.append(UIButton((p_x + 10, y_act, 105, 28), "+ RETA", self.action_add_reta, color=(25, 90, 50), hover_color=(35, 120, 65)))
         self.buttons.append(UIButton((p_x + 125, y_act, 105, 28), "+ CURVA E", lambda: self.action_add_curva(-0.03), color=(30, 70, 110), hover_color=(40, 90, 140)))
@@ -482,42 +656,35 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 125, y_act2, 105, 26), "DESCER (Ordem)", lambda: self.action_reordenar(1), color=(40, 50, 65), font_size=13))
         self.buttons.append(UIButton((p_x + 240, y_act2, 115, 26), "EXCLUIR TRECHO", self.action_excluir_seg, color=(120, 30, 30), hover_color=(160, 40, 40), font_size=13))
 
-        # --- CAMADA DE REFERÊNCIA 2D (PNG TRANSPARENTE 60%) ---
+        # Camada de referência 2D
         y_ref1 = 594
         self.buttons.append(UIButton((p_x + 120, y_ref1, 28, 24), "<", self.action_prev_ref))
         self.buttons.append(UIButton((p_x + 320, y_ref1, 28, 24), ">", self.action_next_ref))
         self.buttons.append(UIButton((p_x + 356, y_ref1, 95, 24), "RECARREGAR", self.action_recarregar_refs, color=(40, 55, 75), font_size=12))
         self.buttons.append(UIButton((p_x + 458, y_ref1, 88, 24), "RESET TUDO", self.action_reset_ref_size, color=(50, 60, 80), font_size=12))
 
-        # Ajustes de Width e Height da Referência
         y_ref2 = 623
-        # Width (-50, -10, +10, +50)
         self.buttons.append(UIButton((p_x + 35,  y_ref2, 36, 24), "-50", lambda: self.modificar_ref_size(-50, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 74,  y_ref2, 32, 24), "-10", lambda: self.modificar_ref_size(-10, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 168, y_ref2, 32, 24), "+10", lambda: self.modificar_ref_size(10, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 203, y_ref2, 36, 24), "+50", lambda: self.modificar_ref_size(50, 0), font_size=12))
 
-        # Height (-50, -10, +10, +50)
         self.buttons.append(UIButton((p_x + 295, y_ref2, 36, 24), "-50", lambda: self.modificar_ref_size(0, -50), font_size=12))
         self.buttons.append(UIButton((p_x + 334, y_ref2, 32, 24), "-10", lambda: self.modificar_ref_size(0, -10), font_size=12))
         self.buttons.append(UIButton((p_x + 428, y_ref2, 32, 24), "+10", lambda: self.modificar_ref_size(0, 10), font_size=12))
         self.buttons.append(UIButton((p_x + 463, y_ref2, 36, 24), "+50", lambda: self.modificar_ref_size(0, 50), font_size=12))
 
-        # Ajustes de Posição X e Y da Referência
         y_ref3 = 652
-        # Posição X (-25, -5, +5, +25)
         self.buttons.append(UIButton((p_x + 35,  y_ref3, 36, 24), "-25", lambda: self.modificar_ref_pos(-25, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 74,  y_ref3, 32, 24), "-5",  lambda: self.modificar_ref_pos(-5, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 168, y_ref3, 32, 24), "+5",  lambda: self.modificar_ref_pos(5, 0), font_size=12))
         self.buttons.append(UIButton((p_x + 203, y_ref3, 36, 24), "+25", lambda: self.modificar_ref_pos(25, 0), font_size=12))
 
-        # Posição Y (-25, -5, +5, +25)
         self.buttons.append(UIButton((p_x + 295, y_ref3, 36, 24), "-25", lambda: self.modificar_ref_pos(0, -25), font_size=12))
         self.buttons.append(UIButton((p_x + 334, y_ref3, 32, 24), "-5",  lambda: self.modificar_ref_pos(0, -5), font_size=12))
         self.buttons.append(UIButton((p_x + 428, y_ref3, 32, 24), "+5",  lambda: self.modificar_ref_pos(0, 5), font_size=12))
         self.buttons.append(UIButton((p_x + 463, y_ref3, 36, 24), "+25", lambda: self.modificar_ref_pos(0, 25), font_size=12))
 
-        # Ajustes de Rotação (Anti-horário e Horário)
         y_ref4 = 681
         self.buttons.append(UIButton((p_x + 55,  y_ref4, 44, 24), "-15°", lambda: self.modificar_ref_angle(-15), font_size=12))
         self.buttons.append(UIButton((p_x + 104, y_ref4, 40, 24), "-1°",  lambda: self.modificar_ref_angle(-1), font_size=12))
@@ -525,10 +692,83 @@ class TrackEditor:
         self.buttons.append(UIButton((p_x + 260, y_ref4, 44, 24), "+15°", lambda: self.modificar_ref_angle(15), font_size=12))
         self.buttons.append(UIButton((p_x + 314, y_ref4, 70, 24), "ZERAR 0°", self.action_reset_ref_angle, color=(50, 60, 80), font_size=11))
 
-        # --- CONTROLES DA CÂMERA 3D (EMBAIXO DO PREVIEW) ---
+        # Controles da câmera 3D
         self.buttons.append(UIButton((20, 680, 110, 26), "PULAR P/ TRECHO", self.action_focar_camera_trecho, color=(35, 50, 70), font_size=12))
         self.buttons.append(UIButton((140, 680, 100, 26), "PLAY / PAUSE", self.action_toggle_play, color=(20, 90, 130), font_size=12))
         self.buttons.append(UIButton((250, 680, 70, 26), "RESET", self.action_reset_cam, color=(50, 50, 60), font_size=12))
+
+        # =====================================================================
+        # BOTÕES DO MODO OBJETOS / MURETAS
+        # =====================================================================
+        # Barra superior do painel direito
+        self.buttons_objetos.append(UIButton((p_x, 15, 130, 30), "SALVAR PISTA", self.action_salvar_atual, color=(20, 120, 60), hover_color=(30, 160, 80), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 140, 15, 145, 30), "RECARREGAR PNGs", self.action_recarregar_pngs_obj, color=(40, 55, 75), font_size=13))
+
+        # Seletor de PNG do Objeto
+        self.buttons_objetos.append(UIButton((p_x + 140, 96, 28, 24), "<", self.action_prev_obj_png))
+        self.buttons_objetos.append(UIButton((p_x + 370, 96, 28, 24), ">", self.action_next_obj_png))
+
+        # Escala do Objeto
+        self.buttons_objetos.append(UIButton((p_x + 85, 128, 38, 24), "-0.2", lambda: self.modificar_obj_escala(-0.2), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 127, 128, 34, 24), "-0.1", lambda: self.modificar_obj_escala(-0.1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 215, 128, 34, 24), "+0.1", lambda: self.modificar_obj_escala(0.1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 253, 128, 38, 24), "+0.2", lambda: self.modificar_obj_escala(0.2), font_size=12))
+
+        # Offset Lateral do Objeto
+        self.buttons_objetos.append(UIButton((p_x + 375, 128, 42, 24), "-0.10", lambda: self.modificar_obj_offset(-0.10), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 420, 128, 38, 24), "-0.05", lambda: self.modificar_obj_offset(-0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 508, 128, 38, 24), "+0.05", lambda: self.modificar_obj_offset(0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 549, 128, 42, 24), "+0.10", lambda: self.modificar_obj_offset(0.10), font_size=11))
+
+        # Criar / Atualizar / Excluir Objeto do Catálogo
+        self.buttons_objetos.append(UIButton((p_x + 10, 162, 175, 28), "+ CRIAR NOVO OBJETO", self.action_criar_objeto_catalogo, color=(25, 115, 60), hover_color=(35, 150, 80), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 195, 162, 165, 28), "ATUALIZAR SELEC.", self.action_atualizar_objeto_catalogo, color=(35, 80, 130), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 370, 162, 145, 28), "EXCLUIR OBJETO", self.action_excluir_objeto_catalogo, color=(130, 35, 35), hover_color=(170, 45, 45), font_size=13))
+
+        # Navegação de Trecho dentro da aba Objetos
+        y_apl_seg = 342
+        self.buttons_objetos.append(UIButton((p_x + 390, y_apl_seg, 36, 26), "<<", self.action_primeiro_seg))
+        self.buttons_objetos.append(UIButton((p_x + 432, y_apl_seg, 36, 26), "<", self.action_prev_seg))
+        self.buttons_objetos.append(UIButton((p_x + 474, y_apl_seg, 36, 26), ">", self.action_next_seg))
+        self.buttons_objetos.append(UIButton((p_x + 516, y_apl_seg, 36, 26), ">>", self.action_ultimo_seg))
+
+        # Seleção de Lado (Esquerdo, Direito, Ambos)
+        y_lado = 376
+        self.buttons_objetos.append(UIButton((p_x + 115, y_lado, 105, 26), "ESQUERDO", lambda: self.definir_apl_lado("esq"), color=(45, 60, 85), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 228, y_lado, 105, 26), "DIREITO", lambda: self.definir_apl_lado("dir"), color=(45, 60, 85), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 341, y_lado, 105, 26), "AMBOS", lambda: self.definir_apl_lado("ambos"), color=(45, 60, 85), font_size=13))
+
+        # Quantidade de Replicações no Trecho
+        y_qtd = 410
+        self.buttons_objetos.append(UIButton((p_x + 115, y_qtd, 40, 26), "-10", lambda: self.modificar_apl_qtd(-10), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 159, y_qtd, 36, 26), "-5", lambda: self.modificar_apl_qtd(-5), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 199, y_qtd, 34, 26), "-1", lambda: self.modificar_apl_qtd(-1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 292, y_qtd, 34, 26), "+1", lambda: self.modificar_apl_qtd(1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 330, y_qtd, 36, 26), "+5", lambda: self.modificar_apl_qtd(5), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 370, y_qtd, 40, 26), "+10", lambda: self.modificar_apl_qtd(10), font_size=12))
+
+        # Início % no trecho
+        self.buttons_objetos.append(UIButton((p_x + 485, y_qtd, 36, 26), "-10%", lambda: self.modificar_apl_inicio(-10), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 566, y_qtd, 36, 26), "+10%", lambda: self.modificar_apl_inicio(10), font_size=11))
+
+        # Espaçamento (Distância em metros entre réplicas: 0 = Auto, 1 = 1m colado)
+        y_esp = 442
+        self.buttons_objetos.append(UIButton((p_x + 115, y_esp, 40, 24), "-5m", lambda: self.modificar_apl_espacamento(-5), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 159, y_esp, 36, 24), "-1m", lambda: self.modificar_apl_espacamento(-1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 275, y_esp, 36, 24), "+1m", lambda: self.modificar_apl_espacamento(1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 315, y_esp, 40, 24), "+5m", lambda: self.modificar_apl_espacamento(5), font_size=12))
+
+        # Botão Aplicar/Replicar + Remover Aplicado (desce para 472)
+        y_apl_btn = 472
+        self.buttons_objetos.append(UIButton((p_x + 10, y_apl_btn, 255, 28), "+ APLICAR / REPLICAR NO TRECHO", self.action_aplicar_objeto_trecho, color=(20, 125, 65), hover_color=(30, 165, 85), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 275, y_apl_btn, 155, 28), "REMOVER ITEM", self.action_remover_aplicacao, color=(130, 35, 35), hover_color=(170, 45, 45), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 440, y_apl_btn, 150, 28), "LIMPAR TRECHO", self.action_limpar_objetos_trecho, color=(95, 45, 35), hover_color=(135, 60, 45), font_size=13))
+
+        # Controles de câmera na aba Objetos (mesma posição esquerda)
+        self.buttons_objetos.append(UIButton((20, 680, 95, 26), "< TRECHO", self.action_prev_seg, color=(35, 50, 70), font_size=12))
+        self.buttons_objetos.append(UIButton((122, 680, 95, 26), "TRECHO >", self.action_next_seg, color=(35, 50, 70), font_size=12))
+        self.buttons_objetos.append(UIButton((225, 680, 100, 26), "PLAY / PAUSE", self.action_toggle_play, color=(20, 90, 130), font_size=12))
+        self.buttons_objetos.append(UIButton((332, 680, 70, 26), "RESET", self.action_reset_cam, color=(50, 50, 60), font_size=12))
 
         # =====================================================================
         # BOTÕES DO MODO TEMPORADA
@@ -538,19 +778,170 @@ class TrackEditor:
         self.buttons_temporada.append(UIButton((p_x + 230, 15, 100, 32), "SALVAR", lambda: self.salvar_temporada(self.arquivo_temporada), color=(20, 120, 60), hover_color=(30, 160, 80)))
         self.buttons_temporada.append(UIButton((p_x + 340, 15, 140, 32), "SALVAR COMO...", self.action_abrir_salvar_como_temp, color=(30, 80, 140), hover_color=(40, 110, 190)))
 
-        # Controles da coluna esquerda (Pistas disponíveis)
         self.buttons_temporada.append(UIButton((40, 635, 170, 32), "ATUALIZAR LISTA", self.action_atualizar_pistas_temp, color=(40, 55, 75)))
         self.buttons_temporada.append(UIButton((220, 635, 220, 32), "+ ADICIONAR À TEMPORADA", self.action_add_pista_temporada, color=(25, 110, 60), hover_color=(35, 145, 80)))
         self.buttons_temporada.append(UIButton((450, 635, 150, 32), "ABRIR NO EDITOR", self.action_editar_pista_selecionada, color=(50, 60, 85)))
 
-        # Controles da coluna direita (Calendário da Temporada)
         self.buttons_temporada.append(UIButton((p_x, 635, 100, 32), "SUBIR", lambda: self.action_mover_etapa(-1), color=(40, 50, 65)))
         self.buttons_temporada.append(UIButton((p_x + 110, 635, 100, 32), "DESCER", lambda: self.action_mover_etapa(1), color=(40, 50, 65)))
         self.buttons_temporada.append(UIButton((p_x + 220, 635, 85, 32), "-1 VOLTA", lambda: self.action_alterar_voltas_etapa(-1), color=(45, 65, 85)))
         self.buttons_temporada.append(UIButton((p_x + 315, 635, 85, 32), "+1 VOLTA", lambda: self.action_alterar_voltas_etapa(1), color=(45, 65, 85)))
         self.buttons_temporada.append(UIButton((p_x + 410, 635, 130, 32), "REMOVER ETAPA", self.action_remover_etapa, color=(130, 35, 35), hover_color=(170, 45, 45)))
+
     # =========================================================================
-    # AÇÕES DOS BOTÕES
+    # AÇÕES DE OBJETOS / MURETAS E PLACAS
+    # =========================================================================
+    def sincronizar_form_com_objeto_selecionado(self):
+        if 0 <= self.obj_cat_sel_idx < len(self.objetos_catalogo):
+            obj = self.objetos_catalogo[self.obj_cat_sel_idx]
+            self.obj_nome_input = obj.get("nome", "Objeto")
+            self.obj_escala_input = round(float(obj.get("escala", 1.0)), 2)
+            self.obj_offset_input = round(float(obj.get("offset", 1.30)), 2)
+            png = obj.get("png", "")
+            if png in self.lista_pngs_objetos:
+                self.obj_png_idx = self.lista_pngs_objetos.index(png)
+            else:
+                self.lista_pngs_objetos.append(png)
+                self.obj_png_idx = len(self.lista_pngs_objetos) - 1
+
+    def action_recarregar_pngs_obj(self):
+        atual = self.lista_pngs_objetos[self.obj_png_idx] if self.lista_pngs_objetos else ""
+        self.lista_pngs_objetos = self.detectar_pngs_objetos()
+        self.obj_surf_cache.clear()
+        self.obj_scaled_cache.clear()
+        self.obj_png_idx = self.lista_pngs_objetos.index(atual) if atual in self.lista_pngs_objetos else 0
+        self.set_status(f"{len(self.lista_pngs_objetos)} PNGs disponíveis para objetos!")
+
+    def action_prev_obj_png(self):
+        if self.lista_pngs_objetos:
+            self.obj_png_idx = (self.obj_png_idx - 1) % len(self.lista_pngs_objetos)
+
+    def action_next_obj_png(self):
+        if self.lista_pngs_objetos:
+            self.obj_png_idx = (self.obj_png_idx + 1) % len(self.lista_pngs_objetos)
+
+    def modificar_obj_escala(self, delta):
+        self.obj_escala_input = round(max(0.2, min(4.0, self.obj_escala_input + delta)), 2)
+
+    def modificar_obj_offset(self, delta):
+        self.obj_offset_input = round(max(1.05, min(3.50, self.obj_offset_input + delta)), 2)
+
+    def action_criar_objeto_catalogo(self):
+        nome = self.obj_nome_input.strip()
+        if not nome:
+            self.set_status("Digite um nome para o objeto antes de criar!", COLOR_WARNING)
+            return
+        png_atual = self.lista_pngs_objetos[self.obj_png_idx]
+
+        # Se já existe com esse nome, atualiza; senão cria novo
+        for idx, item in enumerate(self.objetos_catalogo):
+            if item["nome"].lower() == nome.lower():
+                item["nome"] = nome
+                item["png"] = png_atual
+                item["escala"] = self.obj_escala_input
+                item["offset"] = self.obj_offset_input
+                self.obj_cat_sel_idx = idx
+                self.salvar_catalogo_objetos_global()
+                self.set_status(f"Objeto '{nome}' atualizado!", COLOR_SUCCESS)
+                return
+
+        novo_obj = {
+            "nome": nome,
+            "png": png_atual,
+            "escala": self.obj_escala_input,
+            "offset": self.obj_offset_input
+        }
+        self.objetos_catalogo.append(novo_obj)
+        self.obj_cat_sel_idx = len(self.objetos_catalogo) - 1
+        self.salvar_catalogo_objetos_global()
+        self.set_status(f"Objeto '{nome}' criado com sucesso!", COLOR_SUCCESS)
+
+    def action_atualizar_objeto_catalogo(self):
+        if not (0 <= self.obj_cat_sel_idx < len(self.objetos_catalogo)):
+            self.action_criar_objeto_catalogo()
+            return
+        nome_novo = self.obj_nome_input.strip()
+        if not nome_novo:
+            self.set_status("O nome do objeto não pode ficar vazio!", COLOR_WARNING)
+            return
+        obj = self.objetos_catalogo[self.obj_cat_sel_idx]
+        nome_antigo = obj["nome"]
+        obj["nome"] = nome_novo
+        obj["png"] = self.lista_pngs_objetos[self.obj_png_idx]
+        obj["escala"] = self.obj_escala_input
+        obj["offset"] = self.obj_offset_input
+
+        # Atualiza referências nas aplicações da pista se renomeou
+        if nome_antigo != nome_novo:
+            for ap in self.objetos_pista:
+                if ap["objeto"] == nome_antigo:
+                    ap["objeto"] = nome_novo
+
+        self.salvar_catalogo_objetos_global()
+        self.set_status(f"Objeto '{nome_novo}' atualizado!", COLOR_SUCCESS)
+
+    def action_excluir_objeto_catalogo(self):
+        if not (0 <= self.obj_cat_sel_idx < len(self.objetos_catalogo)):
+            return
+        removido = self.objetos_catalogo.pop(self.obj_cat_sel_idx)
+        self.objetos_pista = [ap for ap in self.objetos_pista if ap["objeto"] != removido["nome"]]
+        self.obj_cat_sel_idx = max(0, min(self.obj_cat_sel_idx, len(self.objetos_catalogo) - 1))
+        self.salvar_catalogo_objetos_global()
+        if self.objetos_catalogo:
+            self.sincronizar_form_com_objeto_selecionado()
+        self.set_status(f"Objeto '{removido['nome']}' removido.", COLOR_WARNING)
+
+    def definir_apl_lado(self, lado):
+        self.apl_lado = lado
+
+    def modificar_apl_qtd(self, delta):
+        self.apl_quantidade = max(1, min(1000, self.apl_quantidade + delta))
+
+    def modificar_apl_espacamento(self, delta):
+        self.apl_espacamento = max(0, min(50, self.apl_espacamento + delta))
+
+    def modificar_apl_inicio(self, delta):
+        self.apl_inicio_pct = max(0, min(95, self.apl_inicio_pct + delta))
+
+    def action_aplicar_objeto_trecho(self):
+        if not self.objetos_catalogo:
+            self.set_status("Crie pelo menos 1 objeto primeiro!", COLOR_WARNING)
+            return
+        if not self.segmentos:
+            return
+
+        obj_sel = self.objetos_catalogo[self.obj_cat_sel_idx]
+        nova_apl = {
+            "seg_idx": self.seg_idx,
+            "objeto": obj_sel["nome"],
+            "lado": self.apl_lado,
+            "quantidade": self.apl_quantidade,
+            "inicio_pct": self.apl_inicio_pct,
+            "espacamento": self.apl_espacamento
+        }
+        self.objetos_pista.append(nova_apl)
+        self.obj_apl_sel_idx = len(self.objetos_pista) - 1
+        lado_str = {"esq": "Esquerdo", "dir": "Direito", "ambos": "Ambos os Lados"}[self.apl_lado]
+        self.set_status(
+            f"'{obj_sel['nome']}' ({self.apl_quantidade}x) aplicado no Trecho #{self.seg_idx + 1} ({lado_str})!",
+            COLOR_SUCCESS
+        )
+
+    def action_remover_aplicacao(self):
+        if 0 <= self.obj_apl_sel_idx < len(self.objetos_pista):
+            rem = self.objetos_pista.pop(self.obj_apl_sel_idx)
+            self.obj_apl_sel_idx = max(0, min(self.obj_apl_sel_idx, len(self.objetos_pista) - 1))
+            self.set_status(f"Removido '{rem['objeto']}' do Trecho #{rem['seg_idx'] + 1}.", COLOR_WARNING)
+
+    def action_limpar_objetos_trecho(self):
+        antes = len(self.objetos_pista)
+        self.objetos_pista = [ap for ap in self.objetos_pista if ap["seg_idx"] != self.seg_idx]
+        self.obj_apl_sel_idx = max(0, min(self.obj_apl_sel_idx, len(self.objetos_pista) - 1))
+        removidos = antes - len(self.objetos_pista)
+        self.set_status(f"{removidos} grupo(s) de objetos removidos do Trecho #{self.seg_idx + 1}.", COLOR_WARNING)
+
+    # =========================================================================
+    # AÇÕES DOS BOTÕES DA PISTA
     # =========================================================================
     def action_nova_pista(self):
         self.criar_pista_padrao()
@@ -668,7 +1059,6 @@ class TrackEditor:
         self.set_status(f"Extensão do trecho #{self.seg_idx + 1}: {seg['length']}m")
 
     def obter_curva_na_posicao(self, pos):
-        """ Retorna o valor de curvatura da pista em determinado metro """
         if not self.segmentos:
             return 0.0
         total_len = sum(s["length"] for s in self.segmentos)
@@ -683,7 +1073,6 @@ class TrackEditor:
         return 0.0
 
     def sincronizar_bg_offset_com_posicao(self):
-        """ Calcula a rotação acumulada do horizonte pelas curvas até a posição atual da câmera """
         if not self.segmentos:
             self.bg_offset_x = 0.0
             return
@@ -703,7 +1092,6 @@ class TrackEditor:
             else:
                 accum_rot += c * l
                 restante -= l
-        # Curva à direita (>0) gira o fundo para a esquerda (-)
         self.bg_offset_x = -accum_rot * 120.0
 
     def definir_curva(self, valor):
@@ -738,6 +1126,9 @@ class TrackEditor:
         novo = {"length": 150, "curve": 0.0, "hill": 0.0, "desc": "Nova Reta"}
         insert_at = self.seg_idx + 1 if self.segmentos else 0
         self.segmentos.insert(insert_at, novo)
+        for ap in self.objetos_pista:
+            if ap["seg_idx"] >= insert_at:
+                ap["seg_idx"] += 1
         self.seg_idx = insert_at
         self.action_focar_camera_trecho()
         self.set_status(f"Reta inserida na posição #{self.seg_idx + 1}!")
@@ -747,6 +1138,9 @@ class TrackEditor:
         novo = {"length": 100, "curve": curvatura, "hill": 0.0, "desc": f"Curva para {direcao}"}
         insert_at = self.seg_idx + 1 if self.segmentos else 0
         self.segmentos.insert(insert_at, novo)
+        for ap in self.objetos_pista:
+            if ap["seg_idx"] >= insert_at:
+                ap["seg_idx"] += 1
         self.seg_idx = insert_at
         self.action_focar_camera_trecho()
         self.set_status(f"Curva para {direcao} inserida na posição #{self.seg_idx + 1}!")
@@ -757,6 +1151,9 @@ class TrackEditor:
         insert_at = self.seg_idx + 1 if self.segmentos else 0
         self.segmentos.insert(insert_at, s2)
         self.segmentos.insert(insert_at, s1)
+        for ap in self.objetos_pista:
+            if ap["seg_idx"] >= insert_at:
+                ap["seg_idx"] += 2
         self.seg_idx = insert_at
         self.action_focar_camera_trecho()
         self.set_status(f"Chicane inserida nas posições #{self.seg_idx + 1} e #{self.seg_idx + 2}!")
@@ -768,6 +1165,9 @@ class TrackEditor:
         copia = original.copy()
         insert_at = self.seg_idx + 1
         self.segmentos.insert(insert_at, copia)
+        for ap in self.objetos_pista:
+            if ap["seg_idx"] >= insert_at:
+                ap["seg_idx"] += 1
         self.seg_idx = insert_at
         self.action_focar_camera_trecho()
         self.set_status(f"Trecho #{self.seg_idx} duplicado com sucesso!")
@@ -776,7 +1176,16 @@ class TrackEditor:
         if len(self.segmentos) <= 1:
             self.set_status("A pista precisa ter pelo menos 1 trecho!", COLOR_WARNING)
             return
-        del self.segmentos[self.seg_idx]
+        rem_idx = self.seg_idx
+        del self.segmentos[rem_idx]
+        novas_apls = []
+        for ap in self.objetos_pista:
+            if ap["seg_idx"] == rem_idx:
+                continue
+            if ap["seg_idx"] > rem_idx:
+                ap["seg_idx"] -= 1
+            novas_apls.append(ap)
+        self.objetos_pista = novas_apls
         self.seg_idx = min(self.seg_idx, len(self.segmentos) - 1)
         self.action_focar_camera_trecho()
         self.set_status(f"Trecho removido. Restam {len(self.segmentos)} trechos.")
@@ -786,7 +1195,13 @@ class TrackEditor:
             return
         novo_idx = self.seg_idx + direcao
         if 0 <= novo_idx < len(self.segmentos):
-            self.segmentos[self.seg_idx], self.segmentos[novo_idx] = self.segmentos[novo_idx], self.segmentos[self.seg_idx]
+            old_idx = self.seg_idx
+            self.segmentos[old_idx], self.segmentos[novo_idx] = self.segmentos[novo_idx], self.segmentos[old_idx]
+            for ap in self.objetos_pista:
+                if ap["seg_idx"] == old_idx:
+                    ap["seg_idx"] = novo_idx
+                elif ap["seg_idx"] == novo_idx:
+                    ap["seg_idx"] = old_idx
             self.seg_idx = novo_idx
             self.action_focar_camera_trecho()
             self.set_status(f"Trecho movido para a posição #{self.seg_idx + 1}")
@@ -815,11 +1230,9 @@ class TrackEditor:
         pygame.draw.rect(self.screen, COLOR_PANEL, rect, border_radius=6)
         pygame.draw.rect(self.screen, COLOR_BORDER, rect, width=1, border_radius=6)
 
-        # Cabeçalho da caixa
         txt_header = self.font_sub.render("PRÉ-VISUALIZAÇÃO AÉREA (2D)", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_header, (rect.x + 12, rect.y + 8))
 
-        # Camada de referência PNG abaixo do traçado (60% de transparência)
         if 0 < self.ref_idx < len(self.lista_refs):
             ref_surf = self.carregar_ref_surf(self.lista_refs[self.ref_idx])
             if ref_surf:
@@ -830,7 +1243,6 @@ class TrackEditor:
                 self.screen.blit(ref_surf, (img_x, img_y))
                 self.screen.set_clip(None)
 
-                # Exibe os valores atuais de X, Y e Rotação na própria área do preview
                 txt_xy_preview = self.font_mono.render(
                     f"PNG X:{self.ref_offset_x:+d} Y:{self.ref_offset_y:+d} R:{self.ref_angle:+d}°",
                     True,
@@ -841,29 +1253,25 @@ class TrackEditor:
         if not self.segmentos:
             return
 
-        # 1. Traçado dos pontos 2D
+        # Traçado dos pontos 2D metro a metro para mapear objetos com precisão
         pontos = []
         seg_indices_pontos = []
         x, y = 0.0, 0.0
-        angulo = -math.pi / 2  # Aponta para o norte
+        angulo = -math.pi / 2
         pontos.append((x, y))
         seg_indices_pontos.append(0)
 
-        curve_factor = 0.5  # Fator de conversão da curvatura
+        curve_factor = 0.5
         for i, s in enumerate(self.segmentos):
             c = s["curve"]
-            l = s["length"]
-            passo = 8  # Avalia a cada 8m
-            num_passos = max(1, int(l // passo))
-            d_passo = l / num_passos
-            for _ in range(num_passos):
-                angulo += c * d_passo * curve_factor
-                x += math.cos(angulo) * d_passo
-                y += math.sin(angulo) * d_passo
+            l = int(s["length"])
+            for _ in range(l):
+                angulo += c * 1.0 * curve_factor
+                x += math.cos(angulo) * 1.0
+                y += math.sin(angulo) * 1.0
                 pontos.append((x, y))
             seg_indices_pontos.append(len(pontos) - 1)
 
-        # 2. Ajuste de escala e centralização
         xs = [p[0] for p in pontos]
         ys = [p[1] for p in pontos]
         min_x, max_x = min(xs), max(xs)
@@ -879,15 +1287,17 @@ class TrackEditor:
         offset_x = area_desenho.centerx - ((min_x + max_x) / 2) * scale
         offset_y = area_desenho.centery - ((min_y + max_y) / 2) * scale
 
-        pontos_tela = []
-        for px, py in pontos:
-            pontos_tela.append((int(offset_x + px * scale), int(offset_y + py * scale)))
+        pontos_tela = [(int(offset_x + px * scale), int(offset_y + py * scale)) for px, py in pontos]
 
-        # 3. Desenho dos segmentos
-        # Pista completa em cinza
-        if len(pontos_tela) > 1:
-            pygame.draw.lines(self.screen, (60, 70, 85), False, pontos_tela, width=7)
-            pygame.draw.lines(self.screen, (130, 140, 155), False, pontos_tela, width=3)
+        # Amostragem para linha suave
+        passo_des = max(1, len(pontos_tela) // 350)
+        pts_amostra = pontos_tela[::passo_des]
+        if pts_amostra[-1] != pontos_tela[-1]:
+            pts_amostra.append(pontos_tela[-1])
+
+        if len(pts_amostra) > 1:
+            pygame.draw.lines(self.screen, (60, 70, 85), False, pts_amostra, width=7)
+            pygame.draw.lines(self.screen, (130, 140, 155), False, pts_amostra, width=3)
 
         # Destaca o segmento selecionado
         if self.seg_idx < len(seg_indices_pontos) - 1:
@@ -899,13 +1309,30 @@ class TrackEditor:
                 pygame.draw.circle(self.screen, (255, 255, 255), pts_destaque[0], 5)
                 pygame.draw.circle(self.screen, COLOR_SELECTED, pts_destaque[-1], 5)
 
-        # Marcadores de Largada (Verde) e Fim (Vermelho)
+        # Desenha marcadores dos objetos laterais no mapa 2D
+        mapa_objs = self.construir_mapa_objetos_metro()
+        if mapa_objs and len(pontos_tela) > 2:
+            for metro, objs in mapa_objs.items():
+                if 0 <= metro < len(pontos_tela) - 1:
+                    p0 = pontos_tela[metro]
+                    p1 = pontos_tela[metro + 1]
+                    vx, vy = p1[0] - p0[0], p1[1] - p0[1]
+                    mag = math.hypot(vx, vy)
+                    if mag > 0.001:
+                        # Normal à esquerda (-vy, vx) ou direita (vy, -vx)
+                        nx, ny = -vy / mag, vx / mag
+                        for obj in objs:
+                            sinal = -1 if obj["lado"] == "esq" else 1
+                            ox = int(p0[0] + nx * 6 * sinal)
+                            oy = int(p0[1] + ny * 6 * sinal)
+                            cor_dot = (0, 230, 255) if obj["lado"] == "esq" else (255, 130, 50)
+                            pygame.draw.circle(self.screen, cor_dot, (ox, oy), 2)
+
         pt_largada = pontos_tela[0]
         pt_fim = pontos_tela[-1]
         pygame.draw.circle(self.screen, COLOR_SUCCESS, pt_largada, 7)
         pygame.draw.circle(self.screen, COLOR_DANGER, pt_fim, 7)
 
-        # Marcador da posição da câmera no traçado 2D
         total_metros = sum(s["length"] for s in self.segmentos)
         if total_metros > 0 and len(pontos_tela) > 1:
             cam_frac = (self.cam_pos % total_metros) / float(total_metros)
@@ -915,10 +1342,8 @@ class TrackEditor:
             pygame.draw.circle(self.screen, COLOR_ACCENT, pt_cam, 6)
             pygame.draw.circle(self.screen, (255, 255, 255), pt_cam, 3)
 
-        # Distância entre largada e chegada para avaliar fechamento
         dist_fechamento = math.sqrt((pontos[-1][0] - pontos[0][0])**2 + (pontos[-1][1] - pontos[0][1])**2)
 
-        # Selo de Status da Pista
         if dist_fechamento < 60:
             badge_txt = self.font_small.render("CIRCUITO FECHADO", True, COLOR_SUCCESS)
             badge_color = (20, 80, 40)
@@ -929,12 +1354,11 @@ class TrackEditor:
         pygame.draw.rect(self.screen, badge_color, (rect.right - 180, rect.y + 7, 168, 22), border_radius=4)
         self.screen.blit(badge_txt, (rect.right - 174, rect.y + 10))
 
-        # Legenda inferior
         info_txt = self.font_small.render(f"Extensao: {total_metros}m | Trechos: {len(self.segmentos)} | Selecionado: #{self.seg_idx + 1}", True, COLOR_TEXT_MUTED)
         self.screen.blit(info_txt, (rect.x + 12, rect.bottom - 20))
 
     # =========================================================================
-    # RENDERIZAÇÃO 2: MINI PREVIEW 3D DO COCKPIT / PISTA
+    # RENDERIZAÇÃO 2: MINI PREVIEW 3D DO COCKPIT / PISTA + OBJETOS
     # =========================================================================
     def desenhar_preview_3d(self, rect):
         pygame.draw.rect(self.screen, COLOR_PANEL, rect, border_radius=6)
@@ -946,7 +1370,6 @@ class TrackEditor:
         if not self.segmentos:
             return
 
-        # Monta a pista em array metro a metro
         track_data = []
         for s in self.segmentos:
             for _ in range(int(s["length"])):
@@ -957,12 +1380,10 @@ class TrackEditor:
         total_len = len(track_data)
         pos = self.cam_pos % total_len
 
-        # Cria uma superfície isolada para a câmera 3D
         view_w, view_h = rect.width - 24, rect.height - 75
         cam_surf = pygame.Surface((view_w, view_h))
         cam_surf.fill(GREEN_DARK)
 
-        # Fundo / Horizonte Parallax (movimenta-se somente nas curvas em sentido oposto)
         bg_surf = self.carregar_bg_surf(self.lista_bgs[self.bg_idx])
         bg_w = bg_surf.get_width()
         draw_offset_x = self.bg_offset_x % bg_w
@@ -973,7 +1394,6 @@ class TrackEditor:
             cam_surf.blit(bg_surf, (curr_x, 0))
             curr_x += bg_w
 
-        # Configurações de projeção 3D
         cam_height = 800
         draw_distance = 120
         dx = 0
@@ -985,6 +1405,8 @@ class TrackEditor:
         preset_z = PRESETS_ZEBRA[self.zebra_idx]
         cor_z1 = tuple(preset_z["zebra_1"])
         cor_z2 = tuple(preset_z["zebra_2"])
+
+        segmentos_3d = []
 
         for n in range(1, draw_distance):
             z_near = n - pos_frac
@@ -1017,6 +1439,13 @@ class TrackEditor:
             w_near = p_near * 4.5
             w_far = p_far * 4.5
 
+            segmentos_3d.append({
+                "centro": c_near,
+                "largura": w_near,
+                "y": y_near,
+                "idx_fut": idx_fut
+            })
+
             alt_grama = max(1, int(y_near - y_far) + 1)
             pygame.draw.rect(cam_surf, GREEN_LIGHT if (n + int(pos)) % 6 > 3 else GREEN_DARK, (0, int(y_far), view_w, alt_grama))
 
@@ -1043,25 +1472,46 @@ class TrackEditor:
                 (c_far + w_far + zw_far, y_far), (c_far + w_far, y_far)
             ])
 
+        # Renderiza muretas e placas na pré-visualização 3D (de longe para perto)
+        mapa_objs = self.construir_mapa_objetos_metro()
+        if mapa_objs:
+            for n in range(draw_distance - 1, 0, -1):
+                seg3d = segmentos_3d[n - 1]
+                objs = mapa_objs.get(seg3d["idx_fut"])
+                if not objs:
+                    continue
+                for obj in objs:
+                    obj_h = seg3d["largura"] * 0.25 * obj["escala"]
+                    if obj_h < 2 or obj_h > 260:
+                        continue
+                    sp = self.obter_surf_objeto_escalado(obj["png"], obj_h)
+                    w_sp, h_sp = sp.get_width(), sp.get_height()
+                    if obj["lado"] == "esq":
+                        ax = seg3d["centro"] - (obj["offset"] * seg3d["largura"])
+                    else:
+                        ax = seg3d["centro"] + (obj["offset"] * seg3d["largura"])
+                    bx = int(ax - w_sp // 2)
+                    by = int(seg3d["y"] - h_sp)
+                    if bx + w_sp < 0 or bx > view_w:
+                        continue
+                    cam_surf.blit(sp, (bx, by))
+
         self.screen.blit(cam_surf, (rect.x + 12, rect.y + 35))
 
-        # Informações da Câmera
         status_play = "PLAYING (240 km/h)" if self.is_playing else "PAUSADO"
         cor_play = COLOR_SUCCESS if self.is_playing else COLOR_WARNING
         txt_cam = self.font_small.render(f"Posição: {int(pos)}m / {total_len}m | Status: {status_play}", True, cor_play)
         self.screen.blit(txt_cam, (rect.x + 330, rect.y + 10))
 
-        # Indicador de Dimensões do Fundo
         txt_bg_dim = self.font_small.render(f"BG: {self.bg_width}x{self.bg_height}px", True, COLOR_TEXT_MUTED)
         self.screen.blit(txt_bg_dim, (rect.right - 140, rect.bottom - 22))
 
     # =========================================================================
-    # RENDERIZAÇÃO 3: PAINEL DE CONTROLE (DIREITA)
+    # RENDERIZAÇÃO 3: PAINEL DE EDIÇÃO DE PISTA (DIREITA)
     # =========================================================================
     def desenhar_painel_edicao(self):
         p_x = 640
 
-        # 1. Informações de Cenário, Dimensões e Cores
         y_bg = 56
         lbl_bg = self.font_sub.render("CENÁRIO (BG):", True, COLOR_TEXT_MUTED)
         self.screen.blit(lbl_bg, (p_x + 10, y_bg + 2))
@@ -1069,21 +1519,18 @@ class TrackEditor:
         txt_bg = self.font_ui.render(nome_bg[:24], True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_bg, (p_x + 188, y_bg + 2))
 
-        # BG WIDTH
         y_w = 85
         lbl_w = self.font_sub.render("LARGURA BG:", True, COLOR_TEXT_MUTED)
         self.screen.blit(lbl_w, (p_x + 10, y_w + 2))
         txt_w_val = self.font_mono.render(f"{self.bg_width:4d} px", True, COLOR_SELECTED)
         self.screen.blit(txt_w_val, (p_x + 270, y_w + 3))
 
-        # BG HEIGHT
         y_h = 114
         lbl_h = self.font_sub.render("ALTURA BG:", True, COLOR_TEXT_MUTED)
         self.screen.blit(lbl_h, (p_x + 10, y_h + 2))
         txt_h_val = self.font_mono.render(f"{self.bg_height:4d} px", True, COLOR_SELECTED)
         self.screen.blit(txt_h_val, (p_x + 270, y_h + 3))
 
-        # ZEBRAS
         y_zb = 143
         lbl_zb = self.font_sub.render("ZEBRAS:", True, COLOR_TEXT_MUTED)
         self.screen.blit(lbl_zb, (p_x + 10, y_zb + 2))
@@ -1091,12 +1538,10 @@ class TrackEditor:
         txt_zb = self.font_ui.render(p_zb["nome"], True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_zb, (p_x + 188, y_zb + 2))
 
-        # Amostra das cores da zebra
         pygame.draw.rect(self.screen, tuple(p_zb["zebra_1"]), (p_x + 360, y_zb + 4, 20, 16), border_radius=2)
         pygame.draw.rect(self.screen, tuple(p_zb["zebra_2"]), (p_x + 384, y_zb + 4, 20, 16), border_radius=2)
         pygame.draw.rect(self.screen, COLOR_BORDER, (p_x + 360, y_zb + 4, 44, 16), width=1, border_radius=2)
 
-        # 2. Navegação do Segmento
         pygame.draw.line(self.screen, COLOR_BORDER, (p_x, 173), (WIDTH - 20, 173), 1)
 
         total_segs = len(self.segmentos)
@@ -1110,12 +1555,9 @@ class TrackEditor:
             txt_desc = self.font_ui.render(f"Descrição: {desc}", True, COLOR_TEXT_MUTED)
             self.screen.blit(txt_desc, (p_x + 10, 212))
 
-            # 3. Métricas do Segmento Atual (Comprimento, Curvatura, Relevo)
-            # A) COMPRIMENTO
             txt_l = self.font_sub.render(f"DISTÂNCIA: {seg['length']} metros", True, COLOR_TEXT_PRIMARY)
             self.screen.blit(txt_l, (p_x + 190, 240))
 
-            # B) CURVATURA
             curva = seg["curve"]
             if curva > 0:
                 tipo_c = f"Curva para DIREITA (+{curva:.4f})"
@@ -1130,7 +1572,6 @@ class TrackEditor:
             txt_c = self.font_sub.render(f"CURVATURA: {tipo_c}", True, cor_c)
             self.screen.blit(txt_c, (p_x + 10, 272))
 
-            # C) RELEVO / COLINAS
             hill = seg["hill"]
             if hill > 0:
                 tipo_h = f"SUBIDA / ACLIVE (+{hill:.4f})"
@@ -1145,13 +1586,9 @@ class TrackEditor:
             txt_h = self.font_sub.render(f"ELEVAÇÃO: {tipo_h}", True, cor_h)
             self.screen.blit(txt_h, (p_x + 10, 330))
 
-        # Divisor
         pygame.draw.line(self.screen, COLOR_BORDER, (p_x, 389), (WIDTH - 20, 389), 1)
-
-        # 4. Lista Rolável de Todos os Segmentos
         self.desenhar_lista_segmentos(self.rect_lista)
 
-        # 5. Controles da Camada PNG de Referência (Gabarito 2D)
         y_ref1 = 594
         lbl_ref = self.font_sub.render("GABARITO 2D:", True, COLOR_TEXT_MUTED)
         self.screen.blit(lbl_ref, (p_x + 5, y_ref1 + 2))
@@ -1188,7 +1625,6 @@ class TrackEditor:
         max_visiveis = (rect.height - 35) // item_h
         total = len(self.segmentos)
 
-        # Ajusta scroll
         if self.seg_idx < self.scroll_offset:
             self.scroll_offset = self.seg_idx
         elif self.seg_idx >= self.scroll_offset + max_visiveis:
@@ -1208,7 +1644,6 @@ class TrackEditor:
             if is_sel:
                 pygame.draw.rect(self.screen, COLOR_SELECTED, item_rect, width=1, border_radius=3)
 
-            # Texto resumo do trecho
             if s["curve"] > 0.001:
                 tipo = f"Curva Dir (+{s['curve']:.3f})"
             elif s["curve"] < -0.001:
@@ -1223,13 +1658,160 @@ class TrackEditor:
             else:
                 elev = "Plano"
 
-            linha_txt = f"#{curr_idx + 1:02d} | {s['length']:4d}m | {tipo:<20} | {elev:<10} | {s.get('desc','')[:20]}"
+            qtd_objs = sum(ap["quantidade"] for ap in self.objetos_pista if ap["seg_idx"] == curr_idx)
+            tag_obj = f" [{qtd_objs} obj]" if qtd_objs > 0 else ""
+
+            linha_txt = f"#{curr_idx + 1:02d} | {s['length']:4d}m | {tipo:<19} | {elev:<9} | {s.get('desc','')[:14]}{tag_obj}"
             col_txt = COLOR_SELECTED if is_sel else COLOR_TEXT_PRIMARY
             txt_surf = self.font_mono.render(linha_txt, True, col_txt)
             self.screen.blit(txt_surf, (item_rect.x + 8, item_rect.y + 3))
 
     # =========================================================================
-    # MODAL DE ARQUIVOS (SALVAR / CARREGAR)
+    # RENDERIZAÇÃO 4: PAINEL DE OBJETOS / MURETAS / PLACAS (ABA OBJETOS)
+    # =========================================================================
+    def desenhar_painel_objetos(self):
+        p_x = 640
+
+        # Indicador da pista atual no topo direito
+        txt_pista_info = self.font_sub.render(f"PISTA: {self.nome_pista[:24]}", True, COLOR_SELECTED)
+        self.screen.blit(txt_pista_info, (p_x + 295, 20))
+
+        # ---------------------------------------------------------------------
+        # SEÇÃO 1: CRIAR / EDITAR OBJETO (CATÁLOGO PNG)
+        # ---------------------------------------------------------------------
+        card1 = pygame.Rect(p_x, 52, WIDTH - p_x - 20, 272)
+        pygame.draw.rect(self.screen, COLOR_PANEL, card1, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_BORDER, card1, width=1, border_radius=6)
+
+        # Campo de texto: Nome do Objeto
+        self.screen.blit(self.font_sub.render("1. NOME OBJETO:", True, COLOR_TEXT_MUTED), (p_x + 10, 65))
+        pygame.draw.rect(self.screen, (18, 22, 32), self.rect_input_nome_obj, border_radius=4)
+        borda_input = COLOR_SELECTED if self.editando_nome_obj else COLOR_ACCENT
+        pygame.draw.rect(self.screen, borda_input, self.rect_input_nome_obj, width=2 if self.editando_nome_obj else 1, border_radius=4)
+        cursor_str = "_" if self.editando_nome_obj else ""
+        txt_nome_o = self.font_ui.render(self.obj_nome_input + cursor_str, True, COLOR_TEXT_PRIMARY)
+        self.screen.blit(txt_nome_o, (self.rect_input_nome_obj.x + 8, self.rect_input_nome_obj.y + 4))
+
+        # Miniatura PNG do objeto atual (canto superior direito do card 1)
+        thumb_rect = pygame.Rect(p_x + 430, 60, 175, 62)
+        pygame.draw.rect(self.screen, (18, 24, 34), thumb_rect, border_radius=4)
+        pygame.draw.rect(self.screen, COLOR_BORDER, thumb_rect, width=1, border_radius=4)
+        png_atual = self.lista_pngs_objetos[self.obj_png_idx] if self.lista_pngs_objetos else ""
+        surf_prev = self.obter_surf_objeto(png_atual)
+        if surf_prev:
+            pw, ph = surf_prev.get_width(), surf_prev.get_height()
+            fator = min(155 / max(1, pw), 50 / max(1, ph))
+            nw, nh = max(4, int(pw * fator)), max(4, int(ph * fator))
+            sp_mini = pygame.transform.smoothscale(surf_prev, (nw, nh))
+            self.screen.blit(sp_mini, (thumb_rect.centerx - nw // 2, thumb_rect.centery - nh // 2))
+
+        # Seletor de PNG
+        self.screen.blit(self.font_sub.render("IMAGEM PNG:", True, COLOR_TEXT_MUTED), (p_x + 10, 98))
+        nome_png = os.path.basename(png_atual) if png_atual else "Nenhum"
+        txt_png = self.font_mono.render(nome_png[:24], True, COLOR_ACCENT)
+        self.screen.blit(txt_png, (p_x + 175, 100))
+
+        # Escala e Offset
+        self.screen.blit(self.font_sub.render("ESCALA:", True, COLOR_TEXT_MUTED), (p_x + 10, 130))
+        self.screen.blit(self.font_mono.render(f"{self.obj_escala_input:.2f}x", True, COLOR_SELECTED), (p_x + 166, 132))
+
+        self.screen.blit(self.font_sub.render("OFFSET:", True, COLOR_TEXT_MUTED), (p_x + 305, 130))
+        self.screen.blit(self.font_mono.render(f"{self.obj_offset_input:.2f}", True, COLOR_SELECTED), (p_x + 464, 132))
+
+        # Lista de objetos já criados no catálogo
+        pygame.draw.rect(self.screen, (20, 26, 36), self.rect_lista_obj_cat, border_radius=4)
+        pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_obj_cat, width=1, border_radius=4)
+        self.screen.blit(self.font_small.render(f"OBJETOS CRIADOS ({len(self.objetos_catalogo)}) - Clique para selecionar:", True, COLOR_TEXT_MUTED), (self.rect_lista_obj_cat.x + 8, self.rect_lista_obj_cat.y + 4))
+
+        item_h = 22
+        max_vis_cat = (self.rect_lista_obj_cat.height - 24) // item_h
+        for i in range(max_vis_cat):
+            idx = self.scroll_obj_cat + i
+            if idx >= len(self.objetos_catalogo):
+                break
+            item = self.objetos_catalogo[idx]
+            r = pygame.Rect(self.rect_lista_obj_cat.x + 6, self.rect_lista_obj_cat.y + 22 + i * item_h, self.rect_lista_obj_cat.width - 12, item_h - 2)
+            is_sel = (idx == self.obj_cat_sel_idx)
+            pygame.draw.rect(self.screen, (45, 65, 95) if is_sel else (30, 38, 52), r, border_radius=3)
+            if is_sel:
+                pygame.draw.rect(self.screen, COLOR_SELECTED, r, width=1, border_radius=3)
+
+            linha = f"{item['nome']:<20} | PNG: {os.path.basename(item['png']):<18} | Esc: {item.get('escala', 1.0):.1f}x | Off: {item.get('offset', 1.3):.2f}"
+            txt_it = self.font_mono.render(linha, True, COLOR_SELECTED if is_sel else COLOR_TEXT_PRIMARY)
+            self.screen.blit(txt_it, (r.x + 6, r.y + 2))
+
+        # Quantidade e Início %
+        self.screen.blit(self.font_sub.render("REPLICAR:", True, COLOR_TEXT_MUTED), (p_x + 10, 413))
+        self.screen.blit(self.font_mono.render(f"{self.apl_quantidade:3d}x", True, COLOR_SELECTED), (p_x + 244, 415))
+
+        self.screen.blit(self.font_sub.render("INÍCIO:", True, COLOR_TEXT_MUTED), (p_x + 422, 413))
+        self.screen.blit(self.font_mono.render(f"{self.apl_inicio_pct:2d}%", True, COLOR_ACCENT), (p_x + 528, 415))
+
+        # Linha do Espaçamento
+        self.screen.blit(self.font_sub.render("DISTÂNCIA:", True, COLOR_TEXT_MUTED), (p_x + 10, 444))
+        esp_txt = "AUTO" if self.apl_espacamento == 0 else f"{self.apl_espacamento}m"
+        self.screen.blit(self.font_mono.render(f"{esp_txt:^6}", True, COLOR_SUCCESS), (p_x + 205, 446))
+
+        # Lista de Objetos Aplicados na Pista (ajuste o Y de 488 para 508)
+        self.screen.blit(self.font_sub.render(f"OBJETOS APLICADOS NA PISTA ({len(self.objetos_pista)} grupos):", True, COLOR_TEXT_MUTED), (p_x + 10, 508))
+
+        # ---------------------------------------------------------------------
+        # SEÇÃO 2: REPLICAR OBJETO NOS TRECHOS DA PISTA
+        # ---------------------------------------------------------------------
+        card2 = pygame.Rect(p_x, 332, WIDTH - p_x - 20, 344)
+        pygame.draw.rect(self.screen, COLOR_PANEL, card2, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_BORDER, card2, width=1, border_radius=6)
+
+        seg_atual = self.segmentos[self.seg_idx] if self.segmentos else {"length": 0, "curve": 0}
+        tipo_seg = "Curva Dir" if seg_atual["curve"] > 0.001 else ("Curva Esq" if seg_atual["curve"] < -0.001 else "Reta")
+        titulo_s2 = f"2. TRECHO #{self.seg_idx + 1}/{len(self.segmentos)} ({seg_atual['length']}m - {tipo_seg})"
+        self.screen.blit(self.font_sub.render(titulo_s2, True, COLOR_SELECTED), (p_x + 10, 345))
+
+        # Lado da pista
+        self.screen.blit(self.font_sub.render("LADO PISTA:", True, COLOR_TEXT_MUTED), (p_x + 10, 379))
+        # Destaque visual no botão de lado ativo
+        lado_rects = {
+            "esq": pygame.Rect(p_x + 115, 376, 105, 26),
+            "dir": pygame.Rect(p_x + 228, 376, 105, 26),
+            "ambos": pygame.Rect(p_x + 341, 376, 105, 26)
+        }
+        r_ativo = lado_rects.get(self.apl_lado)
+        if r_ativo:
+            pygame.draw.rect(self.screen, COLOR_ACCENT, r_ativo.inflate(4, 4), width=2, border_radius=6)
+
+        # Quantidade e Início %
+        self.screen.blit(self.font_sub.render("REPLICAR:", True, COLOR_TEXT_MUTED), (p_x + 10, 413))
+        self.screen.blit(self.font_mono.render(f"{self.apl_quantidade:3d}x", True, COLOR_SELECTED), (p_x + 244, 415))
+
+        self.screen.blit(self.font_sub.render("INÍCIO:", True, COLOR_TEXT_MUTED), (p_x + 422, 413))
+        self.screen.blit(self.font_mono.render(f"{self.apl_inicio_pct:2d}%", True, COLOR_ACCENT), (p_x + 528, 415))
+
+        # Lista de Objetos Aplicados na Pista
+        self.screen.blit(self.font_sub.render(f"OBJETOS APLICADOS NA PISTA ({len(self.objetos_pista)} grupos):", True, COLOR_TEXT_MUTED), (p_x + 10, 488))
+        pygame.draw.rect(self.screen, (20, 26, 36), self.rect_lista_obj_apl, border_radius=4)
+        pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_obj_apl, width=1, border_radius=4)
+
+        max_vis_apl = (self.rect_lista_obj_apl.height - 12) // item_h
+        for i in range(max_vis_apl):
+            idx = self.scroll_obj_apl + i
+            if idx >= len(self.objetos_pista):
+                break
+            ap = self.objetos_pista[idx]
+            r = pygame.Rect(self.rect_lista_obj_apl.x + 6, self.rect_lista_obj_apl.y + 6 + i * item_h, self.rect_lista_obj_apl.width - 12, item_h - 2)
+            is_sel = (idx == self.obj_apl_sel_idx)
+            is_trecho_atual = (ap["seg_idx"] == self.seg_idx)
+            bg = (50, 70, 100) if is_sel else ((34, 48, 62) if is_trecho_atual else (28, 35, 48))
+            pygame.draw.rect(self.screen, bg, r, border_radius=3)
+            if is_sel:
+                pygame.draw.rect(self.screen, COLOR_SELECTED, r, width=1, border_radius=3)
+
+            lado_lbl = {"esq": "ESQ", "dir": "DIR", "ambos": "AMBOS"}.get(ap["lado"], "ESQ")
+            linha_ap = f"Trecho #{ap['seg_idx'] + 1:02d} | {ap['objeto']:<18} | Lado: {lado_lbl:<5} | {ap['quantidade']:3d}x | Início: {ap.get('inicio_pct', 0):2d}%"
+            txt_ap = self.font_mono.render(linha_ap, True, COLOR_SELECTED if is_sel else COLOR_TEXT_PRIMARY)
+            self.screen.blit(txt_ap, (r.x + 6, r.y + 2))
+
+    # =========================================================================
+    # MODAIS E TEMPORADAS
     # =========================================================================
     def desenhar_modal_carregar(self):
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -1243,7 +1825,6 @@ class TrackEditor:
         txt_t = self.font_title.render("CARREGAR PISTA EXISTENTE", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_t, (m_rect.centerx - txt_t.get_width() // 2, m_rect.y + 15))
 
-        # Lista arquivos em pistas/
         arquivos = []
         if os.path.exists("pistas"):
             arquivos = [f for f in sorted(os.listdir("pistas")) if f.lower().endswith(".json")]
@@ -1261,7 +1842,6 @@ class TrackEditor:
                 txt_arq = self.font_ui.render(arq, True, COLOR_TEXT_PRIMARY)
                 self.screen.blit(txt_arq, (btn_r.x + 15, btn_r.centery - txt_arq.get_height() // 2))
 
-        # Botão Fechar Modal
         btn_close = pygame.Rect(m_rect.centerx - 60, m_rect.bottom - 45, 120, 30)
         is_hov = btn_close.collidepoint(pygame.mouse.get_pos())
         pygame.draw.rect(self.screen, (80, 35, 35) if is_hov else (60, 30, 30), btn_close, border_radius=4)
@@ -1283,21 +1863,18 @@ class TrackEditor:
         txt_instrucao = self.font_ui.render("Digite o nome do arquivo JSON (sem .json):", True, COLOR_TEXT_MUTED)
         self.screen.blit(txt_instrucao, (m_rect.x + 40, m_rect.y + 60))
 
-        # Caixa de Texto
         input_rect = pygame.Rect(m_rect.x + 40, m_rect.y + 90, m_rect.width - 80, 36)
         pygame.draw.rect(self.screen, (20, 25, 35), input_rect, border_radius=4)
         pygame.draw.rect(self.screen, COLOR_ACCENT, input_rect, width=2, border_radius=4)
         txt_val = self.font_title.render(self.nome_input_salvar + "_", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_val, (input_rect.x + 12, input_rect.centery - txt_val.get_height() // 2))
 
-        # Botão Salvar
         btn_salvar = pygame.Rect(m_rect.x + 60, m_rect.bottom - 50, 160, 32)
         is_hov_s = btn_salvar.collidepoint(pygame.mouse.get_pos())
         pygame.draw.rect(self.screen, (25, 140, 60) if is_hov_s else (20, 100, 50), btn_salvar, border_radius=4)
         txt_s = self.font_sub.render("CONFIRMAR", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_s, (btn_salvar.centerx - txt_s.get_width() // 2, btn_salvar.centery - txt_s.get_height() // 2))
 
-        # Botão Cancelar
         btn_close = pygame.Rect(m_rect.right - 220, m_rect.bottom - 50, 160, 32)
         is_hov_c = btn_close.collidepoint(pygame.mouse.get_pos())
         pygame.draw.rect(self.screen, (80, 35, 35) if is_hov_c else (60, 30, 30), btn_close, border_radius=4)
@@ -1362,12 +1939,16 @@ class TrackEditor:
         t_c = self.font_ui.render("CANCELAR (ESC)", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(t_s, (btn_salvar.centerx - t_s.get_width() // 2, btn_salvar.centery - t_s.get_height() // 2))
         self.screen.blit(t_c, (btn_close.centerx - t_c.get_width() // 2, btn_close.centery - t_c.get_height() // 2))
-        
+
     def alternar_modo(self, novo_modo):
         self.modo_editor = novo_modo
+        self.editando_nome_obj = False
         if novo_modo == "TEMPORADA":
             self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
             self.set_status("Modo Temporadas ativado: monte a ordem das corridas!")
+        elif novo_modo == "OBJETOS":
+            self.lista_pngs_objetos = self.detectar_pngs_objetos()
+            self.set_status("Modo Objetos/Muretas: crie objetos PNG e replique nos trechos!")
         else:
             self.set_status("Modo Editor de Pistas ativado!")
 
@@ -1421,14 +2002,12 @@ class TrackEditor:
             self.set_status(f"Etapa '{removida['nome']}' removida da temporada.")
 
     def desenhar_tela_temporadas(self):
-        # Título e arquivo atual
         txt_titulo = self.font_title.render(f"TEMPORADA: {self.nome_temporada} ({self.arquivo_temporada})", True, COLOR_SELECTED)
         self.screen.blit(txt_titulo, (40, 62))
 
         txt_dica = self.font_ui.render("Selecione pistas à esquerda para montar o calendário oficial da temporada à direita (digite para renomear a temporada):", True, COLOR_TEXT_MUTED)
         self.screen.blit(txt_dica, (40, 95))
 
-        # --- COLUNA ESQUERDA: PISTAS DISPONÍVEIS ---
         pygame.draw.rect(self.screen, COLOR_PANEL, self.rect_lista_pistas_disp, border_radius=6)
         pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_pistas_disp, width=1, border_radius=6)
         self.screen.blit(self.font_sub.render("1. PISTAS DISPONÍVEIS (pistas/*.json)", True, COLOR_ACCENT), (self.rect_lista_pistas_disp.x + 15, self.rect_lista_pistas_disp.y + 12))
@@ -1448,7 +2027,6 @@ class TrackEditor:
             txt = self.font_mono.render(f"{p['nome']:<28} | {p['arquivo']}", True, COLOR_TEXT_PRIMARY)
             self.screen.blit(txt, (r.x + 10, r.y + 7))
 
-        # --- COLUNA DIREITA: CALENDÁRIO DA TEMPORADA ---
         pygame.draw.rect(self.screen, COLOR_PANEL, self.rect_lista_etapas, border_radius=6)
         pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_etapas, width=1, border_radius=6)
         self.screen.blit(self.font_sub.render(f"2. CALENDÁRIO DO CAMPEONATO ({len(self.etapas_temporada)} Etapas)", True, COLOR_SUCCESS), (self.rect_lista_etapas.x + 15, self.rect_lista_etapas.y + 12))
@@ -1478,26 +2056,21 @@ class TrackEditor:
             dt = self.clock.tick(FPS)
             tempo_atual = pygame.time.get_ticks()
 
-            # Atualização da câmera 3D em modo PLAY (apenas no modo PISTA)
-            if self.modo_editor == "PISTA" and self.is_playing and self.segmentos:
+            if self.modo_editor in ("PISTA", "OBJETOS") and self.is_playing and self.segmentos:
                 total_len = sum(s["length"] for s in self.segmentos)
                 if total_len > 0:
-                    # Velocidade de ~240 km/h (cerca de 66 m/s)
                     ds = 66.0 * (dt / 1000.0)
                     pos_idx = int(self.cam_pos) % total_len
                     curva_atual = self.obter_curva_na_posicao(pos_idx)
                     self.bg_offset_x -= curva_atual * ds * 120.0
                     self.cam_pos = (self.cam_pos + ds) % total_len
 
-            # Eventos
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
 
-                # =============================================================
                 # 1. MODAIS DO MODO PISTA
-                # =============================================================
                 if self.modal_aberto == "CARREGAR":
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 180, 500, 360)
@@ -1543,9 +2116,7 @@ class TrackEditor:
                             self.modal_aberto = None
                     continue
 
-                # =============================================================
-                # 2. MODAIS DO MODO TEMPORADA (NOVOS)
-                # =============================================================
+                # 2. MODAIS DO MODO TEMPORADA
                 elif self.modal_aberto == "CARREGAR_TEMP":
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         self.modal_aberto = None
@@ -1593,9 +2164,7 @@ class TrackEditor:
                             self.modal_aberto = None
                     continue
 
-                # =============================================================
-                # 3. BOTÕES DE TROCA DE ABA NO TOPO (SEMPRE ATIVOS)
-                # =============================================================
+                # 3. BOTÕES DE TROCA DE ABA NO TOPO
                 clicou_aba = False
                 for b in self.buttons_globais:
                     if b.handle_event(event):
@@ -1604,15 +2173,11 @@ class TrackEditor:
                 if clicou_aba:
                     continue
 
-                # =============================================================
                 # 4. EVENTOS ESPECÍFICOS DO MODO ATIVO
-                # =============================================================
                 if self.modo_editor == "TEMPORADA":
-                    # Botões da tela de temporadas
                     for b in self.buttons_temporada:
                         b.handle_event(event)
 
-                    # Clique nas listas de pistas disponíveis e etapas da temporada
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         if self.rect_lista_pistas_disp.collidepoint(event.pos):
                             rel_y = event.pos[1] - (self.rect_lista_pistas_disp.y + 45)
@@ -1628,7 +2193,6 @@ class TrackEditor:
                                 if 0 <= idx_clicado < len(self.etapas_temporada):
                                     self.etapa_sel_idx = idx_clicado
 
-                    # Scroll do mouse nas duas colunas
                     elif event.type == pygame.MOUSEWHEEL:
                         pos_m = pygame.mouse.get_pos()
                         if self.rect_lista_pistas_disp.collidepoint(pos_m):
@@ -1638,7 +2202,6 @@ class TrackEditor:
                             max_s = max(0, len(self.etapas_temporada) - 12)
                             self.scroll_etapas = max(0, min(max_s, self.scroll_etapas - event.y))
 
-                    # Digitação direta para renomear a temporada (e Ctrl+S para salvar)
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
                             self.salvar_temporada(self.arquivo_temporada)
@@ -1647,9 +2210,62 @@ class TrackEditor:
                         elif event.unicode.isprintable() and len(self.nome_temporada) < 35:
                             self.nome_temporada += event.unicode
 
+                elif self.modo_editor == "OBJETOS":
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        # Foco no campo de texto "Nome do Objeto"
+                        self.editando_nome_obj = self.rect_input_nome_obj.collidepoint(event.pos)
+
+                        # Clique na lista de objetos criados
+                        if self.rect_lista_obj_cat.collidepoint(event.pos):
+                            rel_y = event.pos[1] - (self.rect_lista_obj_cat.y + 22)
+                            if rel_y >= 0:
+                                idx_c = self.scroll_obj_cat + (rel_y // 22)
+                                if 0 <= idx_c < len(self.objetos_catalogo):
+                                    self.obj_cat_sel_idx = idx_c
+                                    self.sincronizar_form_com_objeto_selecionado()
+
+                        # Clique na lista de objetos aplicados na pista
+                        elif self.rect_lista_obj_apl.collidepoint(event.pos):
+                            rel_y = event.pos[1] - (self.rect_lista_obj_apl.y + 6)
+                            if rel_y >= 0:
+                                idx_a = self.scroll_obj_apl + (rel_y // 22)
+                                if 0 <= idx_a < len(self.objetos_pista):
+                                    self.obj_apl_sel_idx = idx_a
+                                    self.seg_idx = self.objetos_pista[idx_a]["seg_idx"]
+                                    self.action_focar_camera_trecho()
+
+                    elif event.type == pygame.MOUSEWHEEL:
+                        pos_m = pygame.mouse.get_pos()
+                        if self.rect_lista_obj_cat.collidepoint(pos_m):
+                            max_s = max(0, len(self.objetos_catalogo) - 3)
+                            self.scroll_obj_cat = max(0, min(max_s, self.scroll_obj_cat - event.y))
+                        elif self.rect_lista_obj_apl.collidepoint(pos_m):
+                            max_s = max(0, len(self.objetos_pista) - 5)
+                            self.scroll_obj_apl = max(0, min(max_s, self.scroll_obj_apl - event.y))
+
+                    for b in self.buttons_objetos:
+                        b.handle_event(event)
+
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                            self.action_salvar_atual()
+                        elif self.editando_nome_obj:
+                            if event.key in (pygame.K_RETURN, pygame.K_ESCAPE):
+                                self.editando_nome_obj = False
+                            elif event.key == pygame.K_BACKSPACE:
+                                self.obj_nome_input = self.obj_nome_input[:-1]
+                            elif event.unicode.isprintable() and len(self.obj_nome_input) < 24:
+                                self.obj_nome_input += event.unicode
+                        else:
+                            if event.key == pygame.K_LEFT:
+                                self.action_prev_seg()
+                            elif event.key == pygame.K_RIGHT:
+                                self.action_next_seg()
+                            elif event.key == pygame.K_SPACE:
+                                self.action_toggle_play()
+
                 else:
-                    # --- MODO PISTA (SEU CÓDIGO ORIGINAL INTACTO) ---
-                    # Arrastar Gabarito 2D (PNG) diretamente com o mouse na área aérea
+                    # --- MODO PISTA ---
                     rect_preview_aereo = pygame.Rect(20, 45, 600, 355)
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         if self.ref_idx > 0 and rect_preview_aereo.collidepoint(event.pos):
@@ -1664,7 +2280,6 @@ class TrackEditor:
                         self.ref_offset_x = self.drag_inicio_offset[0] + dx
                         self.ref_offset_y = self.drag_inicio_offset[1] + dy
 
-                    # Clique na lista lateral de segmentos para seleção rápida
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         if self.rect_lista.collidepoint(event.pos):
                             rel_y = event.pos[1] - (self.rect_lista.y + 30)
@@ -1674,16 +2289,13 @@ class TrackEditor:
                                     self.seg_idx = idx_clicado
                                     self.action_focar_camera_trecho()
 
-                    # Rolagem do mouse na lista lateral
                     if event.type == pygame.MOUSEWHEEL:
                         if self.rect_lista.collidepoint(pygame.mouse.get_pos()):
                             self.scroll_offset = max(0, min(max(0, len(self.segmentos) - 1), self.scroll_offset - event.y))
 
-                    # Eventos dos botões da interface
                     for b in self.buttons:
                         b.handle_event(event)
 
-                    # Teclado (Atalhos rápidos)
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_LEFT:
                             self.action_prev_seg()
@@ -1699,33 +2311,32 @@ class TrackEditor:
             # =================================================================
             self.screen.fill(COLOR_BG)
 
-            # Botões globais das abas no topo
             for b in self.buttons_globais:
                 b.draw(self.screen, self.font_ui)
 
             if self.modo_editor == "PISTA":
-                # 1. Painel Esquerdo (Pré-visualizações)
                 self.desenhar_preview_aereo(pygame.Rect(20, 45, 600, 355))
                 self.desenhar_preview_3d(pygame.Rect(20, 415, 600, 295))
-
-                # 2. Painel Direito (Controles de Edição)
                 self.desenhar_painel_edicao()
-
-                # 3. Desenho de todos os botões UI do modo pista
                 for b in self.buttons:
                     b.draw(self.screen, self.font_ui)
+
+            elif self.modo_editor == "OBJETOS":
+                self.desenhar_preview_aereo(pygame.Rect(20, 45, 600, 355))
+                self.desenhar_preview_3d(pygame.Rect(20, 415, 600, 295))
+                self.desenhar_painel_objetos()
+                for b in self.buttons_objetos:
+                    b.draw(self.screen, self.font_ui)
+
             else:
-                # Tela de Criação/Edição de Temporadas
                 self.desenhar_tela_temporadas()
                 for b in self.buttons_temporada:
                     b.draw(self.screen, self.font_ui)
 
-            # 4. Barra de Notificações / Status (Rodapé)
             if tempo_atual < self.status_timer:
                 status_surf = self.font_ui.render(self.status_msg, True, self.status_color)
                 self.screen.blit(status_surf, (25, HEIGHT - 22))
 
-            # 5. Modais (se abertos)
             if self.modal_aberto == "CARREGAR":
                 self.desenhar_modal_carregar()
             elif self.modal_aberto == "SALVAR_COMO":
@@ -1736,6 +2347,7 @@ class TrackEditor:
                 self.desenhar_modal_salvar_como_temporada()
 
             pygame.display.flip()
+
 
 if __name__ == "__main__":
     app = TrackEditor()

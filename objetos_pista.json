@@ -1,0 +1,44 @@
+[
+  {
+    "nome": "Direita",
+    "png": "images/objects/vire_a_direita.png",
+    "escala": 1.3,
+    "offset": 1.7
+  },
+  {
+    "nome": "Esquerda",
+    "png": "images/objects/vire_a_esquerda.png",
+    "escala": 1.3,
+    "offset": 1.55
+  },
+  {
+    "nome": "S Direita",
+    "png": "images/objects/s_direita.png",
+    "escala": 1.3,
+    "offset": 1.7
+  },
+  {
+    "nome": "S Esquerda",
+    "png": "images/objects/s_esquerda.png",
+    "escala": 1.3,
+    "offset": 1.7
+  },
+  {
+    "nome": "Fechada Direita",
+    "png": "images/objects/fechada_direita.png",
+    "escala": 1.3,
+    "offset": 1.7
+  },
+  {
+    "nome": "Fechada Esquerda",
+    "png": "images/objects/fechada_esquerda.png",
+    "escala": 1.3,
+    "offset": 1.7
+  },
+  {
+    "nome": "predio",
+    "png": "images/objects/predio_cidade.png",
+    "escala": 4.0,
+    "offset": 1.8
+  }
+]

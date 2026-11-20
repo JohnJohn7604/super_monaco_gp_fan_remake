@@ -174,5 +174,159 @@
       "hill": 0.0,
       "desc": "Nova Reta"
     }
+  ],
+  "objetos_catalogo": [
+    {
+      "nome": "Direita",
+      "png": "images/objects/vire_a_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Esquerda",
+      "png": "images/objects/vire_a_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.55
+    },
+    {
+      "nome": "Fechada Direita",
+      "png": "images/objects/fechada_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Fechada Esquerda",
+      "png": "images/objects/fechada_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "predio",
+      "png": "images/objects/predio_cidade.png",
+      "escala": 4.0,
+      "offset": 1.8
+    }
+  ],
+  "objetos_pista": [
+    {
+      "seg_idx": 3,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 15,
+      "inicio_pct": 90,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 3,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 15,
+      "inicio_pct": 50,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 1,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 15,
+      "inicio_pct": 50,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 2,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 20,
+      "inicio_pct": 70,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 15,
+      "inicio_pct": 90,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 14,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 5,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 16,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 7,
+      "inicio_pct": 70,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 18,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 7,
+      "inicio_pct": 90,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 20,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 7,
+      "inicio_pct": 90,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 12,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 7,
+      "inicio_pct": 90,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 17,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 7,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 12,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 6,
+      "inicio_pct": 50,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 10,
+      "inicio_pct": 80,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "predio",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 50,
+      "espacamento": 0
+    }
   ]
 }

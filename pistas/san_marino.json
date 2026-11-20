@@ -294,5 +294,37 @@
       "hill": 0.0,
       "desc": "Nova Reta"
     }
+  ],
+  "objetos_catalogo": [
+    {
+      "nome": "Esquerda",
+      "png": "images/objects/vire_a_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.55
+    },
+    {
+      "nome": "S Esquerda",
+      "png": "images/objects/s_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.7
+    }
+  ],
+  "objetos_pista": [
+    {
+      "seg_idx": 4,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 9,
+      "inicio_pct": 80,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "S Esquerda",
+      "lado": "dir",
+      "quantidade": 11,
+      "inicio_pct": 80,
+      "espacamento": 13
+    }
   ]
 }
