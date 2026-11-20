@@ -3,6 +3,7 @@ import sys
 import math
 import json
 import random
+import os
 from settings import *
 from openal import oalOpen, oalQuit
 from track import Track
@@ -29,12 +30,19 @@ class Game:
         self.ui = MenuUI(self)
         self.ai = BotAI(self)
 
-        self.fonte_grande = pygame.font.SysFont('Arial', 80, bold=True)
+        self.fonte_grande = pygame.font.SysFont('Arial', 75, bold=True)
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
+        self.fonte_pequena = pygame.font.SysFont('Arial', 17)
 
         self.estado_jogo = "INPUT_NAME"
-        #elf.estado_jogo = "TITTLE SCREEN"
-        #self.opcao_titulo_sel = 0  # 0 = Start, 1 = Settings
+
+        # --- CONTROLE DE MODO DE JOGO E TEMPORADA ---
+        self.modo_jogo = "RAPIDA"          # "RAPIDA" ou "TEMPORADA"
+        self.modo_jogo_sel_idx = 0         # 0 = Corrida Rápida | 1 = Temporada
+        self.etapas_temporada = []         # Lista de etapas lidas do JSON da temporada
+        self.etapa_atual_idx = 0           # Índice da corrida atual na temporada
+
+        self.nome_temporada_atual = ""
         self.nome_digitado = ""         # Guarda as letras que o jogador vai digitar
 
         # Catálogo de pistas disponíveis (Nome exibido na tela, nome do arquivo JSON)
@@ -103,8 +111,7 @@ class Game:
             for _ in range(5):
                 som = oalOpen("sounds/bot_motor.wav")
                 som.set_looping(True)
-                som.set_gain(0.0) # Nasce mudo
-                som.play()        # Fica tocando em silêncio
+                som.set_gain(0.0) # Nasce mudo e parado!
                 self.canais_motor_bot.append(som)
                 
         except Exception as e:
@@ -137,6 +144,50 @@ class Game:
         
         # Cria um "Armário" vazio para guardar as imagens de cada equipe na memória
         self.cache_sprites = {}
+
+    def carregar_dados_temporada(self, caminho="temporadas/temporada_1.json"):
+        """ Lê o arquivo JSON da primeira temporada e prepara a fila de etapas """
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            self.nome_temporada_atual = dados.get("nome_temporada", "Temporada Oficial")
+            self.etapas_temporada = dados.get("etapas", [])
+            self.etapa_atual_idx = 0
+        except Exception as e:
+            print(f"Erro ao carregar temporada ({caminho}): {e}")
+            # Fallback de segurança caso o arquivo ainda não tenha sido criado
+            self.nome_temporada_atual = "Temporada Padrão"
+            self.etapas_temporada = [
+                {"etapa": 1, "arquivo": "pistas/rio.json", "nome": "Rio", "voltas": 3}
+            ]
+            self.etapa_atual_idx = 0
+
+        # Inicializa o placar acumulado do campeonato de construtores
+        self.pontos_campeonato_construtores = {nome: 0 for nome in self.equipes.keys()}
+
+    def silenciar_audios_corrida(self):
+        """ Garante que todos os sons de motor (player e bots) parem fora da pista """
+        if hasattr(self, 'car') and self.car:
+            try:
+                self.car.parar_audios()
+            except Exception:
+                pass
+        if hasattr(self, 'canais_motor_bot'):
+            for canal in self.canais_motor_bot:
+                try:
+                    canal.set_gain(0.0)
+                    canal.stop()
+                except Exception:
+                    pass
+
+    def iniciar_etapa_temporada_atual(self):
+        """ Carrega a pista e as voltas da etapa atual da temporada e inicia direto """
+        etapa = self.etapas_temporada[self.etapa_atual_idx]
+        self.lap_limit = etapa.get("voltas", 3)
+        self.posicao_jogador = 16  # No modo temporada você larga do fundo do grid (16º)
+        arq_pista = os.path.splitext(os.path.basename(etapa["arquivo"]))[0]
+        self.iniciar_corrida(arq_pista)
+        self.estado_jogo = "LOADING"
 
     def tingir_carroceria(self, superficie, mapa_cor):
         """ Pinta o sprite do bot base (azul) com as cores da equipe do JSON """
@@ -277,8 +328,9 @@ class Game:
         pilotos_da_equipe[0]["nome"] = self.nome_jogador_formatado
         pilotos_da_equipe[0]["is_player"] = True
         
-        # 4. Aplica o limite de voltas escolhido no menu
-        self.lap_limit = self.opcoes_voltas[self.volta_sel_idx]
+        # 4. Aplica o limite de voltas (do menu na Corrida Rápida, ou do JSON na Temporada)
+        if self.modo_jogo == "RAPIDA":
+            self.lap_limit = self.opcoes_voltas[self.volta_sel_idx]
 
         # Descobre a pasta da equipe do jogador agora que já sabe onde você está
         nome_equipe = self.equipe_atual_jogador
@@ -451,11 +503,22 @@ class Game:
         
         for i, piloto in enumerate(corredores):
             if i < len(pontuacao):
-                self.pontos_construtoras[piloto["equipe"]] += pontuacao[i]
+                pts = pontuacao[i]
+                self.pontos_construtoras[piloto["equipe"]] += pts
+                # Se for Temporada, soma também no acumulado do campeonato!
+                if self.modo_jogo == "TEMPORADA" and hasattr(self, "pontos_campeonato_construtores"):
+                    self.pontos_campeonato_construtores[piloto["equipe"]] = (
+                        self.pontos_campeonato_construtores.get(piloto["equipe"], 0) + pts
+                    )
                 
         # 4. Cria uma lista ordenada de construtoras para mostrar no ecrã
+        tabela_base = (
+            self.pontos_campeonato_construtores
+            if (self.modo_jogo == "TEMPORADA" and hasattr(self, "pontos_campeonato_construtores"))
+            else self.pontos_construtoras
+        )
         self.classificacao_construtoras = sorted(
-            self.pontos_construtoras.items(), 
+            tabela_base.items(), 
             key=lambda x: x[1], 
             reverse=True
         )
@@ -597,13 +660,31 @@ class Game:
                                 
                             # Vai para a Seleção de Pista!
                             self.pista_sel_idx = 0
-                            self.estado_jogo = "SELECT_TRACK"
+                            self.estado_jogo = "SELECT_MODE"
                             
                         elif event.key == pygame.K_BACKSPACE:
                             self.nome_digitado = self.nome_digitado[:-1]
                         else:
                             if len(self.nome_digitado) < 12 and event.unicode.isprintable(): 
                                 self.nome_digitado += event.unicode.upper()
+
+                    ## 1.25: SELEÇÃO DE MODO
+                    elif self.estado_jogo == "SELECT_MODE":
+                        if event.key in (pygame.K_UP, pygame.K_DOWN):
+                            self.modo_jogo_sel_idx = 1 - self.modo_jogo_sel_idx
+                        elif event.key == pygame.K_RETURN:
+                            self.lista_equipes_nomes = list(self.equipes.keys())
+                            self.equipe_sel_idx = 0
+                            self.piloto_sel_idx = 0
+                            if self.modo_jogo_sel_idx == 0:
+                                # ROTA 1: CORRIDA RÁPIDA -> Vai para seleção de pista
+                                self.modo_jogo = "RAPIDA"
+                                self.estado_jogo = "SELECT_TRACK"
+                            else:
+                                # ROTA 2: TEMPORADA -> Carrega a primeira temporada e vai para equipe
+                                self.modo_jogo = "TEMPORADA"
+                                self.carregar_dados_temporada("temporadas/temporada_1.json")
+                                self.estado_jogo = "SELECT_TEAM"
 
                     # ------------------------------------------
                     # TELA 1.5: SELEÇÃO DE PISTA (NOVA)
@@ -630,13 +711,18 @@ class Game:
                             self.equipe_sel_idx = (self.equipe_sel_idx - 1) % len(self.lista_equipes_nomes)
                         elif event.key == pygame.K_RETURN:
                             self.piloto_sel_idx = 0
-                            self.posicao_jogador = 16
-                            self.estado_jogo = "SELECT_POS" # <--- VAI PARA POSIÇÃO
+                            if self.modo_jogo == "TEMPORADA":
+                                # TEMPORADA: Pula seleção de posição e voltas -> Inicia Etapa 1 direto!
+                                self.iniciar_etapa_temporada_atual()
+                            else:
+                                # CORRIDA RÁPIDA: Vai escolher posição no grid
+                                self.posicao_jogador = 16
+                                self.estado_jogo = "SELECT_POS"
 
                     # ------------------------------------------
-                    # TELA 3: ESCOLHER POSIÇÃO (GRID COM 16 VAGAS)
+                    # TELA 3: ESCOLHER POSIÇÃO (APENAS CORRIDA RÁPIDA)
                     # ------------------------------------------
-                    elif self.estado_jogo == "SELECT_POS":
+                    elif self.estado_jogo == "SELECT_POS" and self.modo_jogo == "RAPIDA":
                         if not hasattr(self, 'posicao_jogador'):
                             self.posicao_jogador = 16
                             
@@ -649,15 +735,14 @@ class Game:
                         elif event.key == pygame.K_UP:
                             self.posicao_jogador = self.posicao_jogador + 8 if self.posicao_jogador <= 8 else self.posicao_jogador - 8
                         elif event.key == pygame.K_RETURN:
-                            # Prepara a tela seguinte (Seleção de Voltas)
                             self.opcoes_voltas = [1, 3, 5, 10, 15, 30]
-                            self.volta_sel_idx = 1 # O padrão é o índice 1 (que são 3 voltas)
-                            self.estado_jogo = "SELECT_LAPS" # <--- VAI PARA VOLTAS
+                            self.volta_sel_idx = 1
+                            self.estado_jogo = "SELECT_LAPS"
 
                     # ------------------------------------------
-                    # TELA 4: SELEÇÃO DE VOLTAS
+                    # TELA 4: SELEÇÃO DE VOLTAS (APENAS CORRIDA RÁPIDA)
                     # ------------------------------------------
-                    elif self.estado_jogo == "SELECT_LAPS":
+                    elif self.estado_jogo == "SELECT_LAPS" and self.modo_jogo == "RAPIDA":
                         if event.key == pygame.K_DOWN:
                             self.volta_sel_idx = (self.volta_sel_idx + 1) % len(self.opcoes_voltas)
                         elif event.key == pygame.K_UP:
@@ -692,16 +777,24 @@ class Game:
                     # ------------------------------------------
                     elif self.estado_jogo == "RESULTADOS_CONSTRUTORES":
                         if event.key == pygame.K_RETURN:
-                            # 1. Limpa a lista de bots e o seu carro para evitar lixo na memória
+                            self.silenciar_audios_corrida()
                             self.bots = []
                             self.car = None
-                            
-                            # 2. Reseta o nome digitado se quiser que o próximo jogador digite um novo,
-                            # ou deixe comentado se quiser que o jogo "lembre" o último nome!
-                            self.nome_digitado = "" 
-                            
-                            # 3. Devolve o jogador para o início do jogo (Digitar Nome)
-                            self.estado_jogo = "INPUT_NAME"
+
+                            if self.modo_jogo == "TEMPORADA":
+                                self.etapa_atual_idx += 1
+                                if self.etapa_atual_idx < len(self.etapas_temporada):
+                                    # Carrega e inicia automaticamente a PRÓXIMA pista da temporada!
+                                    self.iniciar_etapa_temporada_atual()
+                                else:
+                                    # Acabou a temporada inteira -> Volta ao início
+                                    self.etapa_atual_idx = 0
+                                    self.nome_digitado = ""
+                                    self.estado_jogo = "INPUT_NAME"
+                            else:
+                                # Corrida Rápida -> Volta para o início
+                                self.nome_digitado = ""
+                                self.estado_jogo = "INPUT_NAME"
 
     def telas_menu(self, fonte_menu):
         # ==========================================
@@ -712,6 +805,12 @@ class Game:
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 return True 
+
+            if self.estado_jogo == "SELECT_MODE":
+                self.ui.desenhar_tela_modo()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                return True
 
             if self.estado_jogo == "SELECT_TRACK":
                 self.ui.desenhar_tela_pistas()
@@ -799,8 +898,11 @@ class Game:
                     
                     self.screen.blit(img_txt, (WIDTH // 2 - 150, 150 + (i * 35)))
                     
-                aviso = fonte_lista.render("PRESS ENTER TO RETURN TO MENU", True, (255, 0, 0))
+                aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
                 self.screen.blit(aviso, (WIDTH//2 - aviso.get_width()//2, HEIGHT - 50))
+                pygame.display.flip()
+                self.clock.tick(FPS)
+                return True
                 
     def fisica_colisao_bots(self, tempo_atual, keys):
             # Envia a lógica pesada para a mente brilhante do BotAI!
@@ -996,9 +1098,7 @@ class Game:
         
         # ---> O DELAY DE 5 SEGUNDOS <---
         if tempo_atual - self.timer_finish > 5000:
-            self.car.parar_audios() 
-            if hasattr(self, 'canais_motor_bot'):
-                for canal in self.canais_motor_bot: canal.set_gain(0.0)
+            self.silenciar_audios_corrida()
 
             # ==========================================
             # NOVO: COMPILAÇÃO DO RELATÓRIO DE TELEMETRIA
@@ -1086,7 +1186,7 @@ class Game:
                 self.clock.tick(FPS)
                 continue
 
-            if self.estado_jogo == "SELECT_LAPS":
+            if self.estado_jogo == "SELECT_LAPS" and self.modo_jogo == "RAPIDA":
                 self.ui.desenhar_tela_voltas()
                 pygame.display.flip()
                 self.clock.tick(FPS)

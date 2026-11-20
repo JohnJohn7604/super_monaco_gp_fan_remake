@@ -8,6 +8,7 @@ class MenuUI:
         
         # Fontes do Menu
         self.fonte_titulo = pygame.font.SysFont('Arial', 50, bold=True)
+        self.fonte_pequena = pygame.font.SysFont('Arial', 17, bold=True)
         self.fonte_subtitulo = pygame.font.SysFont('Arial', 36, bold=True)
         self.fonte_input = pygame.font.SysFont('Arial', 40, bold=True)
         self.fonte_inst = pygame.font.SysFont('Arial', 24)
@@ -218,3 +219,36 @@ class MenuUI:
         # Rodapé
         inst = fonte_info.render("USE ARROWS TO SELECT  |  PRESS ENTER TO CONFIRM", True, (255, 80, 80))
         self.game.screen.blit(inst, (WIDTH // 2 - inst.get_width() // 2, HEIGHT - 60))
+
+    def desenhar_tela_modo(self):
+        self.game.screen.fill((15, 18, 28))
+
+        titulo = self.fonte_titulo.render(f"BEM-VINDO, {self.game.nome_digitado}!", True, (255, 215, 0))
+        self.game.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 100))
+
+        sub = self.game.fonte_normal.render("ESCOLHA O MODO DE JOGO:", True, (180, 190, 210))
+        self.game.screen.blit(sub, (WIDTH // 2 - sub.get_width() // 2, 175))
+
+        opcoes = [
+            ("1. CORRIDA RÁPIDA", "Escolha livremente a pista, o grid e o número de voltas."),
+            ("2. TEMPORADA OFICIAL", "Dispute todas as etapas do campeonato em sequência!")
+        ]
+
+        for idx, (nome_op, desc) in enumerate(opcoes):
+            selecionado = (idx == self.game.modo_jogo_sel_idx)
+            cor_caixa = (45, 75, 130) if selecionado else (28, 34, 48)
+            cor_borda = (255, 215, 0) if selecionado else (70, 80, 100)
+            cor_texto = (255, 255, 255) if selecionado else (160, 170, 185)
+
+            caixa = pygame.Rect(WIDTH // 2 - 280, 245 + idx * 120, 560, 95)
+            pygame.draw.rect(self.game.screen, cor_caixa, caixa, border_radius=8)
+            pygame.draw.rect(self.game.screen, cor_borda, caixa, width=2, border_radius=8)
+
+            txt_op = self.game.fonte_normal.render(nome_op, True, cor_texto)
+            txt_desc = self.game.fonte_pequena.render(desc, True, (200, 210, 225) if selecionado else (120, 130, 145))
+
+            self.game.screen.blit(txt_op, (caixa.x + 25, caixa.y + 18))
+            self.game.screen.blit(txt_desc, (caixa.x + 25, caixa.y + 56))
+
+        rodape = self.game.fonte_pequena.render("Use CIMA / BAIXO para selecionar e ENTER para confirmar", True, (140, 150, 165))
+        self.game.screen.blit(rodape, (WIDTH // 2 - rodape.get_width() // 2, HEIGHT - 60))
