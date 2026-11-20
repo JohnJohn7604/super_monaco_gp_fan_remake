@@ -137,6 +137,21 @@ class TrackEditor:
         self.modal_aberto = None  # 'CARREGAR', 'SALVAR_COMO', 'NOVO'
         self.nome_input_salvar = "nova_pista"
 
+        # =====================================================================
+        # MODO TEMPORADAS (CAMPEONATOS)
+        # =====================================================================
+        self.modo_editor = "PISTA"  # "PISTA" ou "TEMPORADA"
+        self.nome_temporada = "Temporada Oficial"
+        self.arquivo_temporada = "temporadas/temporada_1.json"
+        self.etapas_temporada = []  # Lista de dicts: {"arquivo": ..., "nome": ..., "voltas": ...}
+        self.etapa_sel_idx = 0
+        self.pista_disp_idx = 0
+        self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
+        self.scroll_etapas = 0
+        self.scroll_pistas_disp = 0
+        self.rect_lista_pistas_disp = pygame.Rect(40, 140, 560, 480)
+        self.rect_lista_etapas = pygame.Rect(640, 140, WIDTH - 660, 480)
+
         # Carrega a pista inicial
         if os.path.exists(self.arquivo_atual):
             self.carregar_pista(self.arquivo_atual)
@@ -166,6 +181,23 @@ class TrackEditor:
                     if f.lower().endswith(".png"):
                         arquivos.append(f"{pasta}/{f}")
         return arquivos
+
+    def detectar_pistas_disponiveis(self):
+        """ Escaneia a pasta pistas/ e lê o nome interno de cada JSON """
+        pistas = []
+        if os.path.exists("pistas"):
+            for f in sorted(os.listdir("pistas")):
+                if f.lower().endswith(".json"):
+                    caminho = f"pistas/{f}"
+                    nome_pista = os.path.splitext(f)[0].capitalize()
+                    try:
+                        with open(caminho, 'r', encoding='utf-8') as arq:
+                            dados = json.load(arq)
+                            nome_pista = dados.get("nome", nome_pista)
+                    except Exception:
+                        pass
+                    pistas.append({"arquivo": caminho, "nome": nome_pista})
+        return pistas
 
     def carregar_ref_surf(self, caminho):
         cache_key = (caminho, self.ref_width, self.ref_height, self.ref_angle)
@@ -299,13 +331,66 @@ class TrackEditor:
         except Exception as e:
             self.set_status(f"Erro ao salvar pista: {e}", COLOR_DANGER)
 
+    def nova_temporada(self):
+        self.nome_temporada = "Nova Temporada"
+        self.arquivo_temporada = "temporadas/nova_temporada.json"
+        self.etapas_temporada = []
+        self.etapa_sel_idx = 0
+        self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
+        self.set_status("Nova temporada em branco criada!", COLOR_ACCENT)
+
+    def carregar_temporada(self, caminho):
+        try:
+            with open(caminho, 'r', encoding='utf-8') as f:
+                dados = json.load(f)
+            self.nome_temporada = dados.get("nome_temporada", "Temporada Carregada")
+            self.arquivo_temporada = caminho
+            self.etapas_temporada = []
+            for item in dados.get("etapas", []):
+                self.etapas_temporada.append({
+                    "arquivo": item.get("arquivo", ""),
+                    "nome": item.get("nome", "Pista"),
+                    "voltas": int(item.get("voltas", 3))
+                })
+            self.etapa_sel_idx = 0
+            self.set_status(f"Temporada '{self.nome_temporada}' carregada!", COLOR_SUCCESS)
+        except Exception as e:
+            self.set_status(f"Erro ao carregar temporada: {e}", COLOR_DANGER)
+
+    def salvar_temporada(self, caminho):
+        try:
+            os.makedirs("temporadas", exist_ok=True)
+            etapas_formatadas = []
+            for idx, et in enumerate(self.etapas_temporada):
+                etapas_formatadas.append({
+                    "etapa": idx + 1,
+                    "arquivo": et["arquivo"],
+                    "nome": et["nome"],
+                    "voltas": et["voltas"]
+                })
+            dados = {
+                "nome_temporada": self.nome_temporada,
+                "etapas": etapas_formatadas
+            }
+            with open(caminho, 'w', encoding='utf-8') as f:
+                json.dump(dados, f, indent=2, ensure_ascii=False)
+            self.arquivo_temporada = caminho
+            self.set_status(f"Temporada salva em '{caminho}'!", COLOR_SUCCESS)
+        except Exception as e:
+            self.set_status(f"Erro ao salvar temporada: {e}", COLOR_DANGER)
+
     # =========================================================================
     # CONFIGURAÇÃO DA INTERFACE DO USUÁRIO (BOTÕES)
     # =========================================================================
     def setup_ui(self):
         self.buttons = []
+        self.buttons_temporada = []
+        self.buttons_globais = []
         p_x = 640
 
+        # --- ABAS DE ALTERNÂNCIA DE MODO (TOPO ESQUERDO) ---
+        self.buttons_globais.append(UIButton((20, 12, 160, 26), "EDITOR DE PISTAS", lambda: self.alternar_modo("PISTA"), color=(30, 80, 120), font_size=13))
+        self.buttons_globais.append(UIButton((190, 12, 180, 26), "CRIAR TEMPORADAS", lambda: self.alternar_modo("TEMPORADA"), color=(90, 50, 120), font_size=13))
         # --- BARRA SUPERIOR DO PAINEL DIREITO ---
         self.buttons.append(UIButton((p_x, 15, 100, 32), "NOVA", self.action_nova_pista, color=(40, 50, 70)))
         self.buttons.append(UIButton((p_x + 110, 15, 110, 32), "CARREGAR", self.action_abrir_carregar, color=(40, 50, 70)))
@@ -445,6 +530,25 @@ class TrackEditor:
         self.buttons.append(UIButton((140, 680, 100, 26), "PLAY / PAUSE", self.action_toggle_play, color=(20, 90, 130), font_size=12))
         self.buttons.append(UIButton((250, 680, 70, 26), "RESET", self.action_reset_cam, color=(50, 50, 60), font_size=12))
 
+        # =====================================================================
+        # BOTÕES DO MODO TEMPORADA
+        # =====================================================================
+        self.buttons_temporada.append(UIButton((p_x, 15, 100, 32), "NOVA", self.nova_temporada, color=(40, 50, 70)))
+        self.buttons_temporada.append(UIButton((p_x + 110, 15, 110, 32), "CARREGAR", lambda: setattr(self, 'modal_aberto', 'CARREGAR_TEMP'), color=(40, 50, 70)))
+        self.buttons_temporada.append(UIButton((p_x + 230, 15, 100, 32), "SALVAR", lambda: self.salvar_temporada(self.arquivo_temporada), color=(20, 120, 60), hover_color=(30, 160, 80)))
+        self.buttons_temporada.append(UIButton((p_x + 340, 15, 140, 32), "SALVAR COMO...", self.action_abrir_salvar_como_temp, color=(30, 80, 140), hover_color=(40, 110, 190)))
+
+        # Controles da coluna esquerda (Pistas disponíveis)
+        self.buttons_temporada.append(UIButton((40, 635, 170, 32), "ATUALIZAR LISTA", self.action_atualizar_pistas_temp, color=(40, 55, 75)))
+        self.buttons_temporada.append(UIButton((220, 635, 220, 32), "+ ADICIONAR À TEMPORADA", self.action_add_pista_temporada, color=(25, 110, 60), hover_color=(35, 145, 80)))
+        self.buttons_temporada.append(UIButton((450, 635, 150, 32), "ABRIR NO EDITOR", self.action_editar_pista_selecionada, color=(50, 60, 85)))
+
+        # Controles da coluna direita (Calendário da Temporada)
+        self.buttons_temporada.append(UIButton((p_x, 635, 100, 32), "SUBIR", lambda: self.action_mover_etapa(-1), color=(40, 50, 65)))
+        self.buttons_temporada.append(UIButton((p_x + 110, 635, 100, 32), "DESCER", lambda: self.action_mover_etapa(1), color=(40, 50, 65)))
+        self.buttons_temporada.append(UIButton((p_x + 220, 635, 85, 32), "-1 VOLTA", lambda: self.action_alterar_voltas_etapa(-1), color=(45, 65, 85)))
+        self.buttons_temporada.append(UIButton((p_x + 315, 635, 85, 32), "+1 VOLTA", lambda: self.action_alterar_voltas_etapa(1), color=(45, 65, 85)))
+        self.buttons_temporada.append(UIButton((p_x + 410, 635, 130, 32), "REMOVER ETAPA", self.action_remover_etapa, color=(130, 35, 35), hover_color=(170, 45, 45)))
     # =========================================================================
     # AÇÕES DOS BOTÕES
     # =========================================================================
@@ -1200,6 +1304,172 @@ class TrackEditor:
         txt_c = self.font_sub.render("CANCELAR", True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_c, (btn_close.centerx - txt_c.get_width() // 2, btn_close.centery - txt_c.get_height() // 2))
 
+    def desenhar_modal_carregar_temporada(self):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 180, 500, 360)
+        pygame.draw.rect(self.screen, COLOR_PANEL, m_rect, border_radius=8)
+        pygame.draw.rect(self.screen, COLOR_ACCENT, m_rect, width=2, border_radius=8)
+
+        titulo = self.font_title.render("CARREGAR TEMPORADA (temporadas/*.json)", True, COLOR_TEXT_PRIMARY)
+        self.screen.blit(titulo, (m_rect.x + 25, m_rect.y + 20))
+
+        arquivos = []
+        if os.path.exists("temporadas"):
+            arquivos = [f for f in sorted(os.listdir("temporadas")) if f.lower().endswith(".json")]
+
+        if not arquivos:
+            aviso = self.font_ui.render("Nenhuma temporada salva na pasta 'temporadas/'.", True, COLOR_WARNING)
+            self.screen.blit(aviso, (m_rect.x + 30, m_rect.y + 80))
+        else:
+            for i, arq in enumerate(arquivos[:7]):
+                btn_r = pygame.Rect(m_rect.x + 30, m_rect.y + 60 + (i * 35), m_rect.width - 60, 30)
+                pygame.draw.rect(self.screen, (40, 52, 72), btn_r, border_radius=4)
+                txt = self.font_mono.render(arq, True, COLOR_TEXT_PRIMARY)
+                self.screen.blit(txt, (btn_r.x + 12, btn_r.y + 6))
+
+        btn_close = pygame.Rect(m_rect.centerx - 60, m_rect.bottom - 45, 120, 30)
+        pygame.draw.rect(self.screen, (130, 40, 40), btn_close, border_radius=4)
+        txt_c = self.font_ui.render("FECHAR", True, COLOR_TEXT_PRIMARY)
+        self.screen.blit(txt_c, (btn_close.centerx - txt_c.get_width() // 2, btn_close.centery - txt_c.get_height() // 2))
+
+    def desenhar_modal_salvar_como_temporada(self):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+
+        m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 120, 500, 240)
+        pygame.draw.rect(self.screen, COLOR_PANEL, m_rect, border_radius=8)
+        pygame.draw.rect(self.screen, COLOR_ACCENT, m_rect, width=2, border_radius=8)
+
+        titulo = self.font_title.render("SALVAR TEMPORADA COMO:", True, COLOR_TEXT_PRIMARY)
+        self.screen.blit(titulo, (m_rect.x + 25, m_rect.y + 25))
+
+        box = pygame.Rect(m_rect.x + 30, m_rect.y + 75, m_rect.width - 60, 38)
+        pygame.draw.rect(self.screen, (20, 25, 35), box, border_radius=4)
+        pygame.draw.rect(self.screen, COLOR_SELECTED, box, width=1, border_radius=4)
+        txt_in = self.font_mono.render(f"temporadas/{self.nome_input_salvar}.json", True, COLOR_SELECTED)
+        self.screen.blit(txt_in, (box.x + 12, box.y + 9))
+
+        btn_salvar = pygame.Rect(m_rect.x + 60, m_rect.bottom - 50, 160, 32)
+        btn_close = pygame.Rect(m_rect.right - 220, m_rect.bottom - 50, 160, 32)
+        pygame.draw.rect(self.screen, (25, 120, 60), btn_salvar, border_radius=4)
+        pygame.draw.rect(self.screen, (130, 40, 40), btn_close, border_radius=4)
+
+        t_s = self.font_ui.render("SALVAR (ENTER)", True, COLOR_TEXT_PRIMARY)
+        t_c = self.font_ui.render("CANCELAR (ESC)", True, COLOR_TEXT_PRIMARY)
+        self.screen.blit(t_s, (btn_salvar.centerx - t_s.get_width() // 2, btn_salvar.centery - t_s.get_height() // 2))
+        self.screen.blit(t_c, (btn_close.centerx - t_c.get_width() // 2, btn_close.centery - t_c.get_height() // 2))
+        
+    def alternar_modo(self, novo_modo):
+        self.modo_editor = novo_modo
+        if novo_modo == "TEMPORADA":
+            self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
+            self.set_status("Modo Temporadas ativado: monte a ordem das corridas!")
+        else:
+            self.set_status("Modo Editor de Pistas ativado!")
+
+    def action_abrir_salvar_como_temp(self):
+        self.nome_input_salvar = os.path.splitext(os.path.basename(self.arquivo_temporada))[0]
+        self.modal_aberto = "SALVAR_COMO_TEMP"
+
+    def action_atualizar_pistas_temp(self):
+        self.lista_pistas_disponiveis = self.detectar_pistas_disponiveis()
+        self.pista_disp_idx = 0
+        self.set_status(f"{len(self.lista_pistas_disponiveis)} pistas encontradas em 'pistas/'.")
+
+    def action_add_pista_temporada(self):
+        if not self.lista_pistas_disponiveis:
+            self.set_status("Nenhuma pista disponível na pasta 'pistas/'!", COLOR_WARNING)
+            return
+        pista = self.lista_pistas_disponiveis[self.pista_disp_idx]
+        self.etapas_temporada.append({
+            "arquivo": pista["arquivo"],
+            "nome": pista["nome"],
+            "voltas": 3
+        })
+        self.etapa_sel_idx = len(self.etapas_temporada) - 1
+        self.set_status(f"Etapa #{len(self.etapas_temporada)} adicionada: {pista['nome']}")
+
+    def action_editar_pista_selecionada(self):
+        if not self.lista_pistas_disponiveis:
+            return
+        pista = self.lista_pistas_disponiveis[self.pista_disp_idx]
+        self.carregar_pista(pista["arquivo"])
+        self.modo_editor = "PISTA"
+
+    def action_mover_etapa(self, direcao):
+        novo_idx = self.etapa_sel_idx + direcao
+        if 0 <= novo_idx < len(self.etapas_temporada):
+            self.etapas_temporada[self.etapa_sel_idx], self.etapas_temporada[novo_idx] = (
+                self.etapas_temporada[novo_idx],
+                self.etapas_temporada[self.etapa_sel_idx]
+            )
+            self.etapa_sel_idx = novo_idx
+
+    def action_alterar_voltas_etapa(self, delta):
+        if 0 <= self.etapa_sel_idx < len(self.etapas_temporada):
+            v = self.etapas_temporada[self.etapa_sel_idx]["voltas"]
+            self.etapas_temporada[self.etapa_sel_idx]["voltas"] = max(1, min(99, v + delta))
+
+    def action_remover_etapa(self):
+        if 0 <= self.etapa_sel_idx < len(self.etapas_temporada):
+            removida = self.etapas_temporada.pop(self.etapa_sel_idx)
+            self.etapa_sel_idx = max(0, min(self.etapa_sel_idx, len(self.etapas_temporada) - 1))
+            self.set_status(f"Etapa '{removida['nome']}' removida da temporada.")
+
+    def desenhar_tela_temporadas(self):
+        # Título e arquivo atual
+        txt_titulo = self.font_title.render(f"TEMPORADA: {self.nome_temporada} ({self.arquivo_temporada})", True, COLOR_SELECTED)
+        self.screen.blit(txt_titulo, (40, 62))
+
+        txt_dica = self.font_ui.render("Selecione pistas à esquerda para montar o calendário oficial da temporada à direita (digite para renomear a temporada):", True, COLOR_TEXT_MUTED)
+        self.screen.blit(txt_dica, (40, 95))
+
+        # --- COLUNA ESQUERDA: PISTAS DISPONÍVEIS ---
+        pygame.draw.rect(self.screen, COLOR_PANEL, self.rect_lista_pistas_disp, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_pistas_disp, width=1, border_radius=6)
+        self.screen.blit(self.font_sub.render("1. PISTAS DISPONÍVEIS (pistas/*.json)", True, COLOR_ACCENT), (self.rect_lista_pistas_disp.x + 15, self.rect_lista_pistas_disp.y + 12))
+
+        item_h = 34
+        max_vis = (self.rect_lista_pistas_disp.height - 50) // item_h
+        for i in range(max_vis):
+            idx = self.scroll_pistas_disp + i
+            if idx >= len(self.lista_pistas_disponiveis):
+                break
+            p = self.lista_pistas_disponiveis[idx]
+            r = pygame.Rect(self.rect_lista_pistas_disp.x + 12, self.rect_lista_pistas_disp.y + 45 + i * item_h, self.rect_lista_pistas_disp.width - 24, item_h - 4)
+            is_sel = (idx == self.pista_disp_idx)
+            pygame.draw.rect(self.screen, (45, 65, 95) if is_sel else (32, 40, 55), r, border_radius=4)
+            if is_sel:
+                pygame.draw.rect(self.screen, COLOR_ACCENT, r, width=1, border_radius=4)
+            txt = self.font_mono.render(f"{p['nome']:<28} | {p['arquivo']}", True, COLOR_TEXT_PRIMARY)
+            self.screen.blit(txt, (r.x + 10, r.y + 7))
+
+        # --- COLUNA DIREITA: CALENDÁRIO DA TEMPORADA ---
+        pygame.draw.rect(self.screen, COLOR_PANEL, self.rect_lista_etapas, border_radius=6)
+        pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_etapas, width=1, border_radius=6)
+        self.screen.blit(self.font_sub.render(f"2. CALENDÁRIO DO CAMPEONATO ({len(self.etapas_temporada)} Etapas)", True, COLOR_SUCCESS), (self.rect_lista_etapas.x + 15, self.rect_lista_etapas.y + 12))
+
+        if not self.etapas_temporada:
+            txt_vazio = self.font_ui.render("Nenhuma etapa adicionada. Clique em '+ ADICIONAR À TEMPORADA'.", True, COLOR_TEXT_MUTED)
+            self.screen.blit(txt_vazio, (self.rect_lista_etapas.x + 20, self.rect_lista_etapas.y + 60))
+        else:
+            for i in range(max_vis):
+                idx = self.scroll_etapas + i
+                if idx >= len(self.etapas_temporada):
+                    break
+                et = self.etapas_temporada[idx]
+                r = pygame.Rect(self.rect_lista_etapas.x + 12, self.rect_lista_etapas.y + 45 + i * item_h, self.rect_lista_etapas.width - 24, item_h - 4)
+                is_sel = (idx == self.etapa_sel_idx)
+                pygame.draw.rect(self.screen, (50, 65, 90) if is_sel else (32, 40, 55), r, border_radius=4)
+                if is_sel:
+                    pygame.draw.rect(self.screen, COLOR_SELECTED, r, width=1, border_radius=4)
+                txt = self.font_mono.render(f"Etapa {idx + 1:02d} | {et['nome']:<25} | {et['voltas']:02d} Voltas | {os.path.basename(et['arquivo'])}", True, COLOR_SELECTED if is_sel else COLOR_TEXT_PRIMARY)
+                self.screen.blit(txt, (r.x + 10, r.y + 7))
+
     # =========================================================================
     # LOOP PRINCIPAL E TRATAMENTO DE EVENTOS
     # =========================================================================
@@ -1208,8 +1478,8 @@ class TrackEditor:
             dt = self.clock.tick(FPS)
             tempo_atual = pygame.time.get_ticks()
 
-            # Atualização da câmera 3D em modo PLAY
-            if self.is_playing and self.segmentos:
+            # Atualização da câmera 3D em modo PLAY (apenas no modo PISTA)
+            if self.modo_editor == "PISTA" and self.is_playing and self.segmentos:
                 total_len = sum(s["length"] for s in self.segmentos)
                 if total_len > 0:
                     # Velocidade de ~240 km/h (cerca de 66 m/s)
@@ -1225,7 +1495,9 @@ class TrackEditor:
                     pygame.quit()
                     sys.exit()
 
-                # Se houver modal aberto, trata eventos do modal primeiro
+                # =============================================================
+                # 1. MODAIS DO MODO PISTA
+                # =============================================================
                 if self.modal_aberto == "CARREGAR":
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 180, 500, 360)
@@ -1271,66 +1543,182 @@ class TrackEditor:
                             self.modal_aberto = None
                     continue
 
-                # Arrastar Gabarito 2D (PNG) diretamente com o mouse na área aérea
-                rect_preview_aereo = pygame.Rect(20, 45, 600, 333)
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self.ref_idx > 0 and rect_preview_aereo.collidepoint(event.pos):
-                        self.arrastando_ref = True
-                        self.drag_inicio_mouse = event.pos
-                        self.drag_inicio_offset = (self.ref_offset_x, self.ref_offset_y)
-                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                    self.arrastando_ref = False
-                elif event.type == pygame.MOUSEMOTION and self.arrastando_ref:
-                    dx = event.pos[0] - self.drag_inicio_mouse[0]
-                    dy = event.pos[1] - self.drag_inicio_mouse[1]
-                    self.ref_offset_x = self.drag_inicio_offset[0] + dx
-                    self.ref_offset_y = self.drag_inicio_offset[1] + dy
+                # =============================================================
+                # 2. MODAIS DO MODO TEMPORADA (NOVOS)
+                # =============================================================
+                elif self.modal_aberto == "CARREGAR_TEMP":
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        self.modal_aberto = None
+                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 180, 500, 360)
+                        btn_close = pygame.Rect(m_rect.centerx - 60, m_rect.bottom - 45, 120, 30)
+                        if btn_close.collidepoint(event.pos):
+                            self.modal_aberto = None
+                        else:
+                            arquivos = []
+                            if os.path.exists("temporadas"):
+                                arquivos = [f for f in sorted(os.listdir("temporadas")) if f.lower().endswith(".json")]
+                            for i, arq in enumerate(arquivos[:7]):
+                                btn_r = pygame.Rect(m_rect.x + 30, m_rect.y + 60 + (i * 35), m_rect.width - 60, 30)
+                                if btn_r.collidepoint(event.pos):
+                                    self.carregar_temporada(f"temporadas/{arq}")
+                                    self.modal_aberto = None
+                                    break
+                    continue
 
-                # Clique na lista lateral de segmentos para seleção rápida
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self.rect_lista.collidepoint(event.pos):
-                        rel_y = event.pos[1] - (self.rect_lista.y + 30)
-                        if rel_y >= 0:
-                            idx_clicado = self.scroll_offset + (rel_y // 24)
-                            if 0 <= idx_clicado < len(self.segmentos):
-                                self.seg_idx = idx_clicado
-                                self.action_focar_camera_trecho()
+                elif self.modal_aberto == "SALVAR_COMO_TEMP":
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN:
+                            nome_limpo = self.nome_input_salvar.strip()
+                            if nome_limpo:
+                                self.salvar_temporada(f"temporadas/{nome_limpo}.json")
+                            self.modal_aberto = None
+                        elif event.key == pygame.K_ESCAPE:
+                            self.modal_aberto = None
+                        elif event.key == pygame.K_BACKSPACE:
+                            self.nome_input_salvar = self.nome_input_salvar[:-1]
+                        else:
+                            if len(self.nome_input_salvar) < 24 and (event.unicode.isalnum() or event.unicode in "_-"):
+                                self.nome_input_salvar += event.unicode
+                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        m_rect = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 120, 500, 240)
+                        btn_salvar = pygame.Rect(m_rect.x + 60, m_rect.bottom - 50, 160, 32)
+                        btn_close = pygame.Rect(m_rect.right - 220, m_rect.bottom - 50, 160, 32)
+                        if btn_salvar.collidepoint(event.pos):
+                            nome_limpo = self.nome_input_salvar.strip()
+                            if nome_limpo:
+                                self.salvar_temporada(f"temporadas/{nome_limpo}.json")
+                            self.modal_aberto = None
+                        elif btn_close.collidepoint(event.pos):
+                            self.modal_aberto = None
+                    continue
 
-                # Rolagem do mouse na lista lateral
-                if event.type == pygame.MOUSEWHEEL:
-                    if self.rect_lista.collidepoint(pygame.mouse.get_pos()):
-                        self.scroll_offset = max(0, min(max(0, len(self.segmentos) - 1), self.scroll_offset - event.y))
+                # =============================================================
+                # 3. BOTÕES DE TROCA DE ABA NO TOPO (SEMPRE ATIVOS)
+                # =============================================================
+                clicou_aba = False
+                for b in self.buttons_globais:
+                    if b.handle_event(event):
+                        clicou_aba = True
+                        break
+                if clicou_aba:
+                    continue
 
-                # Eventos dos botões da interface
-                for b in self.buttons:
-                    b.handle_event(event)
+                # =============================================================
+                # 4. EVENTOS ESPECÍFICOS DO MODO ATIVO
+                # =============================================================
+                if self.modo_editor == "TEMPORADA":
+                    # Botões da tela de temporadas
+                    for b in self.buttons_temporada:
+                        b.handle_event(event)
 
-                # Teclado (Atalhos rápidos)
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
-                        self.action_prev_seg()
-                    elif event.key == pygame.K_RIGHT:
-                        self.action_next_seg()
-                    elif event.key == pygame.K_SPACE:
-                        self.action_toggle_play()
-                    elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                        self.action_salvar_atual()
+                    # Clique nas listas de pistas disponíveis e etapas da temporada
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self.rect_lista_pistas_disp.collidepoint(event.pos):
+                            rel_y = event.pos[1] - (self.rect_lista_pistas_disp.y + 45)
+                            if rel_y >= 0:
+                                idx_clicado = self.scroll_pistas_disp + (rel_y // 34)
+                                if 0 <= idx_clicado < len(self.lista_pistas_disponiveis):
+                                    self.pista_disp_idx = idx_clicado
+
+                        elif self.rect_lista_etapas.collidepoint(event.pos):
+                            rel_y = event.pos[1] - (self.rect_lista_etapas.y + 45)
+                            if rel_y >= 0:
+                                idx_clicado = self.scroll_etapas + (rel_y // 34)
+                                if 0 <= idx_clicado < len(self.etapas_temporada):
+                                    self.etapa_sel_idx = idx_clicado
+
+                    # Scroll do mouse nas duas colunas
+                    elif event.type == pygame.MOUSEWHEEL:
+                        pos_m = pygame.mouse.get_pos()
+                        if self.rect_lista_pistas_disp.collidepoint(pos_m):
+                            max_s = max(0, len(self.lista_pistas_disponiveis) - 12)
+                            self.scroll_pistas_disp = max(0, min(max_s, self.scroll_pistas_disp - event.y))
+                        elif self.rect_lista_etapas.collidepoint(pos_m):
+                            max_s = max(0, len(self.etapas_temporada) - 12)
+                            self.scroll_etapas = max(0, min(max_s, self.scroll_etapas - event.y))
+
+                    # Digitação direta para renomear a temporada (e Ctrl+S para salvar)
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                            self.salvar_temporada(self.arquivo_temporada)
+                        elif event.key == pygame.K_BACKSPACE:
+                            self.nome_temporada = self.nome_temporada[:-1]
+                        elif event.unicode.isprintable() and len(self.nome_temporada) < 35:
+                            self.nome_temporada += event.unicode
+
+                else:
+                    # --- MODO PISTA (SEU CÓDIGO ORIGINAL INTACTO) ---
+                    # Arrastar Gabarito 2D (PNG) diretamente com o mouse na área aérea
+                    rect_preview_aereo = pygame.Rect(20, 45, 600, 355)
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self.ref_idx > 0 and rect_preview_aereo.collidepoint(event.pos):
+                            self.arrastando_ref = True
+                            self.drag_inicio_mouse = event.pos
+                            self.drag_inicio_offset = (self.ref_offset_x, self.ref_offset_y)
+                    elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                        self.arrastando_ref = False
+                    elif event.type == pygame.MOUSEMOTION and self.arrastando_ref:
+                        dx = event.pos[0] - self.drag_inicio_mouse[0]
+                        dy = event.pos[1] - self.drag_inicio_mouse[1]
+                        self.ref_offset_x = self.drag_inicio_offset[0] + dx
+                        self.ref_offset_y = self.drag_inicio_offset[1] + dy
+
+                    # Clique na lista lateral de segmentos para seleção rápida
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self.rect_lista.collidepoint(event.pos):
+                            rel_y = event.pos[1] - (self.rect_lista.y + 30)
+                            if rel_y >= 0:
+                                idx_clicado = self.scroll_offset + (rel_y // 24)
+                                if 0 <= idx_clicado < len(self.segmentos):
+                                    self.seg_idx = idx_clicado
+                                    self.action_focar_camera_trecho()
+
+                    # Rolagem do mouse na lista lateral
+                    if event.type == pygame.MOUSEWHEEL:
+                        if self.rect_lista.collidepoint(pygame.mouse.get_pos()):
+                            self.scroll_offset = max(0, min(max(0, len(self.segmentos) - 1), self.scroll_offset - event.y))
+
+                    # Eventos dos botões da interface
+                    for b in self.buttons:
+                        b.handle_event(event)
+
+                    # Teclado (Atalhos rápidos)
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_LEFT:
+                            self.action_prev_seg()
+                        elif event.key == pygame.K_RIGHT:
+                            self.action_next_seg()
+                        elif event.key == pygame.K_SPACE:
+                            self.action_toggle_play()
+                        elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                            self.action_salvar_atual()
 
             # =================================================================
             # DESENHO DA TELA
             # =================================================================
             self.screen.fill(COLOR_BG)
 
-            # 1. Painel Esquerdo (Pré-visualizações)
-            self.desenhar_preview_aereo(pygame.Rect(20, 15, 600, 385))
-            self.desenhar_preview_3d(pygame.Rect(20, 415, 600, 295))
-
-            # 2. Painel Direito (Controles de Edição)
-            self.desenhar_painel_edicao()
-
-            # 3. Desenho de todos os botões UI
-            for b in self.buttons:
+            # Botões globais das abas no topo
+            for b in self.buttons_globais:
                 b.draw(self.screen, self.font_ui)
+
+            if self.modo_editor == "PISTA":
+                # 1. Painel Esquerdo (Pré-visualizações)
+                self.desenhar_preview_aereo(pygame.Rect(20, 45, 600, 355))
+                self.desenhar_preview_3d(pygame.Rect(20, 415, 600, 295))
+
+                # 2. Painel Direito (Controles de Edição)
+                self.desenhar_painel_edicao()
+
+                # 3. Desenho de todos os botões UI do modo pista
+                for b in self.buttons:
+                    b.draw(self.screen, self.font_ui)
+            else:
+                # Tela de Criação/Edição de Temporadas
+                self.desenhar_tela_temporadas()
+                for b in self.buttons_temporada:
+                    b.draw(self.screen, self.font_ui)
 
             # 4. Barra de Notificações / Status (Rodapé)
             if tempo_atual < self.status_timer:
@@ -1342,6 +1730,10 @@ class TrackEditor:
                 self.desenhar_modal_carregar()
             elif self.modal_aberto == "SALVAR_COMO":
                 self.desenhar_modal_salvar_como()
+            elif self.modal_aberto == "CARREGAR_TEMP":
+                self.desenhar_modal_carregar_temporada()
+            elif self.modal_aberto == "SALVAR_COMO_TEMP":
+                self.desenhar_modal_salvar_como_temporada()
 
             pygame.display.flip()
 

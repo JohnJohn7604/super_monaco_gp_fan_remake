@@ -78,10 +78,10 @@ class BotAI:
 
                 if dist_relativa > 0:
                     # Bot à FRENTE do jogador: reduz normalmente na curva para permitir disputas
-                    multiplicador_curva = 0.85 + (bot["direcao"] * 0.03)
+                    multiplicador_curva = 0.45 + (bot["direcao"] * 0.07)
                 else:
                     # Bot ATRÁS do jogador: reduz só um pouco (mantém 93% a 98% da velocidade)
-                    multiplicador_curva = 0.93 + (bot["direcao"] * 0.008)
+                    multiplicador_curva = 0.85 + (bot["direcao"] * 0.008)
 
                 target_speed = bot["max_speed"] * multiplicador_curva
                 target_speed = min(bot["max_speed"], target_speed)

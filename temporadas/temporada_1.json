@@ -1,0 +1,23 @@
+{
+  "nome_temporada": "Temporada Oficial",
+  "etapas": [
+    {
+      "etapa": 1,
+      "arquivo": "pistas/san_marino.json",
+      "nome": "Circuito de Treinamento",
+      "voltas": 3
+    },
+    {
+      "etapa": 2,
+      "arquivo": "pistas/rio.json",
+      "nome": "Grande Prêmio do Rio",
+      "voltas": 3
+    },
+    {
+      "etapa": 3,
+      "arquivo": "pistas/belgium.json",
+      "nome": "Circuito de Treinamento",
+      "voltas": 3
+    }
+  ]
+}
