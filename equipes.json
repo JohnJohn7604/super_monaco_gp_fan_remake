@@ -1,9 +1,9 @@
 {
     "Madonna": {
         "classe": "S",
-        "velocidade_base": 333,
-        "aceleracao": 3.45,
-        "direcao": 1.4,
+        "velocidade_base": 332.5,
+        "aceleracao": 3.1,
+        "direcao": 1.3,
         "pasta": "madonna",
         "forca_marchas": [
             1.7919,
@@ -39,10 +39,10 @@
         "pilotos": [
             {
                 "nome": "A. Asselin",
-                "aceleracao": 1.8,
+                "aceleracao": 1.2,
                 "speed": 15,
                 "freio": 7.5,
-                "direcao": 4.0,
+                "direcao": 3.4,
                 "cor_capacete": [
                     255,
                     255,
@@ -54,9 +54,9 @@
     },
     "Firenze": {
         "classe": "S",
-        "velocidade_base": 333,
-        "aceleracao": 3.3,
-        "direcao": 1.4,
+        "velocidade_base": 332,
+        "aceleracao": 3.07,
+        "direcao": 1.3,
         "pasta": "firenze",
         "forca_marchas": [
             1.7397,
@@ -92,10 +92,10 @@
         "pilotos": [
             {
                 "nome": "F. Elsser",
-                "aceleracao": 1.8,
+                "aceleracao": 1.2,
                 "speed": 15,
                 "freio": 7.2,
-                "direcao": 3.8,
+                "direcao": 3.6,
                 "cor_capacete": [
                     255,
                     128,
@@ -108,8 +108,8 @@
     "Millions": {
         "classe": "A",
         "velocidade_base": 332,
-        "aceleracao": 3.2,
-        "direcao": 1.3,
+        "aceleracao": 3,
+        "direcao": 1.25,
         "pasta": "millions",
         "forca_marchas": [
             1.689,
@@ -145,10 +145,10 @@
         "pilotos": [
             {
                 "nome": "G. Alberti",
-                "aceleracao": 1.4,
+                "aceleracao": 1.15,
                 "speed": 14,
                 "freio": 6.2,
-                "direcao": 3.8,
+                "direcao": 3.5,
                 "cor_capacete": [
                     255,
                     255,
@@ -161,8 +161,8 @@
     "Bestowal": {
         "classe": "A",
         "velocidade_base": 332,
-        "aceleracao": 3.1,
-        "direcao": 1.3,
+        "aceleracao": 3,
+        "direcao": 1.2,
         "pasta": "bestowal",
         "forca_marchas": [
             1.6398,
@@ -198,10 +198,10 @@
         "pilotos": [
             {
                 "nome": "A. Picos",
-                "aceleracao": 1.3,
+                "aceleracao": 1.1,
                 "speed": 14,
                 "freio": 6.0,
-                "direcao": 3.6,
+                "direcao": 3.5,
                 "cor_capacete": [
                     255,
                     255,
@@ -625,7 +625,7 @@
                 "aceleracao": 1.8,
                 "speed": 15,
                 "freio": 5.5,
-                "direcao": 5.0,
+                "direcao": 4.0,
                 "cor_capacete": [
                     255,
                     255,

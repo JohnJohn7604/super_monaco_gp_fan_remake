@@ -117,10 +117,10 @@ class BotAI:
 
                 if dist_relativa > 0:
                     # Bot à FRENTE do jogador: reduz normalmente na curva para permitir disputas
-                    multiplicador_curva = 0.39 + (bot["direcao"] * 0.07)
+                    multiplicador_curva = 0.43 + (bot["direcao"] * 0.07)
                 else:
                     # Bot ATRÁS do jogador: reduz só um pouco (mantém 93% a 98% da velocidade)
-                    multiplicador_curva = 0.85 + (bot["direcao"] * 0.008)
+                    multiplicador_curva = 0.80 + (bot["direcao"] * 0.008)
 
                 target_speed = bot["max_speed"] * multiplicador_curva
                 target_speed = min(bot["max_speed"], target_speed)
@@ -146,10 +146,10 @@ class BotAI:
                 target_speed = min(target_speed, 260.0)
 
             # ---> RADAR DE FRENAGEM INTELIGENTE <---
-            if -18 < dist_relativa < 0 and jogador_na_pista:
-                if abs(bot["x"] - player_x) < 0.38:
-                    piso_vel = 0 if player_speed < 60 else 130
-                    target_speed = min(target_speed, max(piso_vel, player_speed * 0.95))
+            if -45 < dist_relativa < 0 and jogador_na_pista:
+                if abs(bot["x"] - player_x) < 0.42:
+                    piso_vel = 0 if player_speed < 60 else max(80, player_speed * 0.92)
+                    target_speed = min(target_speed, piso_vel)
 
             # O PEDAL DE FREIO
             if bot["speed"] > target_speed:
@@ -264,33 +264,73 @@ class BotAI:
                         target_x = -0.75 if player_x > 0 else 0.75
 
             # =================================================================
-            # 6. RADAR DE TRÁFEGO IA vs IA (UNIFICADO E SEM TREMEDEIRA)
+            # 5. TÁTICAS CONTRA O JOGADOR (ANTECIPAÇÃO DE 65M)
             # =================================================================
-            menor_dist_frente = 55.0
-            bot_bloqueando = None
+            desviando_jogador = False
+            evasao_emergencia = False
 
-            for outro_bot in bots:
-                if bot is outro_bot:
-                    continue
+            if not largada_linhas:
+                if 0 < dist_relativa < 60:
+                    target_x = tracado_ideal
 
-                dist_entre_bots = (outro_bot["pos"] - bot["pos"]) % total_len
-                if dist_entre_bots > half_len:
-                    dist_entre_bots -= total_len
+                elif -65 < dist_relativa < 0 and jogador_na_pista and bot["speed"] > player_speed:
+                    desviando_jogador = True
 
-                # Separação lateral imediata lado a lado
-                if abs(dist_entre_bots) < 8:
-                    distancia_lateral = bot["x"] - outro_bot["x"]
-                    if abs(distancia_lateral) < 0.36:
-                        target_x = bot["x"] + (0.32 if distancia_lateral >= 0 else -0.32)
+                    # Escolhe a faixa livre longe do jogador
+                    if linha_jogador == 2:
+                        if curva_futura > 0.05:
+                            target_x = 0.65
+                        elif curva_futura < -0.05:
+                            target_x = -0.65
+                        else:
+                            target_x = -0.65 if bot["x"] <= player_x else 0.65
+                    elif linha_jogador == 1:
+                        target_x = 0.65 if curva_futura > 0.05 else 0.25
+                    elif linha_jogador == 3:
+                        target_x = -0.65 if curva_futura < -0.05 else -0.25
 
-                # Identifica APENAS o carro mais próximo à frente para desviar limpo
-                elif not largada_linhas and 0 < dist_entre_bots < menor_dist_frente:
-                    if abs(bot["x"] - outro_bot["x"]) < 0.45:
-                        menor_dist_frente = dist_entre_bots
-                        bot_bloqueando = outro_bot
+                    # Ganho leve de embalo apenas quando já está fora da linha do jogador
+                    if abs(bot["x"] - player_x) > 0.42:
+                        bot["speed"] += 0.35
 
-            if bot_bloqueando is not None:
-                target_x = -0.65 if bot_bloqueando["x"] > 0 else 0.65
+                    # Evasão de emergência a menos de 28m (sempre para o lado com mais espaço)
+                    if abs(dist_relativa) < 28 and abs(bot["x"] - player_x) < 0.45:
+                        evasao_emergencia = True
+                        target_x = -0.78 if player_x > 0 else 0.78
+
+            # =================================================================
+            # 6. RADAR DE TRÁFEGO IA vs IA (RESPEITANDO O DESVIO DO JOGADOR)
+            # =================================================================
+            if not desviando_jogador:
+                menor_dist_frente = 55.0
+                bot_bloqueando = None
+
+                for outro_bot in bots:
+                    if bot is outro_bot:
+                        continue
+
+                    dist_entre_bots = (outro_bot["pos"] - bot["pos"]) % total_len
+                    if dist_entre_bots > half_len:
+                        dist_entre_bots -= total_len
+
+                    # Separação lateral imediata lado a lado
+                    if abs(dist_entre_bots) < 8:
+                        distancia_lateral = bot["x"] - outro_bot["x"]
+                        if abs(distancia_lateral) < 0.36:
+                            novo_x = bot["x"] + (0.32 if distancia_lateral >= 0 else -0.32)
+                            if not (-25 < dist_relativa < 5 and abs(novo_x - player_x) < 0.42):
+                                target_x = novo_x
+
+                    # Identifica APENAS o carro mais próximo à frente para desviar limpo
+                    elif not largada_linhas and 0 < dist_entre_bots < menor_dist_frente:
+                        if abs(bot["x"] - outro_bot["x"]) < 0.45:
+                            menor_dist_frente = dist_entre_bots
+                            bot_bloqueando = outro_bot
+
+                if bot_bloqueando is not None:
+                    novo_x = -0.65 if bot_bloqueando["x"] > 0 else 0.65
+                    if not (-35 < dist_relativa < 5 and abs(novo_x - player_x) < 0.42):
+                        target_x = novo_x
 
             # 6.5. COMBO DE ULTRAPASSAGEM (CONTAGEM ÚNICA POR CARRO)
             if -5 < dist_relativa < 0 and bot["speed"] < player_speed:
@@ -309,6 +349,8 @@ class BotAI:
             limite_pista = 0.90
             target_x = max(-limite_pista, min(limite_pista, target_x))
             velocidade_volante = 0.025 + (bot["direcao"] * 0.005)
+            if evasao_emergencia:
+                velocidade_volante = max(velocidade_volante, 0.14)
             bot["steer_real"] = target_x - bot["x"]
             bot["x"] += bot["steer_real"] * velocidade_volante
             bot["x"] = max(-limite_pista, min(limite_pista, bot["x"]))
@@ -371,18 +413,6 @@ class BotAI:
             if tempo_atual - bot["anim_timer"] > 50: 
                 bot["frame_idx"] = (bot["frame_idx"] + 1) % 3
                 bot["anim_timer"] = tempo_atual
-
-            # 10. COMBO DE ULTRAPASSAGEM
-            if dist_relativa > -5 and dist_relativa < 0 and bot["speed"] < carro_jogador.speed:
-                self.game.ultrapassagens_combo += 1
-                self.game.timer_combo = tempo_atual
-            
-            if tempo_atual - self.game.timer_combo > 4000:
-                self.game.ultrapassagens_combo = 0
-
-            if self.game.ultrapassagens_combo >= 3 and 0 < dist_relativa < 40:
-                target_x = carro_jogador.player_x
-                bot["defesa_timer"] = tempo_atual + 2000
 
         # Retorna as variáveis de estado para o main.py usar depois
         return curve_intensity, jogador_no_vacuo, menor_distancia_bot
