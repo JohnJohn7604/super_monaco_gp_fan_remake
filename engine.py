@@ -32,6 +32,20 @@ class Game:
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
         self.fonte_pequena = pygame.font.SysFont('Arial', 17)
 
+        # Fontes reutilizáveis (criadas apenas uma vez ao iniciar o jogo)
+        self.fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
+        self.fonte_lista = pygame.font.SysFont('Arial', 24, bold=True)
+        self.fonte_contagem = pygame.font.SysFont('Arial', 120, bold=True)
+        self.fonte_banner = pygame.font.SysFont('Arial', 54, bold=True)
+        self.fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
+
+        # Superfícies de overlay reutilizáveis (evita recriar Surface a cada frame)
+        self.overlay_finish = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.overlay_finish.fill((0, 0, 0, 180))
+
+        self.banner_final_lap = pygame.Surface((WIDTH, 96), pygame.SRCALPHA)
+        self.banner_final_lap.fill((0, 0, 0, 195))
+
         self.estado_jogo = "INPUT_NAME"
 
         # --- CONTROLE DE MODO DE JOGO E TEMPORADA ---
@@ -382,25 +396,27 @@ class Game:
         if w_arredondado <= 0:
             w_arredondado = 1
 
-        chave = f"{pasta}_{perspectiva}_{frame}_{w_arredondado}x{h_arredondado}"
-        if chave not in self.imagem_cache:
-            self.imagem_cache[chave] = pygame.transform.scale(img_original, (w_arredondado, h_arredondado))
+        chave = (pasta, perspectiva, frame, w_arredondado, h_arredondado)
+        img = self.imagem_cache.get(chave)
+        if img is None:
+            img = pygame.transform.scale(img_original, (w_arredondado, h_arredondado))
+            self.imagem_cache[chave] = img
 
-        return self.imagem_cache[chave]
+        return img
 
     def pre_aquecer_cache(self):
-        for pasta in self.cache_sprites.keys():
+        for pasta, sprites_pasta in self.cache_sprites.items():
             perspectiva = "rear_reto"
             for frame in range(3):
-                img_original = self.cache_sprites[pasta][perspectiva][frame]
-                img_w = img_original.get_width()
-                img_h = img_original.get_height()
+                img_original = sprites_pasta[perspectiva][frame]
+                ratio = img_original.get_width() / img_original.get_height()
 
                 for h in range(10, 334, 5):
-                    w = int(h * (img_w / img_h))
+                    w = int(h * ratio)
                     if w > 0:
                         chave = f"{pasta}_{perspectiva}_{frame}_{w}x{h}"
-                        self.imagem_cache[chave] = pygame.transform.scale(img_original, (w, h))
+                        if chave not in self.imagem_cache:
+                            self.imagem_cache[chave] = pygame.transform.scale(img_original, (w, h))
 
     def iniciar_corrida(self, track_name="rio", modo_preliminary=False):
         self.silenciar_audios_corrida()
@@ -451,8 +467,13 @@ class Game:
         for nome_eq, dados in self.equipes.items():
             pasta = dados["pasta"]
             mapa_cor = dados.get("mapa_cor", None)
-            if pasta not in self.cache_sprites:
-                self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta, mapa_cor)
+            # Carrega e tinge os sprites das equipes APENAS UMA VEZ na sessão
+            if not self.cache_sprites:
+                for nome_eq, dados in self.equipes.items():
+                    pasta = dados["pasta"]
+                    mapa_cor = dados.get("mapa_cor", None)
+                    if pasta not in self.cache_sprites:
+                        self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta, mapa_cor)
 
         if modo_preliminary:
             # Começa exatamente no início da pista atual
@@ -885,7 +906,6 @@ class Game:
             titulo = fonte_menu.render("RACE RESULTS", True, (255, 255, 0))
             self.screen.blit(titulo, (WIDTH // 2 - titulo.get_width() // 2, 30))
 
-            fonte_lista = pygame.font.SysFont('Arial', 24, bold=True)
             meu_nome = getattr(self, "nome_jogador_formatado", "PILOTO").upper()
 
             for i, piloto in enumerate(self.classificacao_final):
@@ -893,7 +913,7 @@ class Game:
                 texto = f"{i+1:2d}. {piloto['nome']} ({sigla})"
 
                 cor = (0, 255, 0) if piloto["nome"].upper() == meu_nome else (255, 255, 255)
-                img_txt = fonte_lista.render(texto, True, cor)
+                img_txt = self.fonte_lista.render(texto, True, cor)
 
                 if i < 8:
                     x, y = WIDTH // 4 - 100, 120 + (i * 45)
@@ -902,7 +922,7 @@ class Game:
 
                 self.screen.blit(img_txt, (x, y))
 
-            aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
+            aviso = self.fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
             self.screen.blit(aviso, (WIDTH // 2 - aviso.get_width() // 2, HEIGHT - 50))
 
             pygame.display.flip()
@@ -988,16 +1008,15 @@ class Game:
 
     def countdown_tela(self, tempo_atual):
         tempo_passado = tempo_atual - self.timer_countdown
-        fonte_contagem = pygame.font.SysFont('Arial', 120, bold=True)
 
         if tempo_passado < 1000:
-            texto = fonte_contagem.render("3", True, (255, 0, 0))
+            texto = self.fonte_contagem.render("3", True, (255, 0, 0))
         elif tempo_passado < 2000:
-            texto = fonte_contagem.render("2", True, (255, 128, 0))
+            texto = self.fonte_contagem.render("2", True, (255, 128, 0))
         elif tempo_passado < 3000:
-            texto = fonte_contagem.render("1", True, (255, 255, 0))
+            texto = self.fonte_contagem.render("1", True, (255, 255, 0))
         elif tempo_passado < 4000:
-            texto = fonte_contagem.render("GO!", True, (0, 255, 0))
+            texto = self.fonte_contagem.render("GO!", True, (0, 255, 0))
         else:
             if self.estado_jogo == "COUNTDOWN":
                 self.estado_jogo = "RACING"
@@ -1030,35 +1049,27 @@ class Game:
 
         banner_h = 96
         banner_y = (HEIGHT // 3) - (banner_h // 2)
-
-        banner_surf = pygame.Surface((WIDTH, banner_h), pygame.SRCALPHA)
-        banner_surf.fill((0, 0, 0, 195))
-        self.screen.blit(banner_surf, (0, banner_y))
+        self.screen.blit(self.banner_final_lap, (0, banner_y))
 
         pisca = (tempo_atual // 150) % 2 == 0
         cor_borda = (255, 215, 0) if pisca else (255, 50, 50)
         pygame.draw.line(self.screen, cor_borda, (0, banner_y), (WIDTH, banner_y), 4)
         pygame.draw.line(self.screen, cor_borda, (0, banner_y + banner_h), (WIDTH, banner_y + banner_h), 4)
 
-        fonte_banner = pygame.font.SysFont('Arial', 54, bold=True)
-        fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
-
         cor_texto = (255, 230, 0) if pisca else (255, 255, 255)
-        txt_banner = fonte_banner.render(">>> FINAL LAP! <<<", True, cor_texto)
-        txt_sombra = fonte_banner.render(">>> FINAL LAP! <<<", True, (0, 0, 0))
+        txt_banner = self.fonte_banner.render(">>> FINAL LAP! <<<", True, cor_texto)
+        txt_sombra = self.fonte_sub.render(">>> FINAL LAP! <<<", True, (0, 0, 0))
 
         cx = WIDTH // 2
         cy = banner_y + 30
         self.screen.blit(txt_sombra, (cx - txt_banner.get_width() // 2 + 3, cy - txt_banner.get_height() // 2 + 3))
         self.screen.blit(txt_banner, (cx - txt_banner.get_width() // 2, cy - txt_banner.get_height() // 2))
 
-        txt_sub = fonte_sub.render("LAST CHANCE - PUSH TO THE LIMIT!", True, (240, 240, 255))
+        txt_sub = self.fonte_sub.render("LAST CHANCE - PUSH TO THE LIMIT!", True, (240, 240, 255))
         self.screen.blit(txt_sub, (cx - txt_sub.get_width() // 2, banner_y + 66))
 
     def final_corrida(self, tempo_atual):
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(self.overlay_finish, (0, 0))
 
         texto_finish = self.fonte_grande.render("FINISH!", True, (255, 200, 0))
         pos_texto = f"{self.final_position}º PLACE"
@@ -1106,14 +1117,13 @@ class Game:
             return True
 
     def run(self):
-        fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         while True:
             tempo_atual = pygame.time.get_ticks()
             keys = pygame.key.get_pressed()
 
             self.eventos_teclado()
 
-            if self.telas_menu(fonte_menu):
+            if self.telas_menu(self.fonte_menu):
                 pygame.display.flip()
                 self.clock.tick(FPS)
                 continue
