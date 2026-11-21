@@ -31,6 +31,7 @@ class Game:
         self.fonte_grande = pygame.font.SysFont('Arial', 75, bold=True)
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
         self.fonte_pequena = pygame.font.SysFont('Arial', 17)
+        self.fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
 
         # Fontes reutilizáveis (criadas apenas uma vez ao iniciar o jogo)
         self.fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
@@ -86,6 +87,12 @@ class Game:
         self.banner_final_lap.fill((0, 0, 0, 195))
 
         self.estado_jogo = "INPUT_NAME"
+
+        # Controle de Pause
+        self.estado_antes_pause = None
+        self.inicio_pause_tick = 0
+        self.tela_pausada = None
+        self.pause_sel_idx = 0  # 0 = CONTINUAR | 1 = SAIR
 
         # --- CONTROLE DE MODO DE JOGO E TEMPORADA ---
         self.modo_jogo = "RAPIDA"          # "RAPIDA" ou "TEMPORADA"
@@ -749,6 +756,26 @@ class Game:
         if hasattr(self, 'car') and self.car and self.estado_jogo != "PRELIMINARY":
             self.car.draw_debug(self.screen, self.bots, self.track.total_track_length)
 
+    def despausar_jogo(self):
+        tempo_pausado = pygame.time.get_ticks() - self.inicio_pause_tick
+
+        if hasattr(self, 'timer_countdown'):
+            self.timer_countdown += tempo_pausado
+        if hasattr(self, 'timer_final_lap') and self.final_lap_triggered:
+            self.timer_final_lap += tempo_pausado
+        if hasattr(self, 'timer_finish') and self.race_finished:
+            self.timer_finish += tempo_pausado
+        if self.car and hasattr(self.car, 'lap_start_tick'):
+            self.car.lap_start_tick += tempo_pausado
+        if hasattr(self, 'prelim_lap_start_time'):
+            self.prelim_lap_start_time += tempo_pausado
+        if hasattr(self, 'prox_spawn_preliminary'):
+            self.prox_spawn_preliminary += tempo_pausado
+
+        pygame.mixer.unpause()
+        self.tela_pausada = None
+        self.estado_jogo = self.estado_antes_pause
+
     def eventos_teclado(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -761,6 +788,49 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT):
                     pygame.display.toggle_fullscreen()
+                    continue
+
+                # ------------------------------------------
+                # PAUSE / DESPAUSE (TECLA 'P')
+                # ------------------------------------------
+                if event.key == pygame.K_p:
+                    if self.estado_jogo in ["COUNTDOWN", "RACING", "FINISH", "PRELIMINARY"]:
+                        self.estado_antes_pause = self.estado_jogo
+                        self.inicio_pause_tick = pygame.time.get_ticks()
+                        self.tela_pausada = self.screen.copy()
+                        self.pause_sel_idx = 0  # Sempre inicia apontando para "CONTINUAR"
+
+                        self.silenciar_audios_corrida()
+                        pygame.mixer.pause()
+
+                        self.estado_jogo = "PAUSE"
+                        continue
+
+                    elif self.estado_jogo == "PAUSE":
+                        self.despausar_jogo()
+                        continue
+
+                # ------------------------------------------
+                # MENU DE PAUSE (SETA CIMA/BAIXO + ENTER)
+                # ------------------------------------------
+                if self.estado_jogo == "PAUSE":
+                    if event.key in (pygame.K_UP, pygame.K_DOWN):
+                        self.pause_sel_idx = 1 - self.pause_sel_idx
+                    elif event.key == pygame.K_RETURN:
+                        if self.pause_sel_idx == 0:
+                            # Opção 0: CONTINUAR
+                            self.despausar_jogo()
+                        else:
+                            # Opção 1: SAIR (encerra sons e volta ao menu inicial)
+                            pygame.mixer.stop()
+                            self.silenciar_audios_corrida()
+                            self.bots = []
+                            self.car = None
+                            self.tela_pausada = None
+                            self.sinal_ativo = False
+                            self.final_lap_triggered = False
+                            self.race_finished = False
+                            self.estado_jogo = "INPUT_NAME"
                     continue
 
                 # ------------------------------------------
@@ -904,6 +974,54 @@ class Game:
                             self.estado_jogo = "INPUT_NAME"
 
     def telas_menu(self, fonte_menu):
+        if self.estado_jogo == "PAUSE":
+            if self.tela_pausada:
+                self.screen.blit(self.tela_pausada, (0, 0))
+            self.screen.blit(self.overlay_finish, (0, 0))
+
+            # Dimensões e posição centralizada do quadradinho azul
+            box_w, box_h = 260, 150
+            box_x = WIDTH // 2 - box_w // 2
+            box_y = HEIGHT // 2 - box_h // 2
+            box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+
+            # Fundo azul arcade
+            pygame.draw.rect(self.screen, (15, 45, 145), box_rect)
+
+            # Bordas cinzas brilhantes (dupla camada para efeito metálico)
+            pygame.draw.rect(self.screen, (180, 185, 195), box_rect, 5)
+            pygame.draw.rect(self.screen, (240, 245, 255), box_rect.inflate(-4, -4), 2)
+
+            # Opções do menu
+            opcoes = ["CONTINUAR", "SAIR"]
+            texto_x = box_x + 75
+            inicio_y = box_y + 38
+            espacamento_y = 48
+
+            for i, texto_opcao in enumerate(opcoes):
+                selecionado = (i == self.pause_sel_idx)
+                cor_texto = (255, 255, 255) if selecionado else (175, 185, 210)
+                img_opcao = self.fonte_lista.render(texto_opcao, True, cor_texto)
+
+                pos_y = inicio_y + (i * espacamento_y)
+                self.screen.blit(img_opcao, (texto_x, pos_y))
+
+                # Desenha a setinha vermelha apontando para a direita ao lado da opção ativa
+                if selecionado:
+                    seta_x = texto_x - 28
+                    seta_cy = pos_y + img_opcao.get_height() // 2
+                    pontos_seta = [
+                        (seta_x, seta_cy - 9),
+                        (seta_x + 15, seta_cy),
+                        (seta_x, seta_cy + 9)
+                    ]
+                    pygame.draw.polygon(self.screen, (255, 25, 25), pontos_seta)
+                    pygame.draw.polygon(self.screen, (255, 200, 200), pontos_seta, 1)
+
+            pygame.display.flip()
+            self.clock.tick(FPS)
+            return True
+
         if self.estado_jogo == "INPUT_NAME":
             self.ui.desenhar_tela_nome()
             pygame.display.flip()
