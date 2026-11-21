@@ -35,9 +35,48 @@ class Game:
         # Fontes reutilizáveis (criadas apenas uma vez ao iniciar o jogo)
         self.fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
         self.fonte_lista = pygame.font.SysFont('Arial', 24, bold=True)
-        self.fonte_contagem = pygame.font.SysFont('Arial', 120, bold=True)
-        self.fonte_banner = pygame.font.SysFont('Arial', 54, bold=True)
-        self.fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
+        # Configuração do Semáforo de Largada (tamanho e posição ajustáveis)
+        self.sinal_tamanho = (450, 195)   # (largura, altura) em pixels — altere aqui para redimensionar
+        self.sinal_pos = (45, 175)         # (x, y) canto superior esquerdo — altere aqui para reposicionar
+
+        # Tenta carregar de 'images/sinal.png' (ou da raiz 'sinal.png' como alternativa)
+        self.img_sinal = carregar_img("images/sinal.png", self.sinal_tamanho)
+        if not self.img_sinal:
+            self.img_sinal = carregar_img("sinal.png", self.sinal_tamanho)
+            self.img_sinal.fill((40, 40, 40, 220))
+
+        mascara_base = carregar_img("images/mascara.png", self.sinal_tamanho)
+        if not mascara_base:
+            # Fallback caso mascara.png ainda não tenha sido criada
+            mascara_base = pygame.Surface(self.sinal_tamanho, pygame.SRCALPHA)
+            pygame.draw.circle(
+                mascara_base, (255, 255, 255, 255),
+                (self.sinal_tamanho[0] // 2, self.sinal_tamanho[1] // 2), 26
+            )
+
+        # Pré-gera as camadas coloridas uma única vez (zero peso de CPU na corrida)
+        self.mascara_vermelha = self._tingir_mascara(mascara_base, (255, 0, 0))
+        self.mascara_verde = self._tingir_mascara(mascara_base, (0, 255, 0))
+
+        # Áudios do semáforo
+        try:
+            self.som_sinal_vermelho = pygame.mixer.Sound("sounds/vermelho.wav")
+            self.som_sinal_vermelho.set_volume(0.9)
+        except Exception as e:
+            print(f"Aviso Mixer: Erro ao carregar vermelho.wav -> {e}")
+            self.som_sinal_vermelho = None
+
+        try:
+            self.som_sinal_verde = pygame.mixer.Sound("sounds/verde.wav")
+            self.som_sinal_verde.set_volume(0.9)
+        except Exception as e:
+            print(f"Aviso Mixer: Erro ao carregar verde.wav -> {e}")
+            self.som_sinal_verde = None
+
+        self.sinal_ativo = False
+        self.sinal_vermelho_tocou = False
+        self.sinal_verde_tocou = False
+        self.pos_inicial_largada = 0
 
         # Superfícies de overlay reutilizáveis (evita recriar Surface a cada frame)
         self.overlay_finish = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -156,6 +195,13 @@ class Game:
         self.bot_anim_timer = 0
         self.bot_frame_idx = 0
         self.cache_sprites = {}
+
+    def _tingir_mascara(self, mascara_base, cor_rgb):
+        surf = mascara_base.copy()
+        tinta = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        tinta.fill((*cor_rgb, 255))
+        surf.blit(tinta, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        return surf
 
     def carregar_tempos_qualificacao(self, caminho="qualifying_times.json"):
         """ Carrega os 16 tempos alvo da Preliminary Race do JSON """
@@ -570,6 +616,11 @@ class Game:
         self.final_lap_triggered = False
         self.timer_final_lap = 0
 
+        self.sinal_ativo = True
+        self.sinal_vermelho_tocou = False
+        self.sinal_verde_tocou = False
+        self.pos_inicial_largada = self.car.position
+
     def gerar_resultados(self):
         # 1. Junta você e todos os bots numa lista só
         meu_nome_upper = getattr(self, "nome_jogador_formatado", "PILOTO").upper()
@@ -900,6 +951,10 @@ class Game:
             self.pre_aquecer_cache()
 
             self.timer_countdown = pygame.time.get_ticks()
+            self.sinal_ativo = True
+            self.sinal_vermelho_tocou = False
+            self.sinal_verde_tocou = False
+            self.pos_inicial_largada = self.car.position
             self.estado_jogo = "COUNTDOWN"
             return True
 
@@ -1011,38 +1066,75 @@ class Game:
     def countdown_tela(self, tempo_atual):
         tempo_passado = tempo_atual - self.timer_countdown
 
-        if tempo_passado < 1000:
-            texto = self.fonte_contagem.render("3", True, (255, 0, 0))
-        elif tempo_passado < 2000:
-            texto = self.fonte_contagem.render("2", True, (255, 128, 0))
-        elif tempo_passado < 3000:
-            texto = self.fonte_contagem.render("1", True, (255, 255, 0))
-        elif tempo_passado < 4000:
-            texto = self.fonte_contagem.render("GO!", True, (0, 255, 0))
-        else:
-            if self.estado_jogo == "COUNTDOWN":
-                self.estado_jogo = "RACING"
-                self.car.lap_start_tick = tempo_atual
+        # Libera os carros exatamente aos 5.0s (5000 ms), junto com o sinal verde
+        if tempo_passado >= 5000 and self.estado_jogo == "COUNTDOWN":
+            self.estado_jogo = "RACING"
+            self.car.lap_start_tick = tempo_atual
 
-                rpm_ratio = self.car.rpm_neutro / self.car.max_speed
-                if rpm_ratio > 0.7:
-                    self.car.speed = (self.car.max_speed * 0.15)
-                else:
-                    self.car.speed = (self.car.rpm_neutro * 0.1)
+            rpm_ratio = self.car.rpm_neutro / self.car.max_speed
+            if rpm_ratio > 0.7:
+                self.car.speed = (self.car.max_speed * 0.15)
+            else:
+                self.car.speed = (self.car.rpm_neutro * 0.1)
 
-                if self.lap_limit == 1 and not self.final_lap_triggered:
-                    self.final_lap_triggered = True
-                    self.timer_final_lap = tempo_atual
-                    if hasattr(self, 'som_final_lap') and self.som_final_lap:
-                        try:
-                            self.som_final_lap.play()
-                        except Exception as e:
-                            print(f"Erro ao tocar final_lap.wav: {e}")
+            if self.lap_limit == 1 and not self.final_lap_triggered:
+                self.final_lap_triggered = True
+                self.timer_final_lap = tempo_atual
+                if hasattr(self, 'som_final_lap') and self.som_final_lap:
+                    try:
+                        self.som_final_lap.play()
+                    except Exception as e:
+                        print(f"Erro ao tocar final_lap.wav: {e}")
 
-            texto = None
+    def desenhar_sinal_largada(self, tempo_atual):
+        if not self.sinal_ativo:
+            return
 
-        if texto:
-            self.screen.blit(texto, (WIDTH // 2 - texto.get_width() // 2, HEIGHT // 3))
+        tempo_passado = tempo_atual - self.timer_countdown
+        duracao_fade = 350.0  # Duração do fade em milissegundos (0.35s)
+
+        # Desenha a estrutura base do semáforo
+        self.screen.blit(self.img_sinal, self.sinal_pos)
+
+        # 1. Aos 3.5s (3500 ms): Fade para VERMELHO + toca vermelho.wav
+        if 3500 <= tempo_passado < 5000:
+            if not self.sinal_vermelho_tocou:
+                self.sinal_vermelho_tocou = True
+                if self.som_sinal_vermelho:
+                    try:
+                        self.som_sinal_vermelho.play()
+                    except Exception as e:
+                        print(f"Erro ao tocar vermelho.wav: {e}")
+
+            progresso_verm = min(1.0, (tempo_passado - 3500) / duracao_fade)
+            self.mascara_vermelha.set_alpha(int(255 * progresso_verm))
+            self.screen.blit(self.mascara_vermelha, self.sinal_pos)
+
+        # 2. Aos 5.0s (5000 ms): Fade para VERDE + toca verde.wav
+        elif tempo_passado >= 5000:
+            if not self.sinal_verde_tocou:
+                self.sinal_verde_tocou = True
+                if self.som_sinal_verde:
+                    try:
+                        self.som_sinal_verde.play()
+                    except Exception as e:
+                        print(f"Erro ao tocar verde.wav: {e}")
+
+            progresso_verde = min(1.0, (tempo_passado - 5000) / duracao_fade)
+
+            # Crossfade suave do vermelho apagando e o verde acendendo
+            if progresso_verde < 1.0:
+                self.mascara_vermelha.set_alpha(int(255 * (1.0 - progresso_verde)))
+                self.screen.blit(self.mascara_vermelha, self.sinal_pos)
+
+            self.mascara_verde.set_alpha(int(255 * progresso_verde))
+            self.screen.blit(self.mascara_verde, self.sinal_pos)
+
+            # Só esconde o sinal após o jogador se afastar 200m do ponto de largada
+            if self.estado_jogo == "RACING" and self.sinal_verde_tocou:
+                dist_percorrida = (self.car.position - self.pos_inicial_largada) % self.track.total_track_length
+                if dist_percorrida >= 200:
+                    self.sinal_ativo = False
 
     def desenhar_aviso_final_lap(self, tempo_atual):
         tempo_decorrido = tempo_atual - self.timer_final_lap
@@ -1240,6 +1332,9 @@ class Game:
 
                 if self.estado_jogo == "COUNTDOWN":
                     self.countdown_tela(tempo_atual)
+
+                if self.sinal_ativo:
+                    self.desenhar_sinal_largada(tempo_atual)
 
                 if self.final_lap_triggered and (tempo_atual - self.timer_final_lap < 2800):
                     self.desenhar_aviso_final_lap(tempo_atual)
