@@ -284,6 +284,8 @@ class Game:
         if pasta not in self.cache_sprites:
             self.cache_sprites[pasta] = self.carregar_sprites_equipe(pasta, mapa_cor)
 
+
+        ##SOMA DA ACELERACAO E DIRECAO DO CARRO E O PILOTO
         vel_maxima_do_carro = dados["velocidade_base"] + piloto.get("speed", 0)
         aceleracao_combinada = dados.get("aceleracao", 0) + piloto.get("aceleracao", 0)
         direcao_equipe = dados.get("direcao", dados.get("freio", 3))
