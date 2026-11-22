@@ -40,5 +40,17 @@
     "png": "images/objects/predio_cidade.png",
     "escala": 4.0,
     "offset": 1.8
+  },
+  {
+    "nome": "Jacare",
+    "png": "images/objects/jacare.png",
+    "escala": 1.3,
+    "offset": 1.55
+  },
+  {
+    "nome": "Nobel",
+    "png": "images/objects/nobel_placa.png",
+    "escala": 1.3,
+    "offset": 1.55
   }
 ]

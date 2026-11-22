@@ -950,7 +950,7 @@ class Car:
             
             texto_linha = f"{i+1}. {nome_bot}: {vel_bot}km/h [{dist_bot}m]"
             surf_texto = fonte_debug.render(texto_linha, True, cor_vermelha)
-            screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25)))
+            #screen.blit(surf_texto, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25)))
             linhas_desenhadas += 1
 
         # 4. ALERTA DE FALHA MECÂNICA: Busca se há alguém quebrado à frente
@@ -964,7 +964,7 @@ class Car:
                 texto_alerta = f"⚠️ {nome_bot} FALHA! {vel_bot}km/h [{dist_bot}m]"
                 surf_alerta = fonte_debug.render(texto_alerta, True, cor_amarela)
                 
-                screen.blit(surf_alerta, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25) + 10))
+                #screen.blit(surf_alerta, (pos_x_debug, pos_y_debug + (linhas_desenhadas * 25) + 10))
                 break # Mostra apenas o primeiro com problemas para não poluir o ecrã
 
 
