@@ -354,13 +354,15 @@
       "nome": "pneus_proximos",
       "png": "images/objects/pneus.png",
       "escala": 0.9,
-      "offset": 2.25
+      "offset": 1.7,
+      "offset_fim": 1.7
     },
     {
       "nome": "arquibancada",
       "png": "images/objects/arquibancada.png",
       "escala": 4.0,
-      "offset": 3.5
+      "offset": 5.7,
+      "offset_fim": 5.7
     },
     {
       "nome": "pneus_distante",
@@ -373,6 +375,20 @@
       "png": "images/objects/arquibancada_maior.png",
       "escala": 4.0,
       "offset": 5.85
+    },
+    {
+      "nome": "pneus_funil",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 3.75,
+      "offset_fim": 1.7
+    },
+    {
+      "nome": "pneus_entrada box",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 1.7,
+      "offset_fim": 5.85
     }
   ],
   "objetos_pista": [
@@ -615,14 +631,6 @@
       "quantidade": 136,
       "inicio_pct": 0,
       "espacamento": 2
-    },
-    {
-      "seg_idx": 0,
-      "objeto": "pneus_distante",
-      "lado": "ambos",
-      "quantidade": 201,
-      "inicio_pct": 0,
-      "espacamento": 0
     },
     {
       "seg_idx": 1,
@@ -937,7 +945,7 @@
       "espacamento": 0
     },
     {
-      "seg_idx": 40,
+      "seg_idx": 41,
       "objeto": "pneus_distante",
       "lado": "ambos",
       "quantidade": 201,
@@ -945,11 +953,99 @@
       "espacamento": 0
     },
     {
-      "seg_idx": 41,
-      "objeto": "pneus_distante",
+      "seg_idx": 42,
+      "objeto": "pneus_funil",
       "lado": "ambos",
-      "quantidade": 201,
+      "quantidade": 108,
       "inicio_pct": 0,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 40,
+      "objeto": "pneus_distante",
+      "lado": "esq",
+      "quantidade": 208,
+      "inicio_pct": 0,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 40,
+      "objeto": "pneus_entrada box",
+      "lado": "dir",
+      "quantidade": 208,
+      "inicio_pct": 0,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "pneus_proximos",
+      "lado": "ambos",
+      "quantidade": 208,
+      "inicio_pct": 0,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 8,
+      "objeto": "arquibancada",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 30,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "arquibancada",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 30,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 13,
+      "objeto": "arquibancada",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 50,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 16,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 30,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 30,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 50,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 31,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 80,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 37,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 80,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 39,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 40,
       "espacamento": 0
     }
   ]

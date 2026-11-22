@@ -125,7 +125,8 @@ class TrackEditor:
         self.obj_png_idx = 0
         self.obj_nome_input = "Mureta Azul"
         self.obj_escala_input = 1.0
-        self.obj_offset_input = 1.30
+        self.obj_offset_ini_input = 1.30
+        self.obj_offset_fim_input = 1.30
         self.editando_nome_obj = False
 
         self.objetos_catalogo = self.carregar_catalogo_objetos_global()
@@ -142,7 +143,7 @@ class TrackEditor:
 
         self.scroll_obj_cat = 0
         self.scroll_obj_apl = 0
-        self.rect_lista_obj_cat = pygame.Rect(650, 210, WIDTH - 680, 105)
+        self.rect_lista_obj_cat = pygame.Rect(650, 214, WIDTH - 680, 104)
         self.rect_lista_obj_apl = pygame.Rect(650, 520, WIDTH - 680, 145)
         self.rect_input_nome_obj = pygame.Rect(780, 62, 260, 26)
 
@@ -198,8 +199,8 @@ class TrackEditor:
 
     def detectar_fundos(self):
         fundos = []
-        if os.path.exists("images/objects"):
-            for f in sorted(os.listdir("images/objects")):
+        if os.path.exists("images"):
+            for f in sorted(os.listdir("images")):
                 if f.lower().endswith((".png", ".jpg")):
                     fundos.append(f"images/{f}")
         if not fundos:
@@ -305,33 +306,40 @@ class TrackEditor:
             inicio_pct = max(0.0, min(99.0, float(ap.get("inicio_pct", 0.0))))
             espacamento = float(ap.get("espacamento", 0))
 
+            off_ini = float(def_obj.get("offset", 1.30))
+            off_fim = float(def_obj.get("offset_fim", off_ini))
+
             seg_start = inicios[s_idx]
             seg_len = int(self.segmentos[s_idx]["length"])
             start_off = int(seg_len * (inicio_pct / 100.0))
             usable = max(1, seg_len - start_off)
 
             if qtd == 1:
-                metros = [(seg_start + start_off) % total_len]
+                itens_metro = [(0, (seg_start + start_off) % total_len)]
             elif espacamento > 0:
-                # Usa a distância exata em metros entre cada objeto (ex: 1m = colado)
-                metros = []
+                itens_metro = []
                 for k in range(qtd):
                     offset_k = int(k * espacamento)
                     if offset_k <= usable:
-                        metros.append((seg_start + start_off + offset_k) % total_len)
+                        itens_metro.append((k, (seg_start + start_off + offset_k) % total_len))
             else:
-                # Modo automático: distribui igualmente pelo trecho inteiro
                 passo = usable / float(qtd)
-                metros = [(seg_start + start_off + int(k * passo)) % total_len for k in range(qtd)]
+                itens_metro = [(k, (seg_start + start_off + int(k * passo)) % total_len) for k in range(qtd)]
 
-            for m in metros:
+            for k, m in itens_metro:
+                if qtd > 1:
+                    t = k / float(qtd - 1)
+                    offset_atual = off_ini + (off_fim - off_ini) * t
+                else:
+                    offset_atual = off_ini
+
                 if m not in mapa:
                     mapa[m] = []
                 for ld in lados:
                     mapa[m].append({
                         "png": def_obj["png"],
                         "escala": float(def_obj.get("escala", 1.0)),
-                        "offset": float(def_obj.get("offset", 1.30)),
+                        "offset": offset_atual,
                         "lado": ld,
                         "seg_idx": s_idx
                     })
@@ -705,25 +713,33 @@ class TrackEditor:
         self.buttons_objetos.append(UIButton((p_x + 140, 15, 145, 30), "RECARREGAR PNGs", self.action_recarregar_pngs_obj, color=(40, 55, 75), font_size=13))
 
         # Seletor de PNG do Objeto
-        self.buttons_objetos.append(UIButton((p_x + 140, 96, 28, 24), "<", self.action_prev_obj_png))
-        self.buttons_objetos.append(UIButton((p_x + 370, 96, 28, 24), ">", self.action_next_obj_png))
+        self.buttons_objetos.append(UIButton((p_x + 140, 92, 28, 24), "<", self.action_prev_obj_png))
+        self.buttons_objetos.append(UIButton((p_x + 370, 92, 28, 24), ">", self.action_next_obj_png))
 
-        # Escala do Objeto
-        self.buttons_objetos.append(UIButton((p_x + 85, 128, 38, 24), "-0.2", lambda: self.modificar_obj_escala(-0.2), font_size=12))
-        self.buttons_objetos.append(UIButton((p_x + 127, 128, 34, 24), "-0.1", lambda: self.modificar_obj_escala(-0.1), font_size=12))
-        self.buttons_objetos.append(UIButton((p_x + 215, 128, 34, 24), "+0.1", lambda: self.modificar_obj_escala(0.1), font_size=12))
-        self.buttons_objetos.append(UIButton((p_x + 253, 128, 38, 24), "+0.2", lambda: self.modificar_obj_escala(0.2), font_size=12))
+        # Escala do Objeto + Atalhos de Offset
+        self.buttons_objetos.append(UIButton((p_x + 85, 122, 38, 24), "-0.2", lambda: self.modificar_obj_escala(-0.2), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 127, 122, 34, 24), "-0.1", lambda: self.modificar_obj_escala(-0.1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 215, 122, 34, 24), "+0.1", lambda: self.modificar_obj_escala(0.1), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 253, 122, 38, 24), "+0.2", lambda: self.modificar_obj_escala(0.2), font_size=12))
+        self.buttons_objetos.append(UIButton((p_x + 310, 122, 135, 24), "INVERTER OFFSETS", self.action_inverter_obj_offsets, color=(55, 65, 90), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 455, 122, 135, 24), "IGUALAR OFFSETS", self.action_igualar_obj_offsets, color=(50, 70, 80), font_size=11))
 
-        # Offset Lateral do Objeto
-        self.buttons_objetos.append(UIButton((p_x + 375, 128, 42, 24), "-0.10", lambda: self.modificar_obj_offset(-0.10), font_size=11))
-        self.buttons_objetos.append(UIButton((p_x + 420, 128, 38, 24), "-0.05", lambda: self.modificar_obj_offset(-0.05), font_size=11))
-        self.buttons_objetos.append(UIButton((p_x + 508, 128, 38, 24), "+0.05", lambda: self.modificar_obj_offset(0.05), font_size=11))
-        self.buttons_objetos.append(UIButton((p_x + 549, 128, 42, 24), "+0.10", lambda: self.modificar_obj_offset(0.10), font_size=11))
+        # Offset Lateral INICIAL do Objeto
+        self.buttons_objetos.append(UIButton((p_x + 82, 152, 40, 24), "-0.10", lambda: self.modificar_obj_offset_ini(-0.10), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 125, 152, 38, 24), "-0.05", lambda: self.modificar_obj_offset_ini(-0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 207, 152, 38, 24), "+0.05", lambda: self.modificar_obj_offset_ini(0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 248, 152, 40, 24), "+0.10", lambda: self.modificar_obj_offset_ini(0.10), font_size=11))
+
+        # Offset Lateral FINAL do Objeto
+        self.buttons_objetos.append(UIButton((p_x + 372, 152, 40, 24), "-0.10", lambda: self.modificar_obj_offset_fim(-0.10), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 415, 152, 38, 24), "-0.05", lambda: self.modificar_obj_offset_fim(-0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 497, 152, 38, 24), "+0.05", lambda: self.modificar_obj_offset_fim(0.05), font_size=11))
+        self.buttons_objetos.append(UIButton((p_x + 538, 152, 40, 24), "+0.10", lambda: self.modificar_obj_offset_fim(0.10), font_size=11))
 
         # Criar / Atualizar / Excluir Objeto do Catálogo
-        self.buttons_objetos.append(UIButton((p_x + 10, 162, 175, 28), "+ CRIAR NOVO OBJETO", self.action_criar_objeto_catalogo, color=(25, 115, 60), hover_color=(35, 150, 80), font_size=13))
-        self.buttons_objetos.append(UIButton((p_x + 195, 162, 165, 28), "ATUALIZAR SELEC.", self.action_atualizar_objeto_catalogo, color=(35, 80, 130), font_size=13))
-        self.buttons_objetos.append(UIButton((p_x + 370, 162, 145, 28), "EXCLUIR OBJETO", self.action_excluir_objeto_catalogo, color=(130, 35, 35), hover_color=(170, 45, 45), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 10, 182, 175, 26), "+ CRIAR NOVO OBJETO", self.action_criar_objeto_catalogo, color=(25, 115, 60), hover_color=(35, 150, 80), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 195, 182, 165, 26), "ATUALIZAR SELEC.", self.action_atualizar_objeto_catalogo, color=(35, 80, 130), font_size=13))
+        self.buttons_objetos.append(UIButton((p_x + 370, 182, 145, 26), "EXCLUIR OBJETO", self.action_excluir_objeto_catalogo, color=(130, 35, 35), hover_color=(170, 45, 45), font_size=13))
 
         # Navegação de Trecho dentro da aba Objetos
         y_apl_seg = 342
@@ -796,7 +812,9 @@ class TrackEditor:
             obj = self.objetos_catalogo[self.obj_cat_sel_idx]
             self.obj_nome_input = obj.get("nome", "Objeto")
             self.obj_escala_input = round(float(obj.get("escala", 1.0)), 2)
-            self.obj_offset_input = round(float(obj.get("offset", 1.30)), 2)
+            off_ini = round(float(obj.get("offset", 1.30)), 2)
+            self.obj_offset_ini_input = off_ini
+            self.obj_offset_fim_input = round(float(obj.get("offset_fim", off_ini)), 2)
             png = obj.get("png", "")
             if png in self.lista_pngs_objetos:
                 self.obj_png_idx = self.lista_pngs_objetos.index(png)
@@ -823,8 +841,19 @@ class TrackEditor:
     def modificar_obj_escala(self, delta):
         self.obj_escala_input = round(max(0.2, min(4.0, self.obj_escala_input + delta)), 2)
 
-    def modificar_obj_offset(self, delta): # DISTANCIA OBJETOS
-        self.obj_offset_input = round(max(1.05, min(10.50, self.obj_offset_input + delta)), 2)
+    def modificar_obj_offset_ini(self, delta):
+        self.obj_offset_ini_input = round(max(1.05, min(10.50, self.obj_offset_ini_input + delta)), 2)
+
+    def modificar_obj_offset_fim(self, delta):
+        self.obj_offset_fim_input = round(max(1.05, min(10.50, self.obj_offset_fim_input + delta)), 2)
+
+    def action_inverter_obj_offsets(self):
+        self.obj_offset_ini_input, self.obj_offset_fim_input = self.obj_offset_fim_input, self.obj_offset_ini_input
+        self.set_status(f"Offsets invertidos: {self.obj_offset_ini_input:.2f} -> {self.obj_offset_fim_input:.2f}")
+
+    def action_igualar_obj_offsets(self):
+        self.obj_offset_fim_input = self.obj_offset_ini_input
+        self.set_status(f"Offset final igualado ao inicial: {self.obj_offset_ini_input:.2f}")
 
     def action_criar_objeto_catalogo(self):
         nome = self.obj_nome_input.strip()
@@ -833,13 +862,13 @@ class TrackEditor:
             return
         png_atual = self.lista_pngs_objetos[self.obj_png_idx]
 
-        # Se já existe com esse nome, atualiza; senão cria novo
         for idx, item in enumerate(self.objetos_catalogo):
             if item["nome"].lower() == nome.lower():
                 item["nome"] = nome
                 item["png"] = png_atual
                 item["escala"] = self.obj_escala_input
-                item["offset"] = self.obj_offset_input
+                item["offset"] = self.obj_offset_ini_input
+                item["offset_fim"] = self.obj_offset_fim_input
                 self.obj_cat_sel_idx = idx
                 self.salvar_catalogo_objetos_global()
                 self.set_status(f"Objeto '{nome}' atualizado!", COLOR_SUCCESS)
@@ -849,12 +878,16 @@ class TrackEditor:
             "nome": nome,
             "png": png_atual,
             "escala": self.obj_escala_input,
-            "offset": self.obj_offset_input
+            "offset": self.obj_offset_ini_input,
+            "offset_fim": self.obj_offset_fim_input
         }
         self.objetos_catalogo.append(novo_obj)
         self.obj_cat_sel_idx = len(self.objetos_catalogo) - 1
         self.salvar_catalogo_objetos_global()
-        self.set_status(f"Objeto '{nome}' criado com sucesso!", COLOR_SUCCESS)
+        self.set_status(
+            f"Objeto '{nome}' criado (Offset {self.obj_offset_ini_input:.2f} -> {self.obj_offset_fim_input:.2f})!",
+            COLOR_SUCCESS
+        )
 
     def action_atualizar_objeto_catalogo(self):
         if not (0 <= self.obj_cat_sel_idx < len(self.objetos_catalogo)):
@@ -869,9 +902,9 @@ class TrackEditor:
         obj["nome"] = nome_novo
         obj["png"] = self.lista_pngs_objetos[self.obj_png_idx]
         obj["escala"] = self.obj_escala_input
-        obj["offset"] = self.obj_offset_input
+        obj["offset"] = self.obj_offset_ini_input
+        obj["offset_fim"] = self.obj_offset_fim_input
 
-        # Atualiza referências nas aplicações da pista se renomeou
         if nome_antigo != nome_novo:
             for ap in self.objetos_pista:
                 if ap["objeto"] == nome_antigo:
@@ -1323,8 +1356,9 @@ class TrackEditor:
                         nx, ny = -vy / mag, vx / mag
                         for obj in objs:
                             sinal = -1 if obj["lado"] == "esq" else 1
-                            ox = int(p0[0] + nx * 6 * sinal)
-                            oy = int(p0[1] + ny * 6 * sinal)
+                            dist_2d = max(4.0, min(28.0, obj["offset"] * 4.5))
+                            ox = int(p0[0] + nx * dist_2d * sinal)
+                            oy = int(p0[1] + ny * dist_2d * sinal)
                             cor_dot = (0, 230, 255) if obj["lado"] == "esq" else (255, 130, 50)
                             pygame.draw.circle(self.screen, cor_dot, (ox, oy), 2)
 
@@ -1672,7 +1706,6 @@ class TrackEditor:
     def desenhar_painel_objetos(self):
         p_x = 640
 
-        # Indicador da pista atual no topo direito
         txt_pista_info = self.font_sub.render(f"PISTA: {self.nome_pista[:24]}", True, COLOR_SELECTED)
         self.screen.blit(txt_pista_info, (p_x + 295, 20))
 
@@ -1683,7 +1716,6 @@ class TrackEditor:
         pygame.draw.rect(self.screen, COLOR_PANEL, card1, border_radius=6)
         pygame.draw.rect(self.screen, COLOR_BORDER, card1, width=1, border_radius=6)
 
-        # Campo de texto: Nome do Objeto
         self.screen.blit(self.font_sub.render("1. NOME OBJETO:", True, COLOR_TEXT_MUTED), (p_x + 10, 65))
         pygame.draw.rect(self.screen, (18, 22, 32), self.rect_input_nome_obj, border_radius=4)
         borda_input = COLOR_SELECTED if self.editando_nome_obj else COLOR_ACCENT
@@ -1692,33 +1724,32 @@ class TrackEditor:
         txt_nome_o = self.font_ui.render(self.obj_nome_input + cursor_str, True, COLOR_TEXT_PRIMARY)
         self.screen.blit(txt_nome_o, (self.rect_input_nome_obj.x + 8, self.rect_input_nome_obj.y + 4))
 
-        # Miniatura PNG do objeto atual (canto superior direito do card 1)
-        thumb_rect = pygame.Rect(p_x + 430, 60, 175, 62)
+        thumb_rect = pygame.Rect(p_x + 430, 60, 175, 60)
         pygame.draw.rect(self.screen, (18, 24, 34), thumb_rect, border_radius=4)
         pygame.draw.rect(self.screen, COLOR_BORDER, thumb_rect, width=1, border_radius=4)
         png_atual = self.lista_pngs_objetos[self.obj_png_idx] if self.lista_pngs_objetos else ""
         surf_prev = self.obter_surf_objeto(png_atual)
         if surf_prev:
             pw, ph = surf_prev.get_width(), surf_prev.get_height()
-            fator = min(155 / max(1, pw), 50 / max(1, ph))
+            fator = min(155 / max(1, pw), 48 / max(1, ph))
             nw, nh = max(4, int(pw * fator)), max(4, int(ph * fator))
             sp_mini = pygame.transform.smoothscale(surf_prev, (nw, nh))
             self.screen.blit(sp_mini, (thumb_rect.centerx - nw // 2, thumb_rect.centery - nh // 2))
 
-        # Seletor de PNG
-        self.screen.blit(self.font_sub.render("IMAGEM PNG:", True, COLOR_TEXT_MUTED), (p_x + 10, 98))
+        self.screen.blit(self.font_sub.render("IMAGEM PNG:", True, COLOR_TEXT_MUTED), (p_x + 10, 94))
         nome_png = os.path.basename(png_atual) if png_atual else "Nenhum"
         txt_png = self.font_mono.render(nome_png[:24], True, COLOR_ACCENT)
-        self.screen.blit(txt_png, (p_x + 175, 100))
+        self.screen.blit(txt_png, (p_x + 175, 96))
 
-        # Escala e Offset
-        self.screen.blit(self.font_sub.render("ESCALA:", True, COLOR_TEXT_MUTED), (p_x + 10, 130))
-        self.screen.blit(self.font_mono.render(f"{self.obj_escala_input:.2f}x", True, COLOR_SELECTED), (p_x + 166, 132))
+        self.screen.blit(self.font_sub.render("ESCALA:", True, COLOR_TEXT_MUTED), (p_x + 10, 124))
+        self.screen.blit(self.font_mono.render(f"{self.obj_escala_input:.2f}x", True, COLOR_SELECTED), (p_x + 166, 126))
 
-        self.screen.blit(self.font_sub.render("OFFSET:", True, COLOR_TEXT_MUTED), (p_x + 305, 130))
-        self.screen.blit(self.font_mono.render(f"{self.obj_offset_input:.2f}", True, COLOR_SELECTED), (p_x + 464, 132))
+        self.screen.blit(self.font_sub.render("OFF INI:", True, COLOR_TEXT_MUTED), (p_x + 10, 154))
+        self.screen.blit(self.font_mono.render(f"{self.obj_offset_ini_input:.2f}", True, COLOR_SELECTED), (p_x + 168, 156))
 
-        # Lista de objetos já criados no catálogo
+        self.screen.blit(self.font_sub.render("OFF FIM:", True, COLOR_TEXT_MUTED), (p_x + 300, 154))
+        self.screen.blit(self.font_mono.render(f"{self.obj_offset_fim_input:.2f}", True, COLOR_ACCENT), (p_x + 458, 156))
+
         pygame.draw.rect(self.screen, (20, 26, 36), self.rect_lista_obj_cat, border_radius=4)
         pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_obj_cat, width=1, border_radius=4)
         self.screen.blit(self.font_small.render(f"OBJETOS CRIADOS ({len(self.objetos_catalogo)}) - Clique para selecionar:", True, COLOR_TEXT_MUTED), (self.rect_lista_obj_cat.x + 8, self.rect_lista_obj_cat.y + 4))
@@ -1736,24 +1767,12 @@ class TrackEditor:
             if is_sel:
                 pygame.draw.rect(self.screen, COLOR_SELECTED, r, width=1, border_radius=3)
 
-            linha = f"{item['nome']:<20} | PNG: {os.path.basename(item['png']):<18} | Esc: {item.get('escala', 1.0):.1f}x | Off: {item.get('offset', 1.3):.2f}"
+            o_ini = float(item.get("offset", 1.3))
+            o_fim = float(item.get("offset_fim", o_ini))
+            off_txt = f"{o_ini:.2f}->{o_fim:.2f}" if abs(o_fim - o_ini) > 0.001 else f"{o_ini:.2f}"
+            linha = f"{item['nome']:<18} | {os.path.basename(item['png']):<16} | Esc:{item.get('escala', 1.0):.1f}x | Off:{off_txt}"
             txt_it = self.font_mono.render(linha, True, COLOR_SELECTED if is_sel else COLOR_TEXT_PRIMARY)
             self.screen.blit(txt_it, (r.x + 6, r.y + 2))
-
-        # Quantidade e Início %
-        self.screen.blit(self.font_sub.render("REPLICAR:", True, COLOR_TEXT_MUTED), (p_x + 10, 413))
-        self.screen.blit(self.font_mono.render(f"{self.apl_quantidade:3d}x", True, COLOR_SELECTED), (p_x + 244, 415))
-
-        self.screen.blit(self.font_sub.render("INÍCIO:", True, COLOR_TEXT_MUTED), (p_x + 422, 413))
-        self.screen.blit(self.font_mono.render(f"{self.apl_inicio_pct:2d}%", True, COLOR_ACCENT), (p_x + 528, 415))
-
-        # Linha do Espaçamento
-        self.screen.blit(self.font_sub.render("DISTÂNCIA:", True, COLOR_TEXT_MUTED), (p_x + 10, 444))
-        esp_txt = "AUTO" if self.apl_espacamento == 0 else f"{self.apl_espacamento}m"
-        self.screen.blit(self.font_mono.render(f"{esp_txt:^6}", True, COLOR_SUCCESS), (p_x + 205, 446))
-
-        # Lista de Objetos Aplicados na Pista (ajuste o Y de 488 para 508)
-        self.screen.blit(self.font_sub.render(f"OBJETOS APLICADOS NA PISTA ({len(self.objetos_pista)} grupos):", True, COLOR_TEXT_MUTED), (p_x + 10, 508))
 
         # ---------------------------------------------------------------------
         # SEÇÃO 2: REPLICAR OBJETO NOS TRECHOS DA PISTA
@@ -1767,9 +1786,7 @@ class TrackEditor:
         titulo_s2 = f"2. TRECHO #{self.seg_idx + 1}/{len(self.segmentos)} ({seg_atual['length']}m - {tipo_seg})"
         self.screen.blit(self.font_sub.render(titulo_s2, True, COLOR_SELECTED), (p_x + 10, 345))
 
-        # Lado da pista
         self.screen.blit(self.font_sub.render("LADO PISTA:", True, COLOR_TEXT_MUTED), (p_x + 10, 379))
-        # Destaque visual no botão de lado ativo
         lado_rects = {
             "esq": pygame.Rect(p_x + 115, 376, 105, 26),
             "dir": pygame.Rect(p_x + 228, 376, 105, 26),
@@ -1779,15 +1796,17 @@ class TrackEditor:
         if r_ativo:
             pygame.draw.rect(self.screen, COLOR_ACCENT, r_ativo.inflate(4, 4), width=2, border_radius=6)
 
-        # Quantidade e Início %
         self.screen.blit(self.font_sub.render("REPLICAR:", True, COLOR_TEXT_MUTED), (p_x + 10, 413))
         self.screen.blit(self.font_mono.render(f"{self.apl_quantidade:3d}x", True, COLOR_SELECTED), (p_x + 244, 415))
 
         self.screen.blit(self.font_sub.render("INÍCIO:", True, COLOR_TEXT_MUTED), (p_x + 422, 413))
         self.screen.blit(self.font_mono.render(f"{self.apl_inicio_pct:2d}%", True, COLOR_ACCENT), (p_x + 528, 415))
 
-        # Lista de Objetos Aplicados na Pista
-        self.screen.blit(self.font_sub.render(f"OBJETOS APLICADOS NA PISTA ({len(self.objetos_pista)} grupos):", True, COLOR_TEXT_MUTED), (p_x + 10, 488))
+        self.screen.blit(self.font_sub.render("DISTÂNCIA:", True, COLOR_TEXT_MUTED), (p_x + 10, 444))
+        esp_txt = "AUTO" if self.apl_espacamento == 0 else f"{self.apl_espacamento}m"
+        self.screen.blit(self.font_mono.render(f"{esp_txt:^6}", True, COLOR_SUCCESS), (p_x + 205, 446))
+
+        self.screen.blit(self.font_sub.render(f"OBJETOS APLICADOS NA PISTA ({len(self.objetos_pista)} grupos):", True, COLOR_TEXT_MUTED), (p_x + 10, 502))
         pygame.draw.rect(self.screen, (20, 26, 36), self.rect_lista_obj_apl, border_radius=4)
         pygame.draw.rect(self.screen, COLOR_BORDER, self.rect_lista_obj_apl, width=1, border_radius=4)
 

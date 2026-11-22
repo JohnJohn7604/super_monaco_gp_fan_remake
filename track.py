@@ -208,7 +208,8 @@ class Track:
 
             png_path = def_obj.get("png", "")
             escala = float(def_obj.get("escala", 1.0))
-            offset = float(def_obj.get("offset", 1.30))
+            off_ini = float(def_obj.get("offset", 1.30))
+            off_fim = float(def_obj.get("offset_fim", off_ini))
             surf = self._carregar_surface_objeto(png_path)
             orig_w, orig_h = surf.get_width(), surf.get_height()
 
@@ -216,6 +217,7 @@ class Track:
             lados = ["esq", "dir"] if lado == "ambos" else [lado]
             quantidade = max(1, int(ap.get("quantidade", 1)))
             inicio_pct = max(0.0, min(99.0, float(ap.get("inicio_pct", 0.0))))
+            espacamento = float(ap.get("espacamento", 0))
 
             seg_start = inicios_segmentos[seg_idx]
             seg_len = int(self.track_map[seg_idx]["length"])
@@ -223,15 +225,27 @@ class Track:
             usable_len = max(1, seg_len - start_offset)
 
             if quantidade == 1:
-                metros_alvo = [(seg_start + start_offset) % self.total_track_length]
+                itens_metro = [(0, (seg_start + start_offset) % self.total_track_length)]
+            elif espacamento > 0:
+                itens_metro = []
+                for k in range(quantidade):
+                    offset_k = int(k * espacamento)
+                    if offset_k <= usable_len:
+                        itens_metro.append((k, (seg_start + start_offset + offset_k) % self.total_track_length))
             else:
                 passo = usable_len / float(quantidade)
-                metros_alvo = [
-                    (seg_start + start_offset + int(k * passo)) % self.total_track_length
+                itens_metro = [
+                    (k, (seg_start + start_offset + int(k * passo)) % self.total_track_length)
                     for k in range(quantidade)
                 ]
 
-            for m in metros_alvo:
+            for k, m in itens_metro:
+                if quantidade > 1:
+                    t = k / float(quantidade - 1)
+                    offset_atual = off_ini + (off_fim - off_ini) * t
+                else:
+                    offset_atual = off_ini
+
                 if m not in self.objetos_por_metro:
                     self.objetos_por_metro[m] = []
                 for ld in lados:
@@ -242,7 +256,7 @@ class Track:
                         "orig_h": orig_h,
                         "lado": ld,
                         "escala": escala,
-                        "offset": offset
+                        "offset": offset_atual
                     })
 
     def _obter_sprite_objeto_escalado(self, obj, target_h):

@@ -75,13 +75,15 @@
     "nome": "pneus_proximos",
     "png": "images/objects/pneus.png",
     "escala": 0.9,
-    "offset": 2.25
+    "offset": 1.7,
+    "offset_fim": 1.7
   },
   {
     "nome": "arquibancada",
     "png": "images/objects/arquibancada.png",
     "escala": 4.0,
-    "offset": 3.5
+    "offset": 5.7,
+    "offset_fim": 5.7
   },
   {
     "nome": "pneus_distante",
@@ -100,5 +102,19 @@
     "png": "images/objects/arquibancada_maior.png",
     "escala": 4.0,
     "offset": 5.85
+  },
+  {
+    "nome": "pneus_funil",
+    "png": "images/objects/pneus.png",
+    "escala": 0.9,
+    "offset": 3.75,
+    "offset_fim": 1.7
+  },
+  {
+    "nome": "pneus_entrada box",
+    "png": "images/objects/pneus.png",
+    "escala": 0.9,
+    "offset": 1.7,
+    "offset_fim": 5.85
   }
 ]
