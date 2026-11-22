@@ -593,7 +593,7 @@ class Game:
 
                 bots_temporarios.append({
                     "equipe": nome_eq,
-                    "classe": dados_eq.get("classe", "D"),
+                    "classe": dados.get("classe", "D"),
                     "nome": piloto["nome"],
                     "speed": 0,
                     "max_speed": vel_maxima_do_carro,

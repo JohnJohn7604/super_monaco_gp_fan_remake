@@ -67,6 +67,11 @@ class Car:
         # PROPRIEDADES DE DIREÇÃO (CORRIGIDO)
         # ==========================================
         self.steering = 0.0          # Garante que o volante comece reto
+        # Dentro de __init__ (logo abaixo de self.steering = 0)
+        self.delay_direcao_frames = 5      # Atraso antes de obedecer (~83ms a 60 FPS)
+        self.frames_tecla_direcao = 0      # Contador de quantos frames a tecla está segurada
+        self.ultima_direcao_tecla = 0      # -1 (esquerda), 1 (direita), 0 (solta)
+        self.vel_lateral = 0.0             # Inércia horizontal suave
         self.max_steering = 0.04     # <--- NOVA: Limite base de ângulo (Evita travar em 0)
         self.steering_speed = 0.1    # <--- NOVA: Velocidade de resposta base
         
@@ -337,33 +342,48 @@ class Car:
             # =========================================================
             # CONTROLE DE DIREÇÃO DO JOGADOR COM RETORNO DINÂMICO
             # =========================================================
-            if keys[pygame.K_LEFT]: 
-                target_steering = -self.max_steering
-                self.steering += (target_steering - self.steering) * self.steering_speed
-            elif keys[pygame.K_RIGHT]: 
-                target_steering = self.max_steering
-                self.steering += (target_steering - self.steering) * self.steering_speed
-            else:
-                target_steering = 0.0
-                # Quando solta o botão, o retorno é 3.5x mais rápido (Fim do efeito gelo)
-                self.steering += (target_steering - self.steering) * (self.steering_speed * 3.5)
+            # 1. Detecta a intenção do jogador
+        direcao_tecla = 0
+        if keys[pygame.K_LEFT] and not steering_locked:
+            direcao_tecla = -1
+        elif keys[pygame.K_RIGHT] and not steering_locked:
+            direcao_tecla = 1
 
-            # --- A MÁGICA DA AGILIDADE LATERAL (CORRIGIDA) ---
-            # Desvinculamos a direção pura da aceleração do motor!
-            percentual_vel = self.speed / self.max_speed
+        # 2. Controla o pequeno delay antes do carro obedecer
+        if direcao_tecla != 0 and direcao_tecla == self.ultima_direcao_tecla:
+            self.frames_tecla_direcao += 1
+        else:
+            self.frames_tecla_direcao = 0
+            self.ultima_direcao_tecla = direcao_tecla
+
+        # 3. Atualiza o esterço (self.steering) de forma gradual após passar o delay
+        if direcao_tecla != 0 and self.frames_tecla_direcao >= self.delay_direcao_frames:
+            self.steering += direcao_tecla * self.steering_speed
+            self.steering = max(-self.max_steering, min(self.max_steering, self.steering))
+        else:
+            # Retorna o volante ao centro suavemente quando solta a tecla ou durante o delay
+            retorno = self.steering_speed * 1.4
+            if abs(self.steering) <= retorno:
+                self.steering = 0.0
+            else:
+                self.steering -= retorno if self.steering > 0 else -retorno
+
+        # 4. Curva progressiva: começa bem devagar e ganha velocidade horizontal aos poucos
+        if self.speed > 5 and self.max_steering > 0:
+            proporcao_volante = abs(self.steering) / self.max_steering  # De 0.0 a 1.0
+            sinal = 1 if self.steering >= 0 else -1
             
-            # Criamos uma curva suave: O carro tem sempre pelo menos 45% de agilidade garantida 
-            # pelas molas da suspensão, mais o bónus da velocidade atual.
-            fator_esterco = 0.45 + (percentual_vel * 0.55) 
+            # O expoente 1.7 (mais baixo ) faz o início do movimento ser sutil e acelerar no fim do curso
+            curva_gradativa = (proporcao_volante ** 1.8) * self.max_steering * sinal
             
-            # Aplica o movimento lateral
-            self.player_x += self.steering * fator_esterco * 1.10
-            
-        elif steering_locked:
-            self.current_steering = 0
-            
-        # Trava para o carro não sair voando muito além da grama
-        self.player_x = max(-1.5, min(1.5, self.player_x))
+            fator_esterco = 0.60 + (percentual_vel * 0.40)
+            vel_lateral_alvo = curva_gradativa * fator_esterco * 0.64 #velocidade lateral máxima
+        else:
+            vel_lateral_alvo = 0.0
+
+        # Suaviza a transição de inércia lateral (0.22 = peso realista do chassi)
+        self.vel_lateral += (vel_lateral_alvo - self.vel_lateral) * 0.22
+        self.player_x += self.vel_lateral
 
         # 4. Áudio do Motor
         if self.motor_sound:
@@ -473,8 +493,12 @@ class Car:
         Atualiza as propriedades do carro com base no JSON da equipe.
         """
         direcao_equipe = dados_equipe.get("direcao", 3.0)
-        self.steering_speed = 0.05 + (direcao_equipe * 0.02)
-        self.max_steering = 0.025 + (direcao_equipe * 0.003)
+        
+        # Taxa menor faz o volante girar de forma gradual (leva ~15-20 frames para chegar ao máximo)
+        self.steering_speed = 0.0032 + (direcao_equipe * 0.0007)
+        
+        # Mantém o ângulo máximo alto para garantir velocidade final de curva boa
+        self.max_steering = 0.055 + (direcao_equipe * 0.005)
         
         lista_marchas = dados_equipe.get("forca_marchas", [1.6, 1.3, 1.05, 0.88, 0.75, 0.65, 0.58])
         
@@ -524,41 +548,23 @@ class Car:
                 self.frame_index += 1
                 self.animation_timer = tempo_atual
 
-        # 2. ANIMAÇÃO DO VOLANTE 
-        atraso_inicial = 30 
-        if keys[pygame.K_LEFT]:
-            if self.ultima_direcao == 'dir' and self.volante_frame > 0:
-                if tempo_atual > self.volante_timer:
-                    self.volante_frame -= 1
-                    self.volante_timer = tempo_atual + self.volante_speed
-                    if self.volante_frame == 0: self.ultima_direcao = 'reto'
-            else:
-                if self.ultima_direcao != 'esq' and self.volante_frame == 0:
-                    self.ultima_direcao = 'esq'
-                    self.volante_timer = tempo_atual + atraso_inicial
-                elif self.ultima_direcao == 'esq' and tempo_atual > self.volante_timer and self.volante_frame < 3:
-                    self.volante_frame += 1
-                    self.volante_timer = tempo_atual + self.volante_speed
-                
-        elif keys[pygame.K_RIGHT]:
-            if self.ultima_direcao == 'esq' and self.volante_frame > 0:
-                if tempo_atual > self.volante_timer:
-                    self.volante_frame -= 1
-                    self.volante_timer = tempo_atual + self.volante_speed
-                    if self.volante_frame == 0: self.ultima_direcao = 'reto'
-            else:
-                if self.ultima_direcao != 'dir' and self.volante_frame == 0:
-                    self.ultima_direcao = 'dir'
-                    self.volante_timer = tempo_atual + atraso_inicial
-                elif self.ultima_direcao == 'dir' and tempo_atual > self.volante_timer and self.volante_frame < 3:
-                    self.volante_frame += 1
-                    self.volante_timer = tempo_atual + self.volante_speed
+        #2. ANIMAÇÃO DO VOLANTE E PNEUS (SINCRONIZADA COM O DELAY E INÉRCIA DE self.steering)
+        proporcao_volante = abs(self.steering) / max(0.0001, self.max_steering)
+
+        if proporcao_volante < 0.05:
+            # Permanece reto durante o delay inicial e ao centralizar
+            self.volante_frame = 0
+            self.ultima_direcao = 'reto'
         else:
-            if tempo_atual > self.volante_timer and self.volante_frame > 0:
-                self.volante_frame -= 1
-                self.volante_timer = tempo_atual + self.volante_speed
-            if self.volante_frame == 0:
-                self.ultima_direcao = 'reto'
+            self.ultima_direcao = 'esq' if self.steering < 0 else 'dir'
+            
+            # Avança os 3 estágios visuais conforme o esterço ganha curso
+            if proporcao_volante < 0.38:
+                self.volante_frame = 1
+            elif proporcao_volante < 0.72:
+                self.volante_frame = 2
+            else:
+                self.volante_frame = 3
                 
         # 3. SELECIONAR IMAGENS E DESENHAR
         rotacao_atual = self.frame_index % 3 

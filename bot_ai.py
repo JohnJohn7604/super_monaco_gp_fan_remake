@@ -41,7 +41,6 @@ class BotAI:
         lap_limit = getattr(self.game, 'lap_limit', 1)
         race_finished = getattr(self.game, 'race_finished', False)
         dist_meta = total_len * lap_limit
-        pos_penultima = carro_jogador.laps_completed >= (lap_limit - 1)
 
         # Reseta o combo 1x por frame
         if tempo_atual - self.game.timer_combo > 4000:
@@ -52,15 +51,11 @@ class BotAI:
         menor_distancia_bot = 9999
         jogador_no_vacuo = False
 
-        # Hierarquia de classes para comparação (1x por frame)
-        hierarquia_classes = {"S": 5, "A": 4, "B": 3, "C": 2, "D": 1}
         equipes_dict = getattr(self.game, "equipes", {})
-        equipe_player = getattr(self.game, "equipe_atual_jogador", "")
-        classe_player = (
-            getattr(carro_jogador, "classe", None)
-            or equipes_dict.get(equipe_player, {}).get("classe", "D")
-        ).upper()
-        rank_classe_player = hierarquia_classes.get(classe_player, 1)
+        ordem_classes = {"D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
+        equipe_jogador = getattr(self.game, "equipe_atual_jogador", "")
+        classe_jogador = equipes_dict.get(equipe_jogador, {}).get("classe", "D").upper()
+        rank_jogador = ordem_classes.get(classe_jogador, 1)
 
         # Antes do loop "for bot in bots:"
         alerta_cego_esq = None
@@ -115,25 +110,21 @@ class BotAI:
             # 1.3. EVENTO ALEATÓRIO: "FALHA MECÂNICA LÁ NA FRENTE"
             if not bot.get("falha_mecanica", False):
                 if 200 < dist_relativa < half_len:
-                    if random.randint(1, 8500) == 1:
+                    if random.randint(1, 25000) == 1:
                         bot["falha_mecanica"] = True
                         bot["fim_falha"] = tempo_atual + random.randint(5000, 9000)
             else:
                 if tempo_atual > bot.get("fim_falha", 0):
                     bot["falha_mecanica"] = False
 
-            # 2. IA de Curvas Corajosas
+            # 2. IA de Curvas (Ritmo real independente da posição do jogador)
             curva_do_bot = get_curve(bot["pos"])
             
             if abs(curva_do_bot) > 0.02 and not sprint_largada:
-                if dist_relativa > 0:
-                    multiplicador_curva = 0.36 + (bot["direcao"] * 0.05)
-                else:
-                    multiplicador_curva = 0.80 + (bot["direcao"] * 0.008)
-
+                multiplicador_curva = 0.68 + (bot["direcao"] * 0.022)
                 target_speed = bot["max_speed"] * multiplicador_curva
                 target_speed = min(bot["max_speed"], target_speed)
-                target_speed = max(145, target_speed)
+                target_speed = max(175, target_speed)
             else:
                 target_speed = bot["max_speed"]
 
@@ -141,21 +132,17 @@ class BotAI:
             if bot.get("falha_mecanica", False):
                 target_speed = min(target_speed, 260.0)
 
-            # Multiplicadores de ritmo (aplicados ANTES do freio/acelerador)
-            if pos_penultima and bot["pos"] < player_pos and not race_finished:
-                target_speed *= 1.03
-
             classe_bot = (bot.get("classe") or equipes_dict.get(bot.get("equipe", ""), {}).get("classe", "D")).upper()
-            eh_classe_a = (classe_bot == "A")
-            bot_classe_maior_atras = (
-                hierarquia_classes.get(classe_bot, 1) > rank_classe_player
-                and dist_relativa < 0
-            )
+            rank_bot = ordem_classes.get(classe_bot, 1)
+            bot_classe_maior_atras = (dist_relativa < 0) and (rank_bot > rank_jogador)
 
+            # Buffer de +5% de velocidade para carros de classe superior atrás do jogador
             if bot_classe_maior_atras:
-                target_speed *= 1.07
+                target_speed *= 1.05
 
-            # ---> RADAR DE FRENAGEM INTELIGENTE (Detecta bloqueio com largura ampliada) <---
+            eh_classe_a = (classe_bot == "A")
+
+            # ---> RADAR DE FRENAGEM INTELIGENTE <---
             if -42 < dist_relativa < 0 and jogador_na_pista:
                 if abs(bot["x"] - player_x) < 0.52:
                     piso_vel = 0 if player_speed < 60 else max(80, player_speed * 0.92)
@@ -180,7 +167,7 @@ class BotAI:
                 elif bot["speed"] < target_speed:
                     forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
                     if bot_classe_maior_atras:
-                        forca_motor *= 1.07
+                        forca_motor *= 1.05
                     bot["speed"] = min(target_speed, bot["speed"] + forca_motor)
 
             # 4. O SISTEMA DE LINHAS E TANGÊNCIA (RACING LINE)
