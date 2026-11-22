@@ -215,7 +215,19 @@
     {
       "nome": "Nobel",
       "png": "images/objects/nobel_placa.png",
-      "escala": 1.3,
+      "escala": 0.9,
+      "offset": 1.55
+    },
+    {
+      "nome": "non plugs",
+      "png": "images/objects/non_sparks.png",
+      "escala": 1.0,
+      "offset": 1.55
+    },
+    {
+      "nome": "sters",
+      "png": "images/objects/anuncio_ster's.png",
+      "escala": 1.0,
       "offset": 1.55
     }
   ],
@@ -379,6 +391,102 @@
       "quantidade": 12,
       "inicio_pct": 20,
       "espacamento": 5
+    },
+    {
+      "seg_idx": 2,
+      "objeto": "Jacare",
+      "lado": "esq",
+      "quantidade": 8,
+      "inicio_pct": 50,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "Jacare",
+      "lado": "esq",
+      "quantidade": 4,
+      "inicio_pct": 10,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "Jacare",
+      "lado": "dir",
+      "quantidade": 8,
+      "inicio_pct": 10,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "Nobel",
+      "lado": "esq",
+      "quantidade": 8,
+      "inicio_pct": 10,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "non plugs",
+      "lado": "ambos",
+      "quantidade": 8,
+      "inicio_pct": 40,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "sters",
+      "lado": "ambos",
+      "quantidade": 9,
+      "inicio_pct": 60,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 12,
+      "objeto": "Jacare",
+      "lado": "dir",
+      "quantidade": 13,
+      "inicio_pct": 50,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 15,
+      "objeto": "sters",
+      "lado": "dir",
+      "quantidade": 8,
+      "inicio_pct": 50,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 17,
+      "objeto": "sters",
+      "lado": "dir",
+      "quantidade": 8,
+      "inicio_pct": 50,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 20,
+      "objeto": "non plugs",
+      "lado": "ambos",
+      "quantidade": 8,
+      "inicio_pct": 50,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 21,
+      "objeto": "non plugs",
+      "lado": "esq",
+      "quantidade": 6,
+      "inicio_pct": 50,
+      "espacamento": 11
+    },
+    {
+      "seg_idx": 22,
+      "objeto": "non plugs",
+      "lado": "ambos",
+      "quantidade": 11,
+      "inicio_pct": 50,
+      "espacamento": 11
     }
   ]
 }

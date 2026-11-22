@@ -51,7 +51,7 @@ class Car:
         # 2. Handicap nerf Fixo de Aceleração (Independente da Equipe)
         # Define uma porcentagem fixa da aceleração original da equipe para o player.
         # Ex: 0.75 = o player tem 75% da aceleração da equipe (25% mais lento para arrancar).
-        handicap_aceleracao_player = 0.80
+        handicap_aceleracao_player = 0.93
         
         self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
 

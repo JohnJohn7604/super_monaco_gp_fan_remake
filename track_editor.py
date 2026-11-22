@@ -78,7 +78,7 @@ class TrackEditor:
     def __init__(self):
         pygame.init()
         pygame.font.init()
-        flags = pygame.SCALED | pygame.DOUBLEBUF
+        flags = pygame.SCALED | pygame.RESIZABLE | pygame.DOUBLEBUF
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
         pygame.display.set_caption("Super Monaco GP - Criador e Editor de Pistas")
         self.clock = pygame.time.Clock()
@@ -823,8 +823,8 @@ class TrackEditor:
     def modificar_obj_escala(self, delta):
         self.obj_escala_input = round(max(0.2, min(4.0, self.obj_escala_input + delta)), 2)
 
-    def modificar_obj_offset(self, delta):
-        self.obj_offset_input = round(max(1.05, min(3.50, self.obj_offset_input + delta)), 2)
+    def modificar_obj_offset(self, delta): # DISTANCIA OBJETOS
+        self.obj_offset_input = round(max(1.05, min(10.50, self.obj_offset_input + delta)), 2)
 
     def action_criar_objeto_catalogo(self):
         nome = self.obj_nome_input.strip()
