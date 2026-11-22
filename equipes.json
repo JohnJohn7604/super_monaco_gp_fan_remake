@@ -1,9 +1,9 @@
 {
     "Madonna": {
-        "classe": "S",
-        "velocidade_base": 332.5,
-        "aceleracao": 3.1,
-        "direcao": 1.3,
+        "classe": "A",
+        "velocidade_base": 331.98,
+        "aceleracao": 2.9,
+        "direcao": 1.28,
         "pasta": "madonna",
         "forca_marchas": [
             1.7919,
@@ -40,9 +40,9 @@
             {
                 "nome": "A. Asselin",
                 "aceleracao": 1.2,
-                "speed": 15,
-                "freio": 7.5,
-                "direcao": 3.4,
+                "speed": 12.8,
+                "freio": 4.5,
+                "direcao": 3.325,
                 "cor_capacete": [
                     255,
                     255,
@@ -53,10 +53,10 @@
         ]
     },
     "Firenze": {
-        "classe": "S",
-        "velocidade_base": 332,
-        "aceleracao": 3.07,
-        "direcao": 1.3,
+        "classe": "A",
+        "velocidade_base": 331.95,
+        "aceleracao": 2.89,
+        "direcao": 1.27,
         "pasta": "firenze",
         "forca_marchas": [
             1.7397,
@@ -93,9 +93,9 @@
             {
                 "nome": "F. Elsser",
                 "aceleracao": 1.2,
-                "speed": 15,
-                "freio": 7.2,
-                "direcao": 3.6,
+                "speed": 12.5,
+                "freio": 4.5,
+                "direcao": 3.3,
                 "cor_capacete": [
                     255,
                     128,
@@ -107,8 +107,8 @@
     },
     "Millions": {
         "classe": "A",
-        "velocidade_base": 332,
-        "aceleracao": 3,
+        "velocidade_base": 331.9,
+        "aceleracao": 2.87,
         "direcao": 1.25,
         "pasta": "millions",
         "forca_marchas": [
@@ -145,10 +145,10 @@
         "pilotos": [
             {
                 "nome": "G. Alberti",
-                "aceleracao": 1.15,
-                "speed": 14,
-                "freio": 6.2,
-                "direcao": 3.5,
+                "aceleracao": 0.98,
+                "speed": 12,
+                "freio": 4.5,
+                "direcao": 3.29,
                 "cor_capacete": [
                     255,
                     255,
@@ -160,8 +160,8 @@
     },
     "Bestowal": {
         "classe": "A",
-        "velocidade_base": 332,
-        "aceleracao": 3,
+        "velocidade_base": 331.7,
+        "aceleracao": 2.85,
         "direcao": 1.2,
         "pasta": "bestowal",
         "forca_marchas": [
@@ -198,10 +198,10 @@
         "pilotos": [
             {
                 "nome": "A. Picos",
-                "aceleracao": 1.1,
-                "speed": 14,
-                "freio": 6.0,
-                "direcao": 3.5,
+                "aceleracao": 0.95,
+                "speed": 12.25,
+                "freio": 4.25,
+                "direcao": 3.27,
                 "cor_capacete": [
                     255,
                     255,
@@ -213,8 +213,8 @@
     },
     "Blanche": {
         "classe": "B",
-        "velocidade_base": 331,
-        "aceleracao": 3,
+        "velocidade_base": 331.5,
+        "aceleracao": 2.825,
         "direcao": 1.2,
         "pasta": "blanche",
         "forca_marchas": [
@@ -251,10 +251,10 @@
         "pilotos": [
             {
                 "nome": "J. Herbin",
-                "aceleracao": 1.0,
+                "aceleracao": 0.925,
                 "speed": 12,
-                "freio": 4.8,
-                "direcao": 3.5,
+                "freio": 4.45,
+                "direcao": 3.25,
                 "cor_capacete": [
                     255,
                     255,
@@ -267,7 +267,7 @@
     "Tyrant": {
         "classe": "B",
         "velocidade_base": 331,
-        "aceleracao": 2.9,
+        "aceleracao": 2.95,
         "direcao": 1.2,
         "pasta": "tyrant",
         "forca_marchas": [
@@ -304,10 +304,10 @@
         "pilotos": [
             {
                 "nome": "M. Hamano",
-                "aceleracao": 1.0,
+                "aceleracao": 0.9,
                 "speed": 12,
-                "freio": 4.6,
-                "direcao": 3.4,
+                "freio": 4.4,
+                "direcao": 3.2,
                 "cor_capacete": [
                     255,
                     255,

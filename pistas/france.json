@@ -1,0 +1,282 @@
+{
+  "nome": "Grande Prêmio da França",
+  "bg_image": "images/bg_france.png",
+  "bg_width": 1940,
+  "bg_height": 135,
+  "cores": {
+    "zebra_1": [
+      20,
+      80,
+      230
+    ],
+    "zebra_2": [
+      255,
+      255,
+      255
+    ],
+    "grama_1": [
+      0,
+      100,
+      0
+    ],
+    "grama_2": [
+      0,
+      150,
+      0
+    ],
+    "asfalto_1": [
+      100,
+      100,
+      100
+    ],
+    "asfalto_2": [
+      105,
+      105,
+      105
+    ]
+  },
+  "segmentos": [
+    {
+      "length": 390,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Reta de Largada e Boxes"
+    },
+    {
+      "length": 95,
+      "curve": 0.0448,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 90,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 50,
+      "curve": -0.0293,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 55,
+      "curve": 0.033,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 50,
+      "curve": -0.0293,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 65,
+      "curve": 0.0376,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 913,
+      "curve": 0.0,
+      "hill": 0.002,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 320,
+      "curve": 0.0071,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 460,
+      "curve": 0.0072,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 135,
+      "curve": 0.0323,
+      "hill": -0.002,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 170,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 110,
+      "curve": -0.0454,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 226,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": 0.0253,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 110,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 85,
+      "curve": -0.0419,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 65,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 85,
+      "curve": 0.0419,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 259,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    }
+  ],
+  "objetos_catalogo": [
+    {
+      "nome": "Direita",
+      "png": "images/objects/vire_a_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Esquerda",
+      "png": "images/objects/vire_a_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.55
+    },
+    {
+      "nome": "Fechada Direita",
+      "png": "images/objects/fechada_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Fechada Esquerda",
+      "png": "images/objects/fechada_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "predio",
+      "png": "images/objects/predio_cidade.png",
+      "escala": 4.0,
+      "offset": 1.8
+    }
+  ],
+  "objetos_pista": [
+    {
+      "seg_idx": 0,
+      "objeto": "predio",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 14,
+      "inicio_pct": 80,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 2,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 8,
+      "inicio_pct": 70,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 3,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 6,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 5,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 8,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 7,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 16,
+      "inicio_pct": 88,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 14,
+      "inicio_pct": 82,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 14,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 13,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 12,
+      "inicio_pct": 80,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 15,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 12,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 17,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 10,
+      "inicio_pct": 60,
+      "espacamento": 6
+    }
+  ]
+}

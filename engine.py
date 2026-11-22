@@ -24,6 +24,11 @@ class Game:
         self.clock = pygame.time.Clock()
         self.imagem_cache = {}
 
+        #dinamica relogio preliminary race
+        self.grid_hud_visivel = False
+        self.grid_pos_hud_atual = 16
+        self.grid_pos_relogio_atual = 16
+
         # Interface de Menus e bots
         self.ui = MenuUI(self)
         self.ai = BotAI(self)
@@ -32,6 +37,7 @@ class Game:
         self.fonte_normal = pygame.font.SysFont('Arial', 30)
         self.fonte_pequena = pygame.font.SysFont('Arial', 17)
         self.fonte_sub = pygame.font.SysFont('Arial', 20, bold=True)
+        self.fonte_banner = pygame.font.SysFont('Arial', 54, bold=True)
 
         # Fontes reutilizáveis (criadas apenas uma vez ao iniciar o jogo)
         self.fonte_menu = pygame.font.SysFont('Arial', 50, bold=True)
@@ -109,6 +115,9 @@ class Game:
         self.prelim_last_lap_count = 0
         self.prelim_lap_start_time = 0
         self.tempos_qualificacao = self.carregar_tempos_qualificacao()
+
+        self.grid_hud_visivel = False
+        self.grid_pos_hud_atual = 16
 
         self.nome_digitado = ""
 
@@ -540,6 +549,11 @@ class Game:
             now = pygame.time.get_ticks()
             self.melhor_volta_preliminary = None
             self.posicao_qualificada = 16
+            self.melhor_volta_preliminary = None
+            self.posicao_qualificada = 16
+            self.grid_hud_visivel = False
+            self.grid_pos_hud_atual = 16
+            self.grid_pos_relogio_atual = 16
             self.asd_hold_start = None
             self.prelim_last_lap_count = 0
             self.prelim_lap_start_time = now
@@ -579,6 +593,7 @@ class Game:
 
                 bots_temporarios.append({
                     "equipe": nome_eq,
+                    "classe": dados_eq.get("classe", "D"),
                     "nome": piloto["nome"],
                     "speed": 0,
                     "max_speed": vel_maxima_do_carro,
@@ -748,13 +763,33 @@ class Game:
         bots_a_frente = sum(1 for bot in self.bots if bot["pos"] > self.car.position)
         posicao_atual = 1 + bots_a_frente
 
-        self.car.draw_cockpit(self.screen, keys, tempo_atual, self.track, self.bots, self.cache_sprites, posicao_atual)
+        eh_preliminary = (
+            self.estado_jogo == "PRELIMINARY"
+            or (self.estado_jogo == "PAUSE" and self.estado_antes_pause == "PRELIMINARY")
+        )
+
+        self.car.draw_cockpit(
+            self.screen, keys, tempo_atual, self.track,
+            self.bots, self.cache_sprites, posicao_atual,
+            lap_limit=self.lap_limit,
+            modo_preliminary=eh_preliminary,
+            grid_hud_visivel=self.grid_hud_visivel,
+            grid_pos_hud=self.grid_pos_hud_atual,
+            grid_pos_relogio=self.grid_pos_relogio_atual
+        )
 
         if hasattr(self, 'cockpit_img') and self.cockpit_img:
             self.screen.blit(self.cockpit_img, (0, 0))
 
         if hasattr(self, 'car') and self.car and self.estado_jogo != "PRELIMINARY":
             self.car.draw_debug(self.screen, self.bots, self.track.total_track_length)
+
+        self.car.draw_alerta_ponto_cego(
+            self.screen,
+            tempo_atual,
+            getattr(self, "alerta_cego_esq", None),
+            getattr(self, "alerta_cego_dir", None),
+        )
 
     def despausar_jogo(self):
         tempo_pausado = pygame.time.get_ticks() - self.inicio_pause_tick
@@ -1191,7 +1226,7 @@ class Game:
 
             rpm_ratio = self.car.rpm_neutro / self.car.max_speed
             if rpm_ratio > 0.7:
-                self.car.speed = (self.car.max_speed * 0.15)
+                self.car.speed = (self.car.max_speed * 0.08)
             else:
                 self.car.speed = (self.car.rpm_neutro * 0.1)
 
@@ -1347,21 +1382,23 @@ class Game:
                 self.fisica_colisao_bots(tempo_atual, keys)
                 self.audio_dinamico(tempo_atual)
 
-                # Spawna carros aleatórios com intervalo mínimo de 1 minuto
+                # Spawna carros aleatórios com intervalo mínimo de 40s
                 if tempo_atual >= self.prox_spawn_preliminary:
                     self.spawnar_carro_aleatorio_preliminary(tempo_atual)
 
-                # Contabiliza tempo de volta completada para qualificação
-                if self.car.laps_completed > self.prelim_last_lap_count:
-                    tempo_volta = (tempo_atual - self.prelim_lap_start_time) / 1000.0
-                    self.prelim_lap_start_time = tempo_atual
-                    self.prelim_last_lap_count = self.car.laps_completed
+                # Só exibe o mostrador após completar pelo menos 1 volta cronometrada
+                if self.car.laps_completed >= 1 and self.car.last_lap_time > 0:
+                    if self.melhor_volta_preliminary is None or self.car.last_lap_time < self.melhor_volta_preliminary:
+                        self.melhor_volta_preliminary = self.car.last_lap_time
 
-                    if self.melhor_volta_preliminary is None or tempo_volta < self.melhor_volta_preliminary:
-                        self.melhor_volta_preliminary = tempo_volta
-                        self.posicao_qualificada = self.calcular_posicao_preliminary(
-                            self.pista_preliminary_atual, self.melhor_volta_preliminary
-                        )
+                    self.posicao_qualificada = self.calcular_posicao_preliminary(
+                        self.pista_preliminary_atual, self.melhor_volta_preliminary
+                    )
+                    self.grid_pos_hud_atual = self.posicao_qualificada
+                    self.grid_pos_relogio_atual = self.calcular_posicao_preliminary(
+                        self.pista_preliminary_atual, self.car.current_lap_time
+                    )
+                    self.grid_hud_visivel = True
 
                 # Verifica se segurou A + S + D por 2 segundos (2000 ms) para sair
                 progresso_saida = 0.0
@@ -1384,14 +1421,14 @@ class Game:
                     self.asd_hold_start = None
 
                 self.renderizar_corrida(tempo_atual, keys)
-                tempos_pista = self.obter_lista_tempos_pista(self.pista_preliminary_atual)
-                target_p1 = tempos_pista[0] if tempos_pista else None
-                self.ui.desenhar_hud_preliminary(
-                    self.melhor_volta_preliminary,
-                    self.posicao_qualificada,
-                    target_p1,
-                    progresso_saida
-                )
+
+                # Barra discreta apenas quando o jogador estiver segurando A+S+D para sair
+                if progresso_saida > 0:
+                    bar_w, bar_h = 260, 14
+                    bx = WIDTH // 2 - bar_w // 2
+                    by = HEIGHT - 32
+                    pygame.draw.rect(self.screen, (20, 20, 20), (bx - 2, by - 2, bar_w + 4, bar_h + 4))
+                    pygame.draw.rect(self.screen, (255, 200, 0), (bx, by, int(bar_w * min(1.0, progresso_saida)), bar_h))
 
                 pygame.display.flip()
                 self.clock.tick(FPS)

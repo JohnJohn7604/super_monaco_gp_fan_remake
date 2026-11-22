@@ -1,0 +1,336 @@
+{
+  "nome": "Grande Prémio de Hungria",
+  "bg_image": "images/bg_hungary.png",
+  "bg_width": 1940,
+  "bg_height": 135,
+  "cores": {
+    "zebra_1": [
+      220,
+      20,
+      20
+    ],
+    "zebra_2": [
+      255,
+      255,
+      255
+    ],
+    "grama_1": [
+      20,
+      105,
+      25
+    ],
+    "grama_2": [
+      30,
+      145,
+      35
+    ],
+    "asfalto_1": [
+      95,
+      95,
+      100
+    ],
+    "asfalto_2": [
+      102,
+      102,
+      108
+    ]
+  },
+  "segmentos": [
+    {
+      "length": 340,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Reta de Largada e Boxes"
+    },
+    {
+      "length": 90,
+      "curve": 0.02618,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 150,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": -0.02618,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 390,
+      "curve": 0.0,
+      "hill": 0.002,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 60,
+      "curve": -0.01309,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 240,
+      "curve": 0.0,
+      "hill": 0.003,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 70,
+      "curve": 0.03366,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 160,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 60,
+      "curve": 0.01309,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 70,
+      "curve": -0.01309,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 75,
+      "curve": 0.01571,
+      "hill": -0.002,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 195,
+      "curve": 0.0,
+      "hill": -0.003,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 75,
+      "curve": 0.01047,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 360,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": 0.01963,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 215,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 75,
+      "curve": -0.01963,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 135,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 90,
+      "curve": 0.02618,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 160,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": -0.02618,
+      "hill": 0.0,
+      "desc": "Curva para Esquerda"
+    },
+    {
+      "length": 160,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    },
+    {
+      "length": 80,
+      "curve": 0.02618,
+      "hill": 0.0,
+      "desc": "Curva para Direita"
+    },
+    {
+      "length": 290,
+      "curve": 0.0,
+      "hill": 0.0,
+      "desc": "Nova Reta"
+    }
+  ],
+  "objetos_catalogo": [
+    {
+      "nome": "Direita",
+      "png": "images/objects/vire_a_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Esquerda",
+      "png": "images/objects/vire_a_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.55
+    },
+    {
+      "nome": "Fechada Direita",
+      "png": "images/objects/fechada_direita.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "Fechada Esquerda",
+      "png": "images/objects/fechada_esquerda.png",
+      "escala": 1.3,
+      "offset": 1.7
+    },
+    {
+      "nome": "predio",
+      "png": "images/objects/predio_cidade.png",
+      "escala": 4.0,
+      "offset": 1.8
+    }
+  ],
+  "objetos_pista": [
+    {
+      "seg_idx": 0,
+      "objeto": "predio",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 14,
+      "inicio_pct": 80,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 2,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 12,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 4,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 10,
+      "inicio_pct": 85,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 14,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 8,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 10,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 8,
+      "inicio_pct": 55,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 10,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 8,
+      "inicio_pct": 60,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 12,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 10,
+      "inicio_pct": 80,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 14,
+      "objeto": "Direita",
+      "lado": "esq",
+      "quantidade": 12,
+      "inicio_pct": 85,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 16,
+      "objeto": "Esquerda",
+      "lado": "dir",
+      "quantidade": 10,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 18,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 14,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 20,
+      "objeto": "Fechada Esquerda",
+      "lado": "dir",
+      "quantidade": 12,
+      "inicio_pct": 75,
+      "espacamento": 6
+    },
+    {
+      "seg_idx": 22,
+      "objeto": "Fechada Direita",
+      "lado": "esq",
+      "quantidade": 12,
+      "inicio_pct": 75,
+      "espacamento": 6
+    }
+  ]
+}

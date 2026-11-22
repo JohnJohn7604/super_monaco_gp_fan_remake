@@ -14,9 +14,26 @@ class Car:
         # --- SISTEMA DE TEMPOS E VOLTAS ---
         self.laps_completed = 0
         self.lap_start_tick = pygame.time.get_ticks()
+        self.race_start_tick = None
         self.current_lap_time = 0
         self.last_lap_time = 0
         self.best_lap_time = 0
+        self.historico_voltas = []
+        self.total_race_time = 0
+
+        # Fontes estilo arcade 16-bits (itálico)
+        self.font_hud_label = pygame.font.SysFont('Arial', 16, bold=True)
+        self.font_hud_label.set_italic(True)
+        self.font_hud_val = pygame.font.SysFont('Arial', 21, bold=True)
+        self.font_hud_val.set_italic(True)
+        self.font_hud_pos = pygame.font.SysFont('Arial', 32, bold=True)
+        self.font_hud_pos.set_italic(True)
+        self.font_hud_ord = pygame.font.SysFont('Arial', 15, bold=True)
+        self.font_hud_ord.set_italic(True)
+        self.font_hud_rpm = pygame.font.SysFont('Arial', 13, bold=True)
+        self.font_hud_rpm.set_italic(True)
+        self.font_hud_speed = pygame.font.SysFont('Arial', 44, bold=True)
+        self.font_hud_speed.set_italic(True)
 
         # ==========================================
         # FÍSICA DINÂMICA DO MOTOR (COM HANDICAP DO PLAYER)
@@ -27,14 +44,14 @@ class Car:
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        handicap_velocidade_maxima = 0.93
+        handicap_velocidade_maxima = 0.98
 
         self.max_speed = velocidade_maxima * handicap_velocidade_maxima
         
-        # 2. Handicap Fixo de Aceleração (Independente da Equipe)
+        # 2. Handicap nerf Fixo de Aceleração (Independente da Equipe)
         # Define uma porcentagem fixa da aceleração original da equipe para o player.
         # Ex: 0.75 = o player tem 75% da aceleração da equipe (25% mais lento para arrancar).
-        handicap_aceleracao_player = 0.68
+        handicap_aceleracao_player = 0.80
         
         self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
 
@@ -77,7 +94,7 @@ class Car:
             6: self.max_speed * 0.90,
             7: self.max_speed * 1.05  
         }
-        self.torque_marchas = {1: 1.5, 2: 1.2, 3: 1.0, 4: 0.85, 5: 0.75, 6: 0.62, 7: 0.62}
+        self.torque_marchas = {1: 1.4, 2: 1.15, 3: 0.95, 4: 0.78, 5: 0.60, 6: 0.46, 7: 0.36}
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
@@ -239,7 +256,7 @@ class Car:
             # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
             vel_referencia = self.max_speed + 10 if no_vacuo else self.max_speed
             
-            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.5 - (self.speed / vel_referencia))
+            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.25 - (self.speed / vel_referencia))
             
             # O Vácuo tira a resistência do ar: aceleração aumenta 20% para sugar o carro!
             if no_vacuo and self.speed > 300:
@@ -286,7 +303,7 @@ class Car:
         # =========================================================
         # 3. POSIÇÃO, FORÇA CENTRÍFUGA E DIREÇÃO (CORRIGIDO)
         # =========================================================
-        self.position += self.speed * 0.005
+        self.position += self.speed * 0.0036
         percentual_vel = self.speed / self.max_speed
 
         # Inicializa a força zerada para garantir segurança absoluta nas retas
@@ -299,7 +316,7 @@ class Car:
             # Multiplicador original: 1.4. Ajustado (+3%): 1.4 * 1.03 = 1.442
             # Aumenta o empurrão lateral nas curvas, exigindo maior perícia do piloto.
             # =========================================================================
-            forca_centrifuga = (percentual_vel ** 1.05) * curve_intensity * 1.444
+            forca_centrifuga = (percentual_vel ** 1.05) * curve_intensity * 1.25
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
@@ -340,7 +357,7 @@ class Car:
             fator_esterco = 0.45 + (percentual_vel * 0.55) 
             
             # Aplica o movimento lateral
-            self.player_x += self.steering * fator_esterco * 1.35
+            self.player_x += self.steering * fator_esterco * 1.10
             
         elif steering_locked:
             self.current_steering = 0
@@ -494,7 +511,7 @@ class Car:
         # Ex: self.canal_motor.set_volume(0.5 + (self.rpm_neutro / 1000))
 
     # Adicionamos 'bots' e 'bot_sprites' no final
-    def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None, posicao_atual=1):
+    def draw_cockpit(self, screen, keys, tempo_atual, track, bots=None, bot_sprites=None, posicao_atual=1, lap_limit=1, modo_preliminary=False, grid_hud_visivel=False, grid_pos_hud=16, grid_pos_relogio=16):
         # 1. ANIMAÇÃO DOS PNEUS
         if self.speed > 0:
             if self.speed < 50: delay_animacao = 150
@@ -565,62 +582,6 @@ class Car:
         screen.blit(pneu_esq_img, (centro_x - 180 - pneu_esq_img.get_width(), fundo_y - 80))
         screen.blit(pneu_dir_img, (centro_x + 180, fundo_y - 80)) 
         screen.blit(volante_atual, (centro_x - (volante_atual.get_width() // 2), fundo_y - volante_atual.get_height()))
-
-       # ==========================================
-        # 4. PAINEL: CONTA-GIROS (RPM) E VELOCIDADE
-        # ==========================================
-        centro_relogio_x, centro_relogio_y = margem + 150, margem + 120
-        
-        # --- A MÁGICA DO RPM ---
-        limite_atual = self.limite_marchas[self.marcha_atual]
-        
-        # Se a velocidade for 0 (no Countdown), o ponteiro lê o giro falso do motor!
-        if self.speed == 0 and hasattr(self, 'rpm_neutro'):
-            porcentagem_rpm = self.rpm_neutro / self.max_speed
-        else:
-            porcentagem_rpm = self.speed / limite_atual
-            
-        # Marcha lenta (Idle): O ponteiro nunca cai para o zero absoluto
-        if porcentagem_rpm < 0.1:
-            porcentagem_rpm = 0.1
-            
-        # Trava de segurança: Se o carro embalar numa descida além da marcha, o ponteiro não dá uma volta de 360º!
-        porcentagem_rpm = min(1.05, porcentagem_rpm) 
-
-        # O ponteiro vai de 180º (Esquerda) até 0º (Direita)
-        angulo_ponteiro = math.pi - (porcentagem_rpm * math.pi)
-        ponta_x = centro_relogio_x + math.cos(angulo_ponteiro) * 60
-        ponta_y = centro_relogio_y - math.sin(angulo_ponteiro) * 60
-
-        # Muda a cor da ponta do ponteiro para VERMELHO se estiver no "Redline" (pedindo marcha)
-        cor_ponteiro = (255, 0, 0) if porcentagem_rpm > 0.95 else (255, 200, 0)
-
-        # Desenha a linha do ponteiro e o pino central
-        pygame.draw.line(screen, cor_ponteiro, (centro_relogio_x, centro_relogio_y), (ponta_x, ponta_y), 5)
-        pygame.draw.circle(screen, (20, 20, 20), (centro_relogio_x, centro_relogio_y), 10)
-
-        # ==========================================
-        # TEXTOS DO HUD (Design Moderno)
-        # ==========================================
-        
-        # 1. Velocímetro e Transmissão (Deslocados um pouco para baixo)
-        texto_vel = self.font.render(f"{int(self.speed)} KM/H", True, WHITE)
-        cor_trans = (0, 255, 0) if self.transmissao == "AUTO" else (255, 50, 50)
-        texto_trans = pygame.font.SysFont('Arial', 20, bold=True).render(self.transmissao, True, cor_trans)
-        
-        screen.blit(texto_vel, (centro_relogio_x - 45, centro_relogio_y + 40))
-        screen.blit(texto_trans, (centro_relogio_x - 30, centro_relogio_y + 70))
-
-        # 2. INDICADOR DE MARCHA (GEAR)
-        # Colocamos um número GRANDE bem no meio da parte de baixo do círculo do relógio
-        fonte_marcha = pygame.font.SysFont('Arial', 45, bold=True)
-        texto_marcha = fonte_marcha.render(str(self.marcha_atual), True, (255, 200, 0))
-        
-        # Centraliza o número exatamente no meio do eixo X do relógio
-        pos_x_marcha = centro_relogio_x - (texto_marcha.get_width() // 2)
-        pos_y_marcha = centro_relogio_y + 1 # Fica logo abaixo do pino do ponteiro
-        
-        screen.blit(texto_marcha, (pos_x_marcha, pos_y_marcha))
 
         # ==========================================
         # 5. RETROVISOR (VISÃO TRASEIRA)
@@ -744,59 +705,141 @@ class Car:
         screen.blit(self.retrovisor_img, (retro_x, retro_y))
 
         # ==========================================
-        # 6.INDICADOR DE POSIÇÃO (Abaixo do Retrovisor)
+        # 6. HUD CLÁSSICO SUPER MONACO GP
         # ==========================================
-        # Usamos a mesma lógica de centralização do retrovisor
-        retro_w = int(WIDTH // 1.5)
-        retro_h = 120
-        retro_x = (WIDTH - retro_w) // 2
-        retro_y = 20
-        
-        # Criamos o texto (ex: 1ST, 2ND, 3RD, 4TH...)
-        suffix = "TH"
-        if posicao_atual == 1: suffix = "ST"
-        elif posicao_atual == 2: suffix = "ND"
-        elif posicao_atual == 3: suffix = "RD"
-        
-        fonte_pos = pygame.font.SysFont('Arial', 40, bold=True)
-        texto_pos = fonte_pos.render(f"{posicao_atual}{suffix}", True, (255, 255, 0)) # Amarelo
-        
-        # Centraliza o texto exatamente abaixo da moldura do retrovisor
-        pos_x = (WIDTH // 2) - (texto_pos.get_width() // 2)
-        pos_y = retro_y + retro_h + 5 # 5 pixels de folga abaixo da moldura
-        
-        # Desenha uma pequena sombra preta para dar leitura
-        texto_sombra = fonte_pos.render(f"{posicao_atual}{suffix}", True, (0, 0, 0))
-        screen.blit(texto_sombra, (pos_x + 2, pos_y + 2))
-        screen.blit(texto_pos, (pos_x, pos_y))
+        VERMELHO = (225, 35, 35)
+        AMARELO  = (245, 215, 45)
+        BRANCO   = (250, 250, 250)
 
-        # ==========================================
-        # 7. CRONÔMETRO E VOLTAS (HUD Lateral)
-        # ==========================================
-        # Posicionamos no canto superior direito
-        cor_hud = (255, 255, 255)
-        cor_destaque = (255, 200, 0)
-        
-        # Função rápida para formatar 00:00.00
-        def formatar_tempo(t):
-            mins = int(t // 60)
-            segs = int(t % 60)
-            ms = int((t * 100) % 100)
-            return f"{mins:02}:{segs:02}.{ms:02}"
+        def draw_txt(fonte, texto, cor, x, y, alinhar="left"):
+            sombra = fonte.render(texto, True, (10, 10, 10))
+            frente = fonte.render(texto, True, cor)
+            if alinhar == "right":
+                x -= frente.get_width()
+            elif alinhar == "center":
+                x -= frente.get_width() // 2
+            screen.blit(sombra, (x + 2, y + 2))
+            screen.blit(frente, (x, y))
+            return frente.get_width()
 
-        x_hud, y_hud = WIDTH - 220, 20
-        # Fundo preto semi-transparente para o HUD (opcional, mas fica profissional)
-        pygame.draw.rect(screen, (0, 0, 0, 150), (x_hud - 10, y_hud - 5, 220, 130))
-        
-        lap_num = self.laps_completed + 1
-        is_final_lap = hasattr(self, 'lap_limit') and self.lap_limit is not None and (lap_num == self.lap_limit)
-        texto_lap = "FINAL LAP" if is_final_lap else f"LAP: {lap_num}"
-        cor_lap = (255, 215, 0) if is_final_lap else cor_hud
-        screen.blit(self.font.render(texto_lap, True, cor_lap), (x_hud, y_hud))
-        screen.blit(self.font.render(f"TIME: {formatar_tempo(self.current_lap_time)}", True, cor_hud), (x_hud, y_hud + 30))
-        screen.blit(self.font.render(f"LAST: {formatar_tempo(self.last_lap_time)}", True, cor_hud), (x_hud, y_hud + 60))
-        screen.blit(self.font.render(f"BEST:", True, cor_destaque), (x_hud, y_hud + 90))
-        screen.blit(self.font.render(formatar_tempo(self.best_lap_time), True, cor_destaque), (x_hud + 80, y_hud + 90))
+        def fmt_smgp(seg):
+            if not seg or seg <= 0:
+                return "0'00\"00"
+            mins = int(seg // 60)
+            segs = int(seg % 60)
+            cents = int((seg * 100) % 100)
+            return f"{mins}'{segs:02d}\"{cents:02d}"
+
+        # --- A) TOPO ESQUERDO: BEST LAP + VOLTAS RESTANTES ---
+        draw_txt(self.font_hud_label, "BEST LAP", AMARELO, 16, 14)
+        draw_txt(self.font_hud_val, fmt_smgp(self.best_lap_time), BRANCO, 24, 33)
+
+        if not modo_preliminary:
+            voltas_faltam = max(0, lap_limit - self.laps_completed)
+            txt_faltam = "1 LAP LEFT" if voltas_faltam == 1 else f"{voltas_faltam} LAPS LEFT"
+            draw_txt(self.font_hud_label, txt_faltam, AMARELO, 16, 64)
+            draw_txt(self.font_hud_val, fmt_smgp(self.total_race_time), BRANCO, 24, 83)
+
+        # --- B) TOPO DIREITO: LAP TIME (ATUAL EM AMARELO + HISTÓRICO EM BRANCO) ---
+        rx = WIDTH - 16
+        draw_txt(self.font_hud_label, "LAP TIME", VERMELHO, rx, 10, "right")
+
+        linhas_tempo = [(self.current_lap_time, AMARELO)]
+        for t_ant in reversed(self.historico_voltas[-4:]):
+            linhas_tempo.append((t_ant, BRANCO))
+        while len(linhas_tempo) < 5:
+            linhas_tempo.append((0, BRANCO))
+
+        for idx, (t_val, cor_linha) in enumerate(linhas_tempo[:5]):
+            draw_txt(self.font_hud_val, fmt_smgp(t_val), cor_linha, rx, 29 + (idx * 20), "right")
+
+        # --- C) ABAIXO DO RETROVISOR: POSITION / GRID POS E LAP X/Y ---
+        y_barra = retro_y + retro_h + 10
+
+        def obter_sufixo(num):
+            if num % 100 in (11, 12, 13):
+                return "TH"
+            return {1: "ST", 2: "ND", 3: "RD"}.get(num % 10, "TH")
+
+        if modo_preliminary:
+            if grid_hud_visivel:
+                # Esquerda: Posição já alcançada no grid
+                draw_txt(self.font_hud_label, "GRID POS", VERMELHO, retro_x + 10, y_barra + 4)
+                pos_num_x = retro_x + 110
+                w_pos = draw_txt(self.font_hud_pos, str(grid_pos_hud), BRANCO, pos_num_x, y_barra - 5)
+                draw_txt(self.font_hud_ord, obter_sufixo(grid_pos_hud), BRANCO, pos_num_x + w_pos + 2, y_barra - 2)
+
+                # Centro: Separador "/"
+                draw_txt(self.font_hud_pos, "/", VERMELHO, retro_x + (retro_w // 2), y_barra - 5, "center")
+
+                # Direita: Posição dentro do intervalo do relógio atual
+                right_x = retro_x + retro_w - 10
+                w_suf = draw_txt(self.font_hud_ord, obter_sufixo(grid_pos_relogio), AMARELO, right_x, y_barra - 2, "right")
+                w_num = draw_txt(self.font_hud_pos, str(grid_pos_relogio), AMARELO, right_x - w_suf - 2, y_barra - 5, "right")
+                draw_txt(self.font_hud_label, "POS", VERMELHO, right_x - w_suf - w_num - 12, y_barra + 4, "right")
+        else:
+            # Na corrida oficial: posição atual na pista + voltas X/Y
+            draw_txt(self.font_hud_label, "POSITION", VERMELHO, retro_x + 10, y_barra + 4)
+            pos_num_x = retro_x + 115
+            w_pos = draw_txt(self.font_hud_pos, str(posicao_atual), BRANCO, pos_num_x, y_barra - 5)
+            draw_txt(self.font_hud_ord, obter_sufixo(posicao_atual), BRANCO, pos_num_x + w_pos + 2, y_barra - 2)
+
+            volta_exib = min(lap_limit, self.laps_completed + 1)
+            lap_right_x = retro_x + retro_w - 10
+            w_lap_val = draw_txt(self.font_hud_pos, f"{volta_exib}/{lap_limit}", AMARELO, lap_right_x, y_barra - 5, "right")
+            draw_txt(self.font_hud_label, "LAP", VERMELHO, lap_right_x - w_lap_val - 10, y_barra + 4, "right")
+
+        # --- D) CONTA-GIROS ANALÓGICO EM ARCO (x 1000 RPM) ---
+        cx, cy = 36, 315
+        raio = 125
+
+        limite_atual = self.limite_marchas[self.marcha_atual]
+        if self.speed == 0 and hasattr(self, 'rpm_neutro'):
+            porcentagem_rpm = self.rpm_neutro / max(1, self.max_speed)
+        else:
+            porcentagem_rpm = self.speed / max(1, limite_atual)
+        porcentagem_rpm = max(0.08, min(1.0, porcentagem_rpm))
+
+        ang_inicio = math.radians(75)    # Topo (0 RPM)
+        ang_fim = math.radians(-82)      # Base-esquerda (13.000 RPM - Redline)
+        rect_arco = pygame.Rect(cx - raio, cy - raio, raio * 2, raio * 2)
+
+        # Fundo e faixas coloridas do arco (amarelo -> branco -> vermelho)
+        pygame.draw.arc(screen, (20, 20, 20), rect_arco.inflate(4, 4), ang_fim, ang_inicio, 9)
+        pygame.draw.arc(screen, AMARELO, rect_arco, math.radians(5), ang_inicio, 5)
+        pygame.draw.arc(screen, BRANCO, rect_arco, math.radians(-55), math.radians(5), 5)
+        pygame.draw.arc(screen, VERMELHO, rect_arco, ang_fim, math.radians(-55), 6)
+
+        # Escala numérica
+        draw_txt(self.font_hud_rpm, "x 1000 RPM", BRANCO, 22, cy - 42)
+        for frac, num_txt in [(0.0, "0"), (0.45, "7"), (0.62, "9"), (0.78, "11"), (0.94, "13")]:
+            ang = ang_inicio + (ang_fim - ang_inicio) * frac
+            tx = cx + math.cos(ang) * (raio - 18)
+            ty = cy - math.sin(ang) * (raio - 18)
+            draw_txt(self.font_hud_rpm, num_txt, BRANCO, int(tx), int(ty), "center")
+
+        # Selo SHIFT AUTOMATIC / MANUAL + Marcha atual
+        modo_txt = "AUTOMATIC" if self.transmissao == "AUTO" else "MANUAL"
+        badge_rect = pygame.Rect(14, cy + 8, 108, 22)
+        pygame.draw.rect(screen, (25, 25, 25), badge_rect)
+        pygame.draw.rect(screen, (150, 150, 150), badge_rect, 1)
+        draw_txt(self.font_hud_rpm, f"SHIFT  [G{self.marcha_atual}]", VERMELHO, 22, cy - 10)
+        draw_txt(self.font_hud_rpm, modo_txt, AMARELO, 19, cy + 10)
+
+        # Ponteiro branco animado
+        ang_ponteiro = ang_inicio + (ang_fim - ang_inicio) * porcentagem_rpm
+        px = cx + math.cos(ang_ponteiro) * (raio - 4)
+        py = cy - math.sin(ang_ponteiro) * (raio - 4)
+        pygame.draw.line(screen, (15, 15, 15), (cx + 2, cy + 2), (int(px) + 2, int(py) + 2), 4)
+        pygame.draw.line(screen, BRANCO, (cx, cy), (int(px), int(py)), 3)
+        pygame.draw.circle(screen, BRANCO, (cx, cy), 5)
+
+        # --- E) VELOCÍMETRO DIGITAL (CANTO INFERIOR DIREITO) ---
+        vel_kmh = int(max(0, self.speed))
+        vx = WIDTH - 78
+        vy = HEIGHT - 72
+        draw_txt(self.font_hud_speed, f"{vel_kmh:3d}", AMARELO, vx, vy, "right")
+        draw_txt(self.font_hud_val, "km/h", VERMELHO, vx + 6, vy + 20, "left")
 
         # =========================================================================
         # [ALTERAÇÃO - HUD / MINIMAPA]: TRAÇADO REAL DA PISTA COM TODOS OS CARROS
@@ -837,6 +880,43 @@ class Car:
             pygame.draw.circle(screen, (0, 255, 60), (pos_player_x, pos_player_y), 4)
         else:
             pygame.draw.circle(screen, WHITE, (pos_player_x, pos_player_y), 4)
+
+    def draw_alerta_ponto_cego(self, screen, tempo_atual, dist_esq, dist_dir):
+        """Desenha setas vermelhas nas bordas quando há carro invisível na lateral/frente."""
+        if dist_esq is None and dist_dir is None:
+            return
+
+        largura, altura = screen.get_size()
+        pisca = (tempo_atual // 85) % 2 == 0
+        cor_seta = (255, 25, 25) if pisca else (165, 0, 0)
+        cor_borda = (255, 255, 255) if pisca else (40, 0, 0)
+
+        def calcular_y(dist):
+            # Mapeia de 18m (mais alto, perto do horizonte) até -2.5m (mais baixo, perto do cockpit)
+            fator = max(0.0, min(1.0, (18.0 - dist) / 20.5))
+            return int(altura * (0.50 + (fator * 0.22)))
+
+        if dist_esq is not None:
+            y = calcular_y(dist_esq)
+            pontos_esq = [
+                (22, y),
+                (54, y - 18),
+                (47, y),
+                (54, y + 18),
+            ]
+            pygame.draw.polygon(screen, cor_seta, pontos_esq)
+            pygame.draw.polygon(screen, cor_borda, pontos_esq, 2)
+
+        if dist_dir is not None:
+            y = calcular_y(dist_dir)
+            pontos_dir = [
+                (largura - 22, y),
+                (largura - 54, y - 18),
+                (largura - 47, y),
+                (largura - 54, y + 18),
+            ]
+            pygame.draw.polygon(screen, cor_seta, pontos_dir)
+            pygame.draw.polygon(screen, cor_borda, pontos_dir, 2)
 
         # =========================================================================
     # NOVO: RADAR DE POSIÇÕES E ALERTA DE FALHA MECÂNICA
@@ -891,18 +971,22 @@ class Car:
     ## LOGICA DA CRONOMETRAGEM
     def update_timer(self, total_track_length, lap_limit):
         self.lap_limit = lap_limit
-        # Só atualiza o tempo se a corrida não tiver terminado
         if self.laps_completed < lap_limit:
             agora = pygame.time.get_ticks()
+            if self.race_start_tick is None:
+                self.race_start_tick = self.lap_start_tick
+
             self.current_lap_time = (agora - self.lap_start_tick) / 1000.0
+            self.total_race_time = (agora - self.race_start_tick) / 1000.0
 
             volta_atual = int(self.position // total_track_length)
             if volta_atual > self.laps_completed:
                 self.last_lap_time = self.current_lap_time
-                
+                self.historico_voltas.append(self.last_lap_time)
+
                 if self.best_lap_time == 0 or self.last_lap_time < self.best_lap_time:
                     self.best_lap_time = self.last_lap_time
-                
+
                 self.laps_completed = volta_atual
                 self.lap_start_tick = agora
 
