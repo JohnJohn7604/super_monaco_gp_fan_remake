@@ -51,7 +51,7 @@ class Car:
         # 2. Handicap nerf Fixo de Aceleração (Independente da Equipe)
         # Define uma porcentagem fixa da aceleração original da equipe para o player.
         # Ex: 0.75 = o player tem 75% da aceleração da equipe (25% mais lento para arrancar).
-        handicap_aceleracao_player = 0.93
+        handicap_aceleracao_player = 0.28
         
         self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
 
@@ -68,7 +68,7 @@ class Car:
         # ==========================================
         self.steering = 0.0          # Garante que o volante comece reto
         # Dentro de __init__ (logo abaixo de self.steering = 0)
-        self.delay_direcao_frames = 5      # Atraso antes de obedecer (~83ms a 60 FPS)
+        self.delay_direcao_frames = 3      # Atraso antes de obedecer (~83ms a 60 FPS)
         self.frames_tecla_direcao = 0      # Contador de quantos frames a tecla está segurada
         self.ultima_direcao_tecla = 0      # -1 (esquerda), 1 (direita), 0 (solta)
         self.vel_lateral = 0.0             # Inércia horizontal suave
@@ -77,8 +77,6 @@ class Car:
         
         # Variável para o som do motor no neutro (Largada)
         self.rpm_neutro = 0
-        self.friction = 0.00003
-        self.brake_power = 1.0
         
         self.position = 0.0 
         self.player_x = 0.0 
@@ -89,17 +87,27 @@ class Car:
         self.max_marchas = 7
         self.timer_marcha = 0      
         
-        # A MÁGICA DAS MARCHAS: Agora elas se adaptam à velocidade máxima do carro!
+        # A MÁGICA DAS MARCHAS: Escalonamento de 20% proporcional à equipe
+        escala = self.max_speed / 332.0
         self.limite_marchas = {
-            1: self.max_speed * 0.18, 
-            2: self.max_speed * 0.33,
-            3: self.max_speed * 0.48,
-            4: self.max_speed * 0.63,
-            5: self.max_speed * 0.78,
-            6: self.max_speed * 0.90,
-            7: self.max_speed * 1.05  
+            1: 58.40 * escala,
+            2: 143.20 * escala,
+            3: 176.80 * escala,
+            4: 230.88 * escala,
+            5: 271.68 * escala,
+            6: 301.44 * escala,
+            7: 332.00 * escala
         }
-        self.torque_marchas = {1: 1.4, 2: 1.15, 3: 0.95, 4: 0.78, 5: 0.60, 6: 0.46, 7: 0.36}
+        # Torque compensado para eliminar o buraco da 2ª e alongar a 3ª, 6ª e 7ª
+        self.torque_marchas = {
+            1: 1.18,
+            2: 1.32,
+            3: 0.84,
+            4: 0.90,
+            5: 0.72,
+            6: 0.58,
+            7: 0.50
+        }
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
@@ -177,6 +185,15 @@ class Car:
         # É ESTA LINHA ABAIXO QUE CRIA O self.retrovisor_img!
         self.carregar_sprites_cockpit(pasta_equipe)
 
+        # Fundo do retrovisor: carregado e redimensionado uma única vez
+        retro_w_fixo = int(WIDTH // 1.5)
+        retro_h_fixo = 120
+        try:
+            bg = pygame.image.load("images/bg_rio.png").convert()
+            self.bg_retro_scaled = pygame.transform.scale(bg, (retro_w_fixo, retro_h_fixo))
+        except Exception:
+            self.bg_retro_scaled = None
+
     def carregar_sprites_cockpit(self, pasta_equipe):
         """Lê os PNGs do cockpit buscando primeiro na pasta da equipe. Se não achar, usa os originais."""
         tamanho_volante = (380, 95)
@@ -230,11 +247,7 @@ class Car:
 
     # Adicionamos o steering_locked=False no final
     def update_physics(self, keys, tempo_atual, curve_intensity, steering_locked=False, no_vacuo=False):
-        # 1. Troca de Marchas
-        if keys[pygame.K_t] and (tempo_atual - self.timer_marcha > 500):
-            self.transmissao = "MANUAL" if self.transmissao == "AUTO" else "AUTO"
-            self.timer_marcha = tempo_atual
-
+        # 1. Troca de Marchas (segura até 99% do limite no automático)
         if self.transmissao == "MANUAL":
             if keys[pygame.K_DOWN] and (tempo_atual - self.timer_marcha > 250) and self.marcha_atual < self.max_marchas:
                 self.marcha_atual += 1
@@ -243,9 +256,9 @@ class Car:
                 self.marcha_atual -= 1
                 self.timer_marcha = tempo_atual
         else:
-            if self.speed > self.limite_marchas[self.marcha_atual] * 0.95 and self.marcha_atual < self.max_marchas:
+            if self.speed > self.limite_marchas[self.marcha_atual] * 0.99 and self.marcha_atual < self.max_marchas:
                 self.marcha_atual += 1
-            elif self.marcha_atual > 1 and self.speed < self.limite_marchas[self.marcha_atual - 1] * 0.8:
+            elif self.marcha_atual > 1 and self.speed < self.limite_marchas[self.marcha_atual - 1] * 0.85:
                 self.marcha_atual -= 1
 
         # 2. Terreno, Aceleração e Freio
@@ -255,7 +268,8 @@ class Car:
             # O motor tenta empurrar o carro para frente
             forca_motor = self.torque_marchas[self.marcha_atual]
             
-            multiplicador_potencia = 0.4 + (self.nivel_aceleracao * 0.22)
+            # Reduzido de 0.4 / 0.22 para 0.22 / 0.16 para as marchas demorarem mais para encher
+            multiplicador_potencia = 0.22 + (self.nivel_aceleracao * 0.16)
             
             # --- A MÁGICA DA ACELERAÇÃO NO VÁCUO ---
             # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
@@ -308,7 +322,7 @@ class Car:
         # =========================================================
         # 3. POSIÇÃO, FORÇA CENTRÍFUGA E DIREÇÃO (CORRIGIDO)
         # =========================================================
-        self.position += self.speed * 0.0036
+        self.position += self.speed * 0.0049 ##velocidade em que o mapa corre em relação a sua velocidade
         percentual_vel = self.speed / self.max_speed
 
         # Inicializa a força zerada para garantir segurança absoluta nas retas
@@ -321,7 +335,7 @@ class Car:
             # Multiplicador original: 1.4. Ajustado (+3%): 1.4 * 1.03 = 1.442
             # Aumenta o empurrão lateral nas curvas, exigindo maior perícia do piloto.
             # =========================================================================
-            forca_centrifuga = (percentual_vel ** 1.05) * curve_intensity * 1.25
+            forca_centrifuga = (percentual_vel ** 2.5) * curve_intensity * 2.45
             
             # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
             # Joga o carro para fora da curva automaticamente
@@ -387,15 +401,11 @@ class Car:
 
         # 4. Áudio do Motor
         if self.motor_sound:
-            # Trava de segurança: impede que o RPM passe de 1.0 no cálculo do áudio
-            rpm = min(1.0, self.speed / self.limite_marchas[self.marcha_atual]) 
+            piso_marcha = 0.0 if self.marcha_atual == 1 else self.limite_marchas[self.marcha_atual - 1] * 0.72
+            teto_marcha = self.limite_marchas[self.marcha_atual]
+            rpm = max(0.15, min(1.0, (self.speed - piso_marcha) / max(1.0, teto_marcha - piso_marcha)))
             
-            self.motor_sound.set_gain(0.2 + (rpm * 0.8)) # Volume
-            
-            # --- MÁGICA DO PITCH (Menos agudo) ---
-            # Reduzimos o multiplicador de (rpm * 1.2) para (rpm * 0.5)
-            # O pitch base é 0.8. No talo (rpm 1.0), ele vai para 1.3 (mais o bônus de acelerar).
-            # Isso deixa o som muito mais "pesado" e realista no limite!
+            self.motor_sound.set_gain(0.2 + (rpm * 0.8))
             self.motor_sound.set_pitch(0.5 + (rpm * 1) + (0.05 if keys[pygame.K_s] else 0))
 
         # ==========================================
@@ -604,12 +614,10 @@ class Car:
         # Isso absorve tremedeiras de batidas e do teclado!
         self.retro_sway_suave += (self.player_x - self.retro_sway_suave) * 0.1
             
-        try:
-            bg_retro = pygame.image.load("images/bg_rio.png").convert()
-            bg_retro = pygame.transform.scale(bg_retro, (retro_w, retro_h))
-            mini_screen.blit(bg_retro, (0, 0))
-        except:
-            mini_screen.fill((135, 206, 235)) 
+        if self.bg_retro_scaled is not None:
+            mini_screen.blit(self.bg_retro_scaled, (0, 0))
+        else:
+            mini_screen.fill((135, 206, 235))
             
         pos_frac = self.position % 1
         cam_h = retro_h // 2  
@@ -800,10 +808,11 @@ class Car:
         raio = 125
 
         limite_atual = self.limite_marchas[self.marcha_atual]
+        piso_marcha = 0.0 if self.marcha_atual == 1 else self.limite_marchas[self.marcha_atual - 1] * 0.72
         if self.speed == 0 and hasattr(self, 'rpm_neutro'):
             porcentagem_rpm = self.rpm_neutro / max(1, self.max_speed)
         else:
-            porcentagem_rpm = self.speed / max(1, limite_atual)
+            porcentagem_rpm = (self.speed - piso_marcha) / max(1.0, limite_atual - piso_marcha)
         porcentagem_rpm = max(0.08, min(1.0, porcentagem_rpm))
 
         ang_inicio = math.radians(75)    # Topo (0 RPM)

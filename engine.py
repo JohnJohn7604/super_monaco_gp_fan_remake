@@ -243,6 +243,14 @@ class Game:
             print(f"Erro ao ler {caminho}: {e}")
             return padrao
 
+    def restaurar_nomes_pilotos(self):
+        """ Devolve todos os pilotos ao nome original do JSON e limpa a marcação de jogador """
+        for dados_eq in self.equipes.values():
+            for p in dados_eq.get("pilotos", []):
+                p.setdefault("nome_original", p["nome"])
+                p["nome"] = p["nome_original"]
+                p["is_player"] = False
+
     def obter_lista_tempos_pista(self, track_name):
         chave = track_name.lower()
         lista = self.tempos_qualificacao.get(chave, self.tempos_qualificacao.get("default", []))
@@ -262,8 +270,8 @@ class Game:
 
     def inicializar_placares_campeonato(self):
         """ Zera os pontos de construtores e pilotos no início da temporada/corrida """
+        self.restaurar_nomes_pilotos()
         self.pontos_campeonato_construtores = {nome: 0 for nome in self.equipes.keys()}
-        self.pontos_campeonato_pilotos = {}
 
         nome_eq_jogador = self.lista_equipes_nomes[self.equipe_sel_idx]
         nome_jogador = self.nome_digitado.strip().upper() or "PILOTO"
@@ -494,10 +502,8 @@ class Game:
         nome_equipe = self.lista_equipes_nomes[self.equipe_sel_idx]
         self.equipe_atual_jogador = nome_equipe
 
-        # 2. Desmarca qualquer "is_player" antigo
-        for eq_nome, dados_eq in self.equipes.items():
-            for p in dados_eq.get("pilotos", []):
-                p["is_player"] = False
+        # 2. Restaura os nomes originais e desmarca qualquer "is_player" antigo
+        self.restaurar_nomes_pilotos()
 
         # 3. Injeta o jogador no piloto titular
         pilotos_da_equipe = self.equipes[nome_equipe]["pilotos"]
@@ -781,8 +787,9 @@ class Game:
         if hasattr(self, 'cockpit_img') and self.cockpit_img:
             self.screen.blit(self.cockpit_img, (0, 0))
 
-        if hasattr(self, 'car') and self.car and self.estado_jogo != "PRELIMINARY":
-            self.car.draw_debug(self.screen, self.bots, self.track.total_track_length)
+        #DESCOMENTE PARA DEBUG
+        #if hasattr(self, 'car') and self.car and self.estado_jogo != "PRELIMINARY":
+            #self.car.draw_debug(self.screen, self.bots, self.track.total_track_length)
 
         self.car.draw_alerta_ponto_cego(
             self.screen,
@@ -859,6 +866,7 @@ class Game:
                             # Opção 1: SAIR (encerra sons e volta ao menu inicial)
                             pygame.mixer.stop()
                             self.silenciar_audios_corrida()
+                            self.restaurar_nomes_pilotos()
                             self.bots = []
                             self.car = None
                             self.tela_pausada = None
@@ -991,6 +999,7 @@ class Game:
                 elif self.estado_jogo == "RESULTADOS_CONSTRUTORES":
                     if event.key == pygame.K_RETURN:
                         self.silenciar_audios_corrida()
+                        self.restaurar_nomes_pilotos()
                         self.bots = []
                         self.car = None
 

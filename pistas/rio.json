@@ -229,6 +229,46 @@
       "png": "images/objects/anuncio_ster's.png",
       "escala": 1.0,
       "offset": 1.55
+    },
+    {
+      "nome": "pneus_proximos",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 1.7,
+      "offset_fim": 1.7
+    },
+    {
+      "nome": "arquibancada",
+      "png": "images/objects/arquibancada.png",
+      "escala": 4.0,
+      "offset": 5.7,
+      "offset_fim": 5.7
+    },
+    {
+      "nome": "pneus_distante",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 3.75
+    },
+    {
+      "nome": "arquibancada_grande_dist",
+      "png": "images/objects/arquibancada_maior.png",
+      "escala": 4.0,
+      "offset": 5.85
+    },
+    {
+      "nome": "pneus_funil",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 3.75,
+      "offset_fim": 1.7
+    },
+    {
+      "nome": "pneus_entrada box",
+      "png": "images/objects/pneus.png",
+      "escala": 0.9,
+      "offset": 1.7,
+      "offset_fim": 5.85
     }
   ],
   "objetos_pista": [
@@ -487,6 +527,278 @@
       "quantidade": 11,
       "inicio_pct": 50,
       "espacamento": 11
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "pneus_proximos",
+      "lado": "ambos",
+      "quantidade": 191,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 1,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 131,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 2,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 111,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 3,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 161,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 4,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 111,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 5,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 46,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 6,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 106,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 7,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 71,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 8,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 11,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 56,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 10,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 101,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 496,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 12,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 261,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 13,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 26,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 14,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 61,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 15,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 51,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 16,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 76,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 17,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 51,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 18,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 146,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 19,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 26,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 20,
+      "objeto": "pneus_distante",
+      "lado": "esq",
+      "quantidade": 141,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 20,
+      "objeto": "pneus_entrada box",
+      "lado": "dir",
+      "quantidade": 141,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 21,
+      "objeto": "pneus_distante",
+      "lado": "ambos",
+      "quantidade": 61,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 22,
+      "objeto": "pneus_funil",
+      "lado": "ambos",
+      "quantidade": 196,
+      "inicio_pct": 0,
+      "espacamento": 2
+    },
+    {
+      "seg_idx": 0,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 40,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 1,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 3,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 7,
+      "objeto": "arquibancada",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 35,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 9,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 40,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 11,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 55,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 13,
+      "objeto": "arquibancada",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 30,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 17,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 19,
+      "objeto": "arquibancada",
+      "lado": "dir",
+      "quantidade": 1,
+      "inicio_pct": 35,
+      "espacamento": 0
+    },
+    {
+      "seg_idx": 21,
+      "objeto": "arquibancada_grande_dist",
+      "lado": "esq",
+      "quantidade": 1,
+      "inicio_pct": 45,
+      "espacamento": 0
     }
   ]
 }
