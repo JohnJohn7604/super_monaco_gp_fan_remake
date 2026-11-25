@@ -117,14 +117,16 @@ class BotAI:
                 if tempo_atual > bot.get("fim_falha", 0):
                     bot["falha_mecanica"] = False
 
-            # 2. IA de Curvas (Ritmo real independente da posição do jogador)
+            # 2. IA de Curvas (Proporcional à intensidade da curva e aderência da equipe)
             curva_do_bot = get_curve(bot["pos"])
-            
-            if abs(curva_do_bot) > 0.02 and not sprint_largada:
-                multiplicador_curva = 0.68 + (bot["direcao"] * 0.022)
-                target_speed = bot["max_speed"] * multiplicador_curva
-                target_speed = min(bot["max_speed"], target_speed)
-                target_speed = max(175, target_speed)
+            intensidade_curva = abs(curva_do_bot)
+
+            if intensidade_curva > 0.06 and not sprint_largada:
+                fator_curva = min(1.0, (intensidade_curva - 0.06) / 0.45)
+                # Classe D segura ~80% nas curvas fechadas; Classe A segura ~86%
+                limite_direcao = 0.74 + (bot["direcao"] * 0.024)
+                multiplicador_curva = 1.0 - (fator_curva * (1.0 - limite_direcao))
+                target_speed = max(185, bot["max_speed"] * multiplicador_curva)
             else:
                 target_speed = bot["max_speed"]
 
@@ -165,9 +167,12 @@ class BotAI:
                     forca_freio = 4.0 + (bot.get("freio", 3) * 0.6)
                     bot["speed"] = max(target_speed, bot["speed"] - forca_freio)
                 elif bot["speed"] < target_speed:
-                    forca_motor = 0.25 + (bot["aceleracao"] * 0.1)
+                    forca_motor = 0.22 + (bot["aceleracao"] * 0.09)
+                    razao_vel = bot["speed"] / max(1.0, bot["max_speed"])
+                    fator_alta = max(0.28, 1.25 - razao_vel)
+                    forca_motor *= fator_alta
                     if bot_classe_maior_atras:
-                        forca_motor *= 1.05
+                        forca_motor *= 1.08
                     bot["speed"] = min(target_speed, bot["speed"] + forca_motor)
 
             # 4. O SISTEMA DE LINHAS E TANGÊNCIA (RACING LINE)
@@ -184,11 +189,11 @@ class BotAI:
                 tracado_ideal = bot["linha_reta"] 
             
             target_x = tracado_ideal
-            bot["pos"] += bot["speed"] * 0.0036
+            bot["pos"] += bot["speed"] * 0.0049
 
-            # SENSOR DE VÁCUO
-            if 1 < dist_relativa < 25 and player_speed > 290:
-                if abs(player_x - bot["x"]) < 0.3: 
+            # SENSOR DE VÁCUO (exige alinhamento fino e proximidade real)
+            if 2 < dist_relativa < 22 and player_speed > (player_max_speed * 0.82):
+                if abs(player_x - bot["x"]) < 0.24:
                     jogador_no_vacuo = True
 
             # REGRA DA LARGADA (MANTER AS LINHAS)
@@ -240,8 +245,13 @@ class BotAI:
                             evasao_emergencia = True
                             target_x = -0.82 if player_x > 0 else 0.82
                     else:
-                        # OUTRAS CLASSES: Mudam de linha sutilmente a partir de 55m se estiverem na mesma faixa
-                        if -55 < dist_relativa < 0 and abs(bot["x"] - player_x) < 0.55:
+                        # Carros de classe inferior precisam de +8 km/h de vantagem para abrir ultrapassagem
+                        margem_ultrapassagem = 8.0 if rank_bot < rank_jogador else 1.5
+                        if (
+                            -55 < dist_relativa < 0
+                            and abs(bot["x"] - player_x) < 0.55
+                            and bot["speed"] > (player_speed + margem_ultrapassagem)
+                        ):
                             desviando_jogador = True
                             if linha_jogador == 1:
                                 target_x = 0.35

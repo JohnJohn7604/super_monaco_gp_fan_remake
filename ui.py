@@ -341,3 +341,207 @@ class MenuUI:
 
         aviso = fonte_lista.render("PRESS ENTER TO CONTINUE", True, (255, 0, 0))
         self.game.screen.blit(aviso, (WIDTH // 2 - aviso.get_width() // 2, HEIGHT - 50))
+
+    def _desenhar_moldura_xadrez(self, rect, cor_miolo=(56, 58, 62), borda_xadrez=14):
+        """Desenha uma moldura metálica chanfrada com borda interna quadriculada estilo 16-bits."""
+        # Sombra projetada
+        sombra_rect = rect.move(6, 6)
+        pygame.draw.rect(self.game.screen, (25, 26, 30), sombra_rect)
+
+        # Base metálica externa
+        pygame.draw.rect(self.game.screen, (122, 125, 132), rect)
+
+        # Chanfro iluminado (topo/esquerda) e escuro (base/direita)
+        pygame.draw.line(self.game.screen, (185, 188, 195), rect.topleft, rect.topright, 3)
+        pygame.draw.line(self.game.screen, (185, 188, 195), rect.topleft, rect.bottomleft, 3)
+        pygame.draw.line(self.game.screen, (45, 47, 52), rect.bottomleft, rect.bottomright, 3)
+        pygame.draw.line(self.game.screen, (45, 47, 52), rect.topright, rect.bottomright, 3)
+
+        # Área quadriculada interna
+        quad_rect = rect.inflate(-14, -14)
+        tam_tile = 10
+        cor_q1 = (66, 68, 73)
+        cor_q2 = (88, 90, 96)
+
+        clip_antigo = self.game.screen.get_clip()
+        self.game.screen.set_clip(quad_rect)
+        for y in range(quad_rect.top, quad_rect.bottom, tam_tile):
+            linha = (y - quad_rect.top) // tam_tile
+            for x in range(quad_rect.left, quad_rect.right, tam_tile):
+                coluna = (x - quad_rect.left) // tam_tile
+                cor_tile = cor_q1 if (linha + coluna) % 2 == 0 else cor_q2
+                pygame.draw.rect(self.game.screen, cor_tile, (x, y, tam_tile, tam_tile))
+        self.game.screen.set_clip(clip_antigo)
+
+        # Miolo central
+        miolo_rect = quad_rect.inflate(-(borda_xadrez * 2), -(borda_xadrez * 2))
+        pygame.draw.rect(self.game.screen, cor_miolo, miolo_rect)
+        pygame.draw.rect(self.game.screen, (42, 44, 48), miolo_rect, 2)
+        return miolo_rect
+
+    def _desenhar_tecla(self, rect, rotulo, cor_fundo, cor_borda, cor_texto=(255, 255, 255), destaque=False):
+        """Desenha uma tecla 3D estilizada."""
+        sombra = rect.move(3, 4)
+        pygame.draw.rect(self.game.screen, (25, 28, 34), sombra, border_radius=6)
+        pygame.draw.rect(self.game.screen, cor_fundo, rect, border_radius=6)
+        pygame.draw.rect(self.game.screen, cor_borda, rect, 2 if destaque else 1, border_radius=6)
+
+        # Brilho superior da tecla
+        pygame.draw.line(
+            self.game.screen,
+            (255, 255, 255) if destaque else (175, 180, 190),
+            (rect.left + 5, rect.top + 3),
+            (rect.right - 5, rect.top + 3),
+            2
+        )
+
+        fonte_k = pygame.font.SysFont('Arial', 18 if len(rotulo) <= 2 else 13, bold=True)
+        txt = fonte_k.render(rotulo, True, cor_texto)
+        self.game.screen.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2 - 1))
+
+    def _desenhar_diagrama_teclado(self, miolo_rect):
+        """Desenha a ilustração do teclado e as legendas de direção, pedal e câmbio."""
+        fonte_legenda = pygame.font.SysFont('Arial', 19, bold=True)
+        fonte_sub = pygame.font.SysFont('Arial', 14, bold=True)
+
+        # Carcaça estilizada do teclado à esquerda
+        kb_rect = pygame.Rect(miolo_rect.left + 26, miolo_rect.top + 48, 430, 155)
+        pygame.draw.rect(self.game.screen, (185, 190, 200), kb_rect.move(4, 5), border_radius=10)
+        pygame.draw.rect(self.game.screen, (42, 46, 56), kb_rect, border_radius=10)
+        pygame.draw.rect(self.game.screen, (95, 102, 118), kb_rect, 2, border_radius=10)
+
+        # Fileira superior decorativa (ESC, F1..F8)
+        for i in range(9):
+            rx = kb_rect.left + 14 + i * 31
+            self._desenhar_tecla(pygame.Rect(rx, kb_rect.top + 12, 25, 18), "", (70, 75, 88), (105, 112, 128))
+
+        # Fileira QWERTY decorativa
+        for i in range(8):
+            rx = kb_rect.left + 24 + i * 33
+            self._desenhar_tecla(pygame.Rect(rx, kb_rect.top + 38, 28, 26), "", (75, 80, 94), (110, 118, 134))
+
+        # Teclas principais A (FREIA) e S (ACELERA) em destaque
+        rect_a = pygame.Rect(kb_rect.left + 32, kb_rect.top + 72, 34, 32)
+        rect_s = pygame.Rect(kb_rect.left + 72, kb_rect.top + 72, 34, 32)
+        self._desenhar_tecla(rect_a, "A", (215, 45, 45), (255, 190, 190), destaque=True)
+        self._desenhar_tecla(rect_s, "S", (35, 175, 85), (190, 255, 210), destaque=True)
+
+        # Demais teclas decorativas da fileira ASDF + Barra de Espaço
+        for i in range(5):
+            rx = kb_rect.left + 112 + i * 33
+            self._desenhar_tecla(pygame.Rect(rx, kb_rect.top + 72, 28, 30), "", (75, 80, 94), (110, 118, 134))
+        self._desenhar_tecla(pygame.Rect(kb_rect.left + 68, kb_rect.top + 112, 175, 26), "", (75, 80, 94), (110, 118, 134))
+
+        # Cluster das Setas Direcionais no canto direito do teclado
+        base_setas_x = kb_rect.right - 122
+        base_setas_y = kb_rect.top + 72
+        rect_up    = pygame.Rect(base_setas_x + 38, base_setas_y, 34, 32)
+        rect_left  = pygame.Rect(base_setas_x,      base_setas_y + 38, 34, 32)
+        rect_down  = pygame.Rect(base_setas_x + 38, base_setas_y + 38, 34, 32)
+        rect_right = pygame.Rect(base_setas_x + 76, base_setas_y + 38, 34, 32)
+
+        self._desenhar_tecla(rect_up, "↑", (235, 175, 20), (255, 245, 170), (20, 20, 20), destaque=True)
+        self._desenhar_tecla(rect_down, "↓", (35, 145, 225), (185, 235, 255), (255, 255, 255), destaque=True)
+        self._desenhar_tecla(rect_left, "←", (95, 102, 118), (150, 158, 175))
+        self._desenhar_tecla(rect_right, "→", (95, 102, 118), (150, 158, 175))
+
+        # --- CALLOUTS / LINHAS INDICADORAS ---
+        # S -> ACELERA (acima do teclado)
+        p_s1 = (rect_s.centerx, kb_rect.top - 4)
+        p_s2 = (rect_s.centerx, miolo_rect.top + 18)
+        pygame.draw.line(self.game.screen, (25, 145, 65), (rect_s.centerx, rect_s.top), p_s2, 3)
+        pygame.draw.circle(self.game.screen, (25, 145, 65), p_s2, 4)
+        txt_s = fonte_legenda.render("[ S ]  ACELERA", True, (20, 130, 55))
+        self.game.screen.blit(txt_s, (p_s2[0] + 10, p_s2[1] - 10))
+
+        # A -> FREIA (abaixo do teclado)
+        p_a2 = (rect_a.centerx, kb_rect.bottom + 18)
+        pygame.draw.line(self.game.screen, (200, 35, 35), (rect_a.centerx, rect_a.bottom), p_a2, 3)
+        pygame.draw.circle(self.game.screen, (200, 35, 35), p_a2, 4)
+        txt_a = fonte_legenda.render("[ A ]  FREIA", True, (190, 25, 25))
+        self.game.screen.blit(txt_a, (p_a2[0] + 10, p_a2[1] - 10))
+
+        # Painel de Legenda das Marchas à direita do teclado
+        leg_x = kb_rect.right + 28
+        leg_y = miolo_rect.top + 32
+
+        titulo_ctrl = fonte_sub.render("CONTROLE DE MARCHAS (MANUAL):", True, (65, 72, 85))
+        self.game.screen.blit(titulo_ctrl, (leg_x, leg_y))
+
+        # Linha CIMA -> BAIXA MARCHA
+        y_cima = leg_y + 36
+        pygame.draw.line(self.game.screen, (210, 145, 10), (rect_up.right, rect_up.centery), (leg_x - 8, y_cima + 12), 3)
+        pygame.draw.rect(self.game.screen, (235, 175, 20), (leg_x, y_cima, 30, 26), border_radius=5)
+        txt_ico_up = fonte_legenda.render("↑", True, (20, 20, 20))
+        self.game.screen.blit(txt_ico_up, (leg_x + 9, y_cima + 1))
+        txt_cima = fonte_legenda.render("CIMA: BAIXA MARCHA", True, (165, 110, 0))
+        self.game.screen.blit(txt_cima, (leg_x + 40, y_cima + 2))
+
+        # Linha BAIXO -> SOBE MARCHA
+        y_baixo = leg_y + 82
+        pygame.draw.line(self.game.screen, (25, 130, 205), (rect_down.right, rect_down.centery), (leg_x - 8, y_baixo + 12), 3)
+        pygame.draw.rect(self.game.screen, (35, 145, 225), (leg_x, y_baixo, 30, 26), border_radius=5)
+        txt_ico_dn = fonte_legenda.render("↓", True, (255, 255, 255))
+        self.game.screen.blit(txt_ico_dn, (leg_x + 9, y_baixo + 1))
+        txt_baixo = fonte_legenda.render("BAIXO: SOBE MARCHA", True, (20, 110, 180))
+        self.game.screen.blit(txt_baixo, (leg_x + 40, y_baixo + 2))
+
+        # Nota sobre direção nas setas laterais
+        y_dir = leg_y + 132
+        txt_dir = fonte_sub.render("[ ← / → ]  ESTERÇAR VOLANTE", True, (85, 92, 105))
+        self.game.screen.blit(txt_dir, (leg_x, y_dir))
+
+    def desenhar_tela_transmissao(self):
+        """Tela clássica TRANSMISSION SELECT antes de iniciar qualquer corrida."""
+        self.game.screen.fill((56, 58, 62))
+
+        # 1. Banner Superior: TRANSMISSION SELECT
+        banner_rect = pygame.Rect(WIDTH // 2 - 430, 32, 860, 84)
+        miolo_banner = self._desenhar_moldura_xadrez(banner_rect, cor_miolo=(56, 58, 62), borda_xadrez=10)
+
+        fonte_banner = pygame.font.SysFont('Arial', 44, bold=True)
+        txt_sombra = fonte_banner.render("TRANSMISSION SELECT", True, (15, 15, 18))
+        txt_titulo = fonte_banner.render("TRANSMISSION SELECT", True, (245, 205, 20))
+        tx = miolo_banner.centerx - txt_titulo.get_width() // 2
+        ty = miolo_banner.centery - txt_titulo.get_height() // 2
+        self.game.screen.blit(txt_sombra, (tx + 3, ty + 3))
+        self.game.screen.blit(txt_titulo, (tx, ty))
+
+        # 2. Opções de Câmbio (AUTOMATIC e 7 SPEED MANUAL)
+        fonte_op = pygame.font.SysFont('Arial', 38, bold=True)
+        box_w, box_h = 740, 56
+        start_y = 152
+        gap_y = 74
+
+        for idx, opcao in enumerate(self.game.opcoes_transmissao):
+            selecionado = (idx == self.game.transmissao_sel_idx)
+            box_rect = pygame.Rect(WIDTH // 2 - box_w // 2, start_y + idx * gap_y, box_w, box_h)
+
+            # Sombra deslocada
+            pygame.draw.rect(self.game.screen, (25, 26, 30), box_rect.move(6, 6), 3)
+
+            if selecionado:
+                cor_borda = (232, 148, 148)
+                cor_texto = (238, 154, 154)
+            else:
+                cor_borda = (125, 150, 185)
+                cor_texto = (132, 158, 192)
+
+            pygame.draw.rect(self.game.screen, cor_borda, box_rect, 3)
+
+            label = opcao["label"]
+            img_sombra = fonte_op.render(label, True, (15, 15, 18))
+            img_label = fonte_op.render(label, True, cor_texto)
+            lx = box_rect.centerx - img_label.get_width() // 2
+            ly = box_rect.centery - img_label.get_height() // 2
+            self.game.screen.blit(img_sombra, (lx + 3, ly + 3))
+            self.game.screen.blit(img_label, (lx, ly))
+
+        # 3. Moldura Inferior com o Desenho do Teclado
+        painel_kb_rect = pygame.Rect(WIDTH // 2 - 430, 325, 860, 320)
+        miolo_kb = self._desenhar_moldura_xadrez(painel_kb_rect, cor_miolo=(242, 244, 248), borda_xadrez=12)
+        self._desenhar_diagrama_teclado(miolo_kb)
+
+        # 4. Rodapé de instrução
+        rodape = self.fonte_inst.render("SETAS CIMA / BAIXO: Escolher Câmbio   |   ENTER: Iniciar Corrida", True, (245, 215, 65))
+        self.game.screen.blit(rodape, (WIDTH // 2 - rodape.get_width() // 2, HEIGHT - 42))

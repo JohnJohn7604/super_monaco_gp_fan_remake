@@ -44,14 +44,13 @@ class Car:
         # Corta a velocidade final do jogador em cerca de 3% a 5% em relação à IA
         # ex: self.max_speed = velocidade_maxima * 0.95 corta 5%  
         # para simular o "peso" extra do jogador ou forçá-lo a usar o vácuo.
-        handicap_velocidade_maxima = 0.98
+        handicap_velocidade_maxima = 0.99
+        self.max_speed = velocidade_maxima * handicap_velocidade_maxima
+
+        handicap_aceleracao_player = 1
+        self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
 
         self.max_speed = velocidade_maxima * handicap_velocidade_maxima
-        
-        # 2. Handicap nerf Fixo de Aceleração (Independente da Equipe)
-        # Define uma porcentagem fixa da aceleração original da equipe para o player.
-        # Ex: 0.75 = o player tem 75% da aceleração da equipe (25% mais lento para arrancar).
-        handicap_aceleracao_player = 0.28
         
         self.nivel_aceleracao = nivel_aceleracao * handicap_aceleracao_player
 
@@ -108,6 +107,7 @@ class Car:
             6: 0.58,
             7: 0.50
         }
+        
         
         # ÁUDIO MOTOR DO SEU CARRO
         try:
@@ -274,13 +274,12 @@ class Car:
             # --- A MÁGICA DA ACELERAÇÃO NO VÁCUO ---
             # Se estiver no vácuo, o motor "pensa" que o limite do carro é 15 km/h maior.
             vel_referencia = self.max_speed + 10 if no_vacuo else self.max_speed
-            
-            taxa_aceleracao = forca_motor * multiplicador_potencia * (1.25 - (self.speed / vel_referencia))
-            
-            # O Vácuo tira a resistência do ar: aceleração aumenta 20% para sugar o carro!
-            if no_vacuo and self.speed > 300:
-                taxa_aceleracao *= 1.6
-                
+            fator_curva_motor = max(0.45, 1.35 - (self.speed / vel_referencia))
+            taxa_aceleracao = forca_motor * multiplicador_potencia * fator_curva_motor
+
+            if no_vacuo and self.speed > (self.max_speed * 0.85):
+                taxa_aceleracao *= 1.28
+
             self.speed += taxa_aceleracao
             
             # A grama "agarra" os pneus
@@ -298,7 +297,7 @@ class Car:
         
         # MÁGICA DO VÁCUO: O teto da última marcha sobe os exatos 15 km/h
         if no_vacuo and self.marcha_atual == self.max_marchas:
-            limite_atual += 30
+            limite_atual += 16
 
         if not na_grama and self.speed > limite_atual:
             if no_vacuo:
@@ -330,21 +329,12 @@ class Car:
 
         # A força só é calculada se a pista NÃO for uma reta (intensidade diferente de zero)
         if abs(curve_intensity) > 0.001:
-            # =========================================================================
-            # [ALTERAÇÃO - FÍSICA]: FORÇA CENTRÍFUGA GLOBAL PIORADA EM +3%
-            # Multiplicador original: 1.4. Ajustado (+3%): 1.4 * 1.03 = 1.442
-            # Aumenta o empurrão lateral nas curvas, exigindo maior perícia do piloto.
-            # =========================================================================
-            forca_centrifuga = (percentual_vel ** 2.5) * curve_intensity * 2.45
-            
-            # --- APLICA A FORÇA CENTRÍFUGA DIRETO NO CARRO ---
-            # Joga o carro para fora da curva automaticamente
+            forca_centrifuga = (percentual_vel ** 2.0) * curve_intensity * 2.40
             self.player_x -= forca_centrifuga
 
-            # --- ARRASTO DE CURVA ---
-            # Reduz a velocidade devido ao atrito dos pneus tentando segurar o chassi
-            if self.speed > 100:
-                fator_arrasto = 7.0 
+            # Só drena velocidade em curvas acentuadas (> 0.04), sem matar sua reta em curvas leves
+            if self.speed > 100 and abs(curve_intensity) > 0.04:
+                fator_arrasto = 4.2
                 self.speed -= abs(forca_centrifuga) * fator_arrasto
 
         # --- A MÁGICA DA TRAVA DO VOLANTE (COLISÃO) ---
@@ -512,7 +502,7 @@ class Car:
         
         lista_marchas = dados_equipe.get("forca_marchas", [1.6, 1.3, 1.05, 0.88, 0.75, 0.65, 0.58])
         
-        self.forca_marchas = {
+        self.torque_marchas = {
             1: lista_marchas[0],
             2: lista_marchas[1],
             3: lista_marchas[2],
@@ -833,21 +823,83 @@ class Car:
             ty = cy - math.sin(ang) * (raio - 18)
             draw_txt(self.font_hud_rpm, num_txt, BRANCO, int(tx), int(ty), "center")
 
-        # Selo SHIFT AUTOMATIC / MANUAL + Marcha atual
-        modo_txt = "AUTOMATIC" if self.transmissao == "AUTO" else "MANUAL"
-        badge_rect = pygame.Rect(14, cy + 8, 108, 22)
-        pygame.draw.rect(screen, (25, 25, 25), badge_rect)
-        pygame.draw.rect(screen, (150, 150, 150), badge_rect, 1)
-        draw_txt(self.font_hud_rpm, f"SHIFT  [G{self.marcha_atual}]", VERMELHO, 22, cy - 10)
-        draw_txt(self.font_hud_rpm, modo_txt, AMARELO, 19, cy + 10)
+        # ==========================================
+        # PAINEL CLÁSSICO SHIFT + GRADE DE MARCHAS (1..4 / 5..7)
+        # ==========================================
+        painel_shift = pygame.Rect(12, cy - 22, 108, 56)
 
-        # Ponteiro branco animado
+        # Fundo metálico quadriculado do painel SHIFT
+        pygame.draw.rect(screen, (20, 20, 24), painel_shift.move(2, 2))
+        tile_sz = 6
+        for py_tile in range(painel_shift.top, painel_shift.bottom, tile_sz):
+            row_i = (py_tile - painel_shift.top) // tile_sz
+            for px_tile in range(painel_shift.left, painel_shift.right, tile_sz):
+                col_i = (px_tile - painel_shift.left) // tile_sz
+                cor_t = (126, 130, 135) if (row_i + col_i) % 2 == 0 else (148, 152, 158)
+                pygame.draw.rect(
+                    screen,
+                    cor_t,
+                    (
+                        px_tile,
+                        py_tile,
+                        min(tile_sz, painel_shift.right - px_tile),
+                        min(tile_sz, painel_shift.bottom - py_tile),
+                    ),
+                )
+
+        # Bordas chanfradas do painel SHIFT
+        pygame.draw.line(screen, (200, 204, 210), painel_shift.topleft, painel_shift.topright, 2)
+        pygame.draw.line(screen, (200, 204, 210), painel_shift.topleft, painel_shift.bottomleft, 2)
+        pygame.draw.line(screen, (45, 48, 52), painel_shift.bottomleft, painel_shift.bottomright, 2)
+        pygame.draw.line(screen, (45, 48, 52), painel_shift.topright, painel_shift.bottomright, 2)
+
+        # Luz vermelha + texto SHIFT
+        pygame.draw.circle(screen, (30, 30, 30), (painel_shift.left + 11, painel_shift.top + 11), 5)
+        pygame.draw.circle(screen, VERMELHO, (painel_shift.left + 10, painel_shift.top + 10), 4)
+        draw_txt(self.font_hud_rpm, "SHIFT", VERMELHO, painel_shift.left + 21, painel_shift.top + 3)
+
+        # Matriz de marchas: Linha 1 (1 · 2 · 3 · 4) e Linha 2 (5 · 6 · 7)
+        linhas_marchas = [
+            ([1, 2, 3, 4], painel_shift.left + 10, painel_shift.top + 21),
+            ([5, 6, 7],    painel_shift.left + 22, painel_shift.top + 37),
+        ]
+
+        for lista_m, start_mx, pos_my in linhas_marchas:
+            for idx_m, num_m in enumerate(lista_m):
+                if num_m > self.max_marchas:
+                    continue
+                mx = start_mx + (idx_m * 24)
+                ativa = (num_m == self.marcha_atual)
+
+                if ativa:
+                    # Marcha atual acesa em amarelo vibrante com contorno preto
+                    sombra_m = self.font_hud_label.render(str(num_m), True, (10, 10, 10))
+                    frente_m = self.font_hud_label.render(str(num_m), True, AMARELO)
+                    screen.blit(sombra_m, (mx - 1, pos_my))
+                    screen.blit(sombra_m, (mx + 2, pos_my + 2))
+                    screen.blit(frente_m, (mx, pos_my))
+                else:
+                    # Marchas inativas gravadas em baixo-relevo escuro
+                    relevo_m = self.font_hud_label.render(str(num_m), True, (175, 179, 184))
+                    apagada_m = self.font_hud_label.render(str(num_m), True, (28, 30, 34))
+                    screen.blit(relevo_m, (mx - 1, pos_my - 1))
+                    screen.blit(apagada_m, (mx, pos_my))
+
+                # Pontinho separador entre as marchas da mesma linha
+                if idx_m < len(lista_m) - 1 and (num_m + 1) <= self.max_marchas:
+                    pygame.draw.circle(screen, (28, 30, 34), (mx + 15, pos_my + 9), 2)
+
+        # Ponteiro branco animado do conta-giros (desenhado por cima do painel)
         ang_ponteiro = ang_inicio + (ang_fim - ang_inicio) * porcentagem_rpm
         px = cx + math.cos(ang_ponteiro) * (raio - 4)
         py = cy - math.sin(ang_ponteiro) * (raio - 4)
         pygame.draw.line(screen, (15, 15, 15), (cx + 2, cy + 2), (int(px) + 2, int(py) + 2), 4)
         pygame.draw.line(screen, BRANCO, (cx, cy), (int(px), int(py)), 3)
         pygame.draw.circle(screen, BRANCO, (cx, cy), 5)
+
+        # Indicação AUTOMATIC / MANUAL SHIFT em vermelho abaixo do arco de RPM
+        modo_txt = "AUTOMATIC" if self.transmissao == "AUTO" else "MANUAL SHIFT"
+        draw_txt(self.font_hud_val, modo_txt, VERMELHO, 18, cy + raio + 8)
 
         # --- E) VELOCÍMETRO DIGITAL (CANTO INFERIOR DIREITO) ---
         vel_kmh = int(max(0, self.speed))

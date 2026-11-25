@@ -4,6 +4,7 @@ import math
 import json
 import random
 import os
+from sincronizar_pilotos import sincronizar_pilotos_para_equipes
 from settings import *
 from openal import oalOpen, oalQuit
 from track import Track
@@ -94,6 +95,16 @@ class Game:
 
         self.estado_jogo = "INPUT_NAME"
 
+        # --- CONTROLE DE SELEÇÃO DE CÂMBIO ---
+        self.opcoes_transmissao = [
+            {"codigo": "AUTO", "label": "AUTOMATIC"},
+            # Futuramente: {"codigo": "MANUAL_4", "label": "4 SPEED MANUAL"},
+            {"codigo": "MANUAL", "label": "7 SPEED MANUAL"}
+        ]
+        self.transmissao_sel_idx = 0
+        self.transmissao_escolhida = "AUTO"
+        self.acao_pos_transmissao = None
+
         # Controle de Pause
         self.estado_antes_pause = None
         self.inicio_pause_tick = 0
@@ -142,23 +153,9 @@ class Game:
         # CARREGAR BANCO DE DADOS VIA JSON E MESCLAR
         # ==========================================
         try:
-            with open('equipes.json', 'r', encoding='utf-8') as f:
-                self.equipes = json.load(f)
-
-            with open('pilotos.json', 'r', encoding='utf-8') as f:
-                pilotos_externos = json.load(f)
-
-            pilotos_por_equipe = {}
-            for p in pilotos_externos:
-                eq = p["equipe"]
-                if eq not in pilotos_por_equipe:
-                    pilotos_por_equipe[eq] = []
-                pilotos_por_equipe[eq].append(p)
-
-            for eq_nome, pilotos_lista in pilotos_por_equipe.items():
-                if eq_nome in self.equipes:
-                    self.equipes[eq_nome]["pilotos"] = pilotos_lista
-
+            self.equipes = sincronizar_pilotos_para_equipes(
+                "pilotos.json", "equipes.json"
+            )
         except FileNotFoundError as e:
             print(f"ERRO: Ficheiro JSON não encontrado! Detalhes: {e}")
             if not hasattr(self, 'equipes'):
@@ -322,6 +319,12 @@ class Game:
                     canal.stop()
                 except Exception:
                     pass
+
+    def abrir_selecao_transmissao(self, acao, pista=None):
+        """Abre a tela TRANSMISSION SELECT antes de iniciar qualquer corrida."""
+        self.silenciar_audios_corrida()
+        self.acao_pos_transmissao = (acao, pista)
+        self.estado_jogo = "SELECT_TRANSMISSION"
 
     def iniciar_preliminary_etapa_atual(self):
         """ Inicia a Preliminary Race (voltas infinitas) antes da corrida da etapa atual """
@@ -505,9 +508,14 @@ class Game:
         # 2. Restaura os nomes originais e desmarca qualquer "is_player" antigo
         self.restaurar_nomes_pilotos()
 
-        # 3. Injeta o jogador no piloto titular
+        # 3. Injeta o jogador no piloto titular com perfil equilibrado de piloto
         pilotos_da_equipe = self.equipes[nome_equipe]["pilotos"]
-        self.dados_do_meu_piloto = pilotos_da_equipe[0].copy()
+        self.dados_do_meu_piloto = {
+            "speed": 6.0,
+            "aceleracao": 0.60,
+            "freio": 3.2,
+            "direcao": 2.5
+        }
         pilotos_da_equipe[0]["nome"] = self.nome_jogador_formatado
         pilotos_da_equipe[0]["is_player"] = True
 
@@ -529,6 +537,8 @@ class Game:
             pasta_equipe      = pasta_do_jogador
         )
         self.car.ajustar_atributos_equipe(status)
+        self.car.transmissao = getattr(self, "transmissao_escolhida", "AUTO")
+        self.car.marcha_atual = 1
 
         self.bots = []
         self.cache_sprites = {}
@@ -935,8 +945,8 @@ class Game:
                         self.piloto_sel_idx = 0
                         self.inicializar_placares_campeonato()
                         if self.modo_jogo == "TEMPORADA":
-                            # Inicia a Preliminary Race antes da 1ª corrida da temporada
-                            self.iniciar_preliminary_etapa_atual()
+                            # Pergunta o câmbio antes da Preliminary Race
+                            self.abrir_selecao_transmissao("PRELIMINARY")
                         else:
                             self.posicao_jogador = 16
                             self.estado_jogo = "SELECT_POS"
@@ -971,8 +981,32 @@ class Game:
                         self.volta_sel_idx = (self.volta_sel_idx - 1) % len(self.opcoes_voltas)
                     elif event.key == pygame.K_RETURN:
                         pista_escolhida = self.lista_pistas[self.pista_sel_idx]["arquivo"]
-                        self.iniciar_corrida(pista_escolhida, modo_preliminary=False)
-                        self.estado_jogo = "LOADING"
+                        self.abrir_selecao_transmissao("RAPIDA", pista_escolhida)
+
+                # ------------------------------------------
+                # TELA DE SELEÇÃO DE CÂMBIO
+                # ------------------------------------------
+                elif self.estado_jogo == "SELECT_TRANSMISSION":
+                    if event.key in (pygame.K_UP, pygame.K_LEFT):
+                        self.transmissao_sel_idx = (self.transmissao_sel_idx - 1) % len(self.opcoes_transmissao)
+                    elif event.key in (pygame.K_DOWN, pygame.K_RIGHT):
+                        self.transmissao_sel_idx = (self.transmissao_sel_idx + 1) % len(self.opcoes_transmissao)
+                    elif event.key == pygame.K_RETURN:
+                        self.transmissao_escolhida = self.opcoes_transmissao[self.transmissao_sel_idx]["codigo"]
+                        acao, pista = self.acao_pos_transmissao or ("RAPIDA", "rio")
+
+                        if acao == "PRELIMINARY":
+                            self.iniciar_preliminary_etapa_atual()
+                        elif acao == "TEMPORADA_RACE":
+                            etapa = self.etapas_temporada[self.etapa_atual_idx]
+                            self.lap_limit = etapa.get("voltas", 3)
+                            self.posicao_jogador = self.posicao_qualificada
+                            arq_pista = os.path.splitext(os.path.basename(etapa["arquivo"]))[0]
+                            self.iniciar_corrida(arq_pista, modo_preliminary=False)
+                            self.estado_jogo = "LOADING"
+                        else:
+                            self.iniciar_corrida(pista, modo_preliminary=False)
+                            self.estado_jogo = "LOADING"
 
                 elif self.estado_jogo == "DEBUG_REPORT":
                     if event.key == pygame.K_RETURN:
@@ -1006,8 +1040,7 @@ class Game:
                         if self.modo_jogo == "TEMPORADA":
                             self.etapa_atual_idx += 1
                             if self.etapa_atual_idx < len(self.etapas_temporada):
-                                # Vai para a Preliminary Race da PRÓXIMA pista da temporada!
-                                self.iniciar_preliminary_etapa_atual()
+                                self.abrir_selecao_transmissao("PRELIMINARY")
                             else:
                                 # Acabou a temporada -> Reseta e volta ao menu inicial
                                 self.etapa_atual_idx = 0
@@ -1016,6 +1049,8 @@ class Game:
                         else:
                             self.nome_digitado = ""
                             self.estado_jogo = "INPUT_NAME"
+
+                
 
     def telas_menu(self, fonte_menu):
         if self.estado_jogo == "PAUSE":
@@ -1086,6 +1121,12 @@ class Game:
 
         if self.estado_jogo == "SELECT_POS" and self.modo_jogo == "RAPIDA":
             self.ui.desenhar_tela_posicao()
+            pygame.display.flip()
+            self.clock.tick(FPS)
+            return True
+
+        if self.estado_jogo == "SELECT_TRANSMISSION":
+            self.ui.desenhar_tela_transmissao()
             pygame.display.flip()
             self.clock.tick(FPS)
             return True
@@ -1418,13 +1459,7 @@ class Game:
                     progresso_saida = decorrido_hold / 2000.0
 
                     if decorrido_hold >= 2000:
-                        self.silenciar_audios_corrida()
-                        etapa = self.etapas_temporada[self.etapa_atual_idx]
-                        self.lap_limit = etapa.get("voltas", 3)
-                        self.posicao_jogador = self.posicao_qualificada
-                        arq_pista = os.path.splitext(os.path.basename(etapa["arquivo"]))[0]
-                        self.iniciar_corrida(arq_pista, modo_preliminary=False)
-                        self.estado_jogo = "LOADING"
+                        self.abrir_selecao_transmissao("TEMPORADA_RACE")
                         continue
                 else:
                     self.asd_hold_start = None
